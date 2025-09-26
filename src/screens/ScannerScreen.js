@@ -1,36 +1,22 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Pressable,
-} from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { blackColor, whiteColor } from '../constants/Color';
 import Toast from 'react-native-simple-toast';
 import {
   BarcodeScanner,
   EnumScanningMode,
   EnumResultStatus,
 } from 'dynamsoft-capture-vision-react-native';
-import {useFocusEffect} from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 
-const LICENSE =
-  't0090pwAAAI0r6gfXKf9/+1TlyOKvHltxIY6HUawAuEtYEDq119CjLopiCMKT7ZIsOU1vyyb3p8cuk9ynAHwr2qe25A3apbTyJ3qgu2M+V7lOxx8XNXJgfQEddSGn;t0090pwAAAKduXas5JYobS9eKUQVc7caTs3tdhjwNBwJi8vSC6Z2zYsYre0GmxyhLKicUzr9faUZzaJ3BrUqAA+cacKOIPE6eg7/o0kPN40Z1/firohlrtBM0/SHP;t0090pwAAAHaJvcuecK43iD9z0yXOSP+ck6EUbk5bPmpZTLNJairUu8qTd4f8n76oS88ni7lkqUD4nDmma7O494c03GJqg22j3+iCPhuzXKWsjT8K1dV6PQEuyiHG';
+const LICENSE = 't0089pwAAAGhb81iy7n5fl95LSpqqKYmFugxYb0CdzMZSNU22/mifpi6+do3D7oDcPtvfKt5TnmZxUxv9ZEHD476NGNgnZTG+1SWdYDw32dfGX1uxWtzrDUzTImI=;t0089pwAAAG4Nl1WMs7tSfwa4ErLs53Q+2R4dtEegG/i+cOFIrIqT8kXC4oEApNuywNlIJxkkno4ihaS7T4H9WZnZVmh6xss78EWXHmo+G7W18VepotVdT2W/Iow=;t0090pwAAADFvwlIFpw76wSOpv0jkRjunEM+/LF2/TFlVUWufoEax0td4TOlV/jIkmkaCQI13hko7TAXn//xXxz5h94I8BoTs8K1OpQeMZ5dtbvy1FrUSYSdq9yKV';
 
-const ScannerScreen = ({navigation, route}) => {
-  // const fromScreen = route?.params?.from;
+const ScannerScreen = ({ navigation, route }) => {
+  const returnTo = route?.params?.returnTo;
+  const yardId = route?.params?.yardId;
 
-  useFocusEffect(
-    useCallback(() => {
-      scanVinCode();
-    }, []),
-  );
-  // useEffect(() => {
-  //   scanVinCode()
-  // }, [])
-
-  const scanVinCode = async () => {
+  const scanVinCode = useCallback(async () => {
     const config = {
       license: LICENSE,
       scanningMode: EnumScanningMode.SM_SINGLE,
@@ -38,11 +24,8 @@ const ScannerScreen = ({navigation, route}) => {
 
     try {
       const result = await BarcodeScanner.launch(config);
-       console.log("resultresult",result);
-      if (
-        result.resultStatus === EnumResultStatus.RS_FINISHED &&
-        result.barcodes?.length
-      ) {
+
+      if (result.resultStatus === EnumResultStatus.RS_FINISHED && result.barcodes?.length) {
         let fullValue = result.barcodes[0].text || '';
         fullValue = fullValue.toUpperCase().replace(/[IOQ]/g, '');
         const vin = fullValue.substring(0, 17);
@@ -50,16 +33,26 @@ const ScannerScreen = ({navigation, route}) => {
         const vinRegex = /^[A-HJ-NPR-Z0-9]{17}$/;
 
         if (vin && vinRegex.test(vin)) {
-          // if (fromScreen === 'VinList') {
-          //   // navigation.navigate('VinListScreen', { vinNumber: vin });
-          // } else {
-          //   // navigation.navigate('WorkOrderScreenTwo', { vinNumber: vin, isFromScanner: true });
-          // }
+          console.log("vin::", vin);
+          
+          if (returnTo === 'YardDetailScreen') {
+            navigation.navigate('YardDetailScreen', { 
+              vinNumber: vin,
+              yardId: yardId,
+              yardName: route?.params?.yardName,
+              existingVehicles: route?.params?.existingVehicles || [] // Pass existing vehicles
+            });
+          } else {
+            navigation.navigate('YardDetailScreen', { vinNumber: vin });
+          }
         } else {
           Toast.show('Please scan a valid VIN number.');
           navigation.goBack();
         }
-      } else {
+      } else if (result.resultStatus === EnumResultStatus.RS_CANCELED) {
+        console.log("Scanner closed by user");
+      } 
+      else {
         navigation.goBack();
       }
     } catch (error) {
@@ -67,7 +60,13 @@ const ScannerScreen = ({navigation, route}) => {
       Toast.show(error.message || 'Unexpected error occurred');
       navigation.goBack();
     }
-  };
+  }, [navigation, returnTo, yardId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      scanVinCode();
+    }, [scanVinCode])
+  );
 
   return (
     <View style={styles.container}>
@@ -76,10 +75,11 @@ const ScannerScreen = ({navigation, route}) => {
         <Pressable
           onPress={() => navigation.goBack()}
           style={styles.backButton}>
-          <Ionicons name="arrow-back" size={30} color={'#000'} />
+          <Ionicons name="arrow-back" size={30} color={blackColor} />
         </Pressable>
         <Text style={styles.headerTitle}>Scan Vehicle</Text>
       </View>
+      {/* No UI needed since scanner opens immediately */}
     </View>
   );
 };
@@ -87,13 +87,13 @@ const ScannerScreen = ({navigation, route}) => {
 export default ScannerScreen;
 
 const styles = StyleSheet.create({
-  container: {flex: 1, marginTop: 60, backgroundColor: '#fff'},
+  container: { flex: 1, backgroundColor: whiteColor },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
     justifyContent: 'space-between',
   },
-  backButton: {padding: 5},
-  headerTitle: {fontSize: 20, fontWeight: 'bold', color: '#000'},
+  backButton: { padding: 5 },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: blackColor },
 });

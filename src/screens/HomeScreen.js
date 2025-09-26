@@ -77,7 +77,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
         style={[styles.card1, isSelected && styles.selectedCard]}
         onPress={() => {
           setSelectedYard(item?.id),
-            navigation.navigate('YardDetailsScreen', {isSelected: item?.id});
+            navigation.navigate('YardDetailScreen', {yardId: item?.id,yardName:item?.name});
         }}>
         <Text style={[styles.name1, isSelected && styles.selectedText]}>
           {item?.name}
