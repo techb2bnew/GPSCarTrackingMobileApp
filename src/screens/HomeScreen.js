@@ -197,7 +197,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
             zoomIn={true}
             home={true}
           />
-        </View>
+        </View> 
 
         {/* Options Cards */}
         <View style={styles.cardsContainer}>

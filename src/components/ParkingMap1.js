@@ -690,10 +690,12 @@ import {
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
+  Text,
 } from 'react-native';
 import MapView, { Marker, AnimatedRegion } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import Geolocation from '@react-native-community/geolocation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CAR } from '../assests/images';
 // import SENSECAP_AUTH from '../constants/Constants'
 import { io } from "socket.io-client";   // 👈 import socket
@@ -706,6 +708,8 @@ const ParkingMap1 = () => {
   const [initialRegion, setInitialRegion] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [carLocation, setCarLocation] = useState(null);
+  const [lastUpdatedTs, setLastUpdatedTs] = useState(null);
+  const [timeTick, setTimeTick] = useState(0); // rerender timer for "time ago"
   console.log('initialRegioninitialRegion', initialRegion);
 
   // Animated coordinates
@@ -863,6 +867,33 @@ const ParkingMap1 = () => {
   // }, []);
 
   useEffect(() => {
+    // 🔹 Load cached last car location for instant route
+    (async () => {
+      try {
+        const cached = await AsyncStorage.getItem('lastCarLocation');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.coords?.latitude && parsed?.coords?.longitude) {
+            setCarLocation(parsed.coords);
+            if (parsed?.timestamp) {
+              setLastUpdatedTs(parsed.timestamp);
+            }
+            if (!initialRegion) {
+              const region = {
+                latitude: parsed.coords.latitude,
+                longitude: parsed.coords.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              };
+              setInitialRegion(region);
+              animatedCoord.setValue(parsed.coords);
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Cache load error:', e);
+      }
+    })();
     // MQTT client setup
     const client = mqtt.connect("ws://sensecap-openstream.seeed.cc:8083/mqtt", {
       username: "org-449810146246400",
@@ -899,8 +930,12 @@ const ParkingMap1 = () => {
         const longitude = parseFloat(latestLon);
         console.log("📡 MQTT GPS:", latitude, longitude);
 
-        if (!isNaN(latitude) && !isNaN(longitude)) {
-          setCarLocation({ latitude, longitude });
+          if (!isNaN(latitude) && !isNaN(longitude)) {
+          const nextCoords = { latitude, longitude };
+          setCarLocation(nextCoords);
+          // save cache
+          AsyncStorage.setItem('lastCarLocation', JSON.stringify({ coords: nextCoords, timestamp: Date.now() })).catch(()=>{});
+          setLastUpdatedTs(Date.now());
 
           if (!initialRegion) {
             const region = {
@@ -922,6 +957,25 @@ const ParkingMap1 = () => {
       client.end();
     };
   }, []);
+
+  // ⏱️ Update a tick every 30s to refresh the "time ago" label
+  useEffect(() => {
+    const id = setInterval(() => setTimeTick(t => t + 1), 30000);
+    return () => clearInterval(id);
+  }, []);
+
+  const getTimeAgo = (ts) => {
+    if (!ts) return '';
+    const diffMs = Date.now() - ts;
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin === 1) return '1 min ago';
+    if (diffMin < 60) return `${diffMin} mins ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr === 1) return '1 hr ago';
+    return `${diffHr} hrs ago`;
+  };
 
 
   // 🔹 Setup WebSocket for car tracking
@@ -996,9 +1050,35 @@ const ParkingMap1 = () => {
           maximumAge: 10000,
         },
       );
+
+      // 🔁 Live location updates
+      const watchId = Geolocation.watchPosition(
+        pos => {
+          const { latitude, longitude } = pos.coords;
+          setCurrentLocation({ latitude, longitude });
+        },
+        error => {
+          console.log('❌ WatchPosition Error:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          distanceFilter: 1, // meters
+          interval: 2000,
+          fastestInterval: 1000,
+          showsBackgroundLocationIndicator: false,
+        },
+      );
+
+      // cleanup
+      return () => {
+        if (watchId != null) {
+          Geolocation.clearWatch(watchId);
+        }
+      };
     };
 
-    getLocation();
+    const cleanup = getLocation();
+    return cleanup;
   }, []);
 
   if (!initialRegion) {
@@ -1010,45 +1090,69 @@ const ParkingMap1 = () => {
   }
 
   return (
-    <MapView
-      ref={mapRef}
-      mapType="standard"
-      style={styles.map}
-      initialRegion={initialRegion}
-      showsUserLocation={true} 
-    >
-      {/* 🚗 Car Marker */}
-      <Marker.Animated coordinate={animatedCoord}>
-        <Image
-          source={CAR}
-          style={{ height: 40, width: 40 }}
-          resizeMode="contain"
-        />
-      </Marker.Animated>
+    <View style={{ flex: 1 }}>
+      <MapView
+        ref={mapRef}
+        mapType="standard"
+        style={styles.map}
+        initialRegion={initialRegion}
+        showsUserLocation={true}
+      >
+        {/* 🚗 Car Marker */}
+        <Marker.Animated coordinate={animatedCoord}>
+          <Image
+            source={CAR}
+            style={{ height: 40, width: 40 }}
+            resizeMode="contain"
+          />
+        </Marker.Animated>
 
-      {/* 📍 Directions from user → car */}
-      {currentLocation && carLocation && (
-        <MapViewDirections
-          origin={currentLocation}
-          destination={carLocation}
-          apikey={GOOGLE_MAPS_APIKEY}
-          strokeWidth={4}
-          strokeColor="red"
-          onReady={result => {
-            mapRef.current.fitToCoordinates(result.coordinates, {
-              edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-              animated: true,
-            });
-          }}
-        />
+        {/* 📍 Directions from user → car */}
+        {currentLocation && carLocation && (
+          <MapViewDirections
+            origin={currentLocation}
+            destination={carLocation}
+            apikey={GOOGLE_MAPS_APIKEY}
+            strokeWidth={4}
+            strokeColor="red"
+            resetOnChange={true}
+            onReady={result => {
+              mapRef.current.fitToCoordinates(result.coordinates, {
+                edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+                animated: true,
+              });
+            }}
+          />
+        )}
+      </MapView>
+
+      {/* 🕒 Last updated badge */}
+      {lastUpdatedTs && (
+        <View style={styles.lastUpdatedBox}>
+          <Text style={styles.lastUpdatedText}>Last updated: {getTimeAgo(lastUpdatedTs)}</Text>
+        </View>
       )}
-    </MapView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  lastUpdatedBox: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  lastUpdatedText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
 
 export default ParkingMap1;

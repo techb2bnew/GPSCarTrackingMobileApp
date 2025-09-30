@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,51 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons'; // vector-icons
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {vinList} from '../constants/Constants';
 import {heightPercentageToDP} from '../utils';
 
 const SearchScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
   const [filteredData, setFilteredData] = useState([]);
+  const [allVehicles, setAllVehicles] = useState([]);
+
+  // Load all vehicles from AsyncStorage
+  const loadAllVehicles = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      
+      let allVehiclesData = [];
+      
+      for (const key of yardKeys) {
+        const vehicles = await AsyncStorage.getItem(key);
+        if (vehicles) {
+          const parsedVehicles = JSON.parse(vehicles);
+          // Extract yard ID from key (yard_1_vehicles -> 1)
+          const yardId = key.replace('yard_', '').replace('_vehicles', '');
+          
+          // Add yard information to each vehicle
+          const vehiclesWithYard = parsedVehicles.map(vehicle => ({
+            ...vehicle,
+            yardId: yardId,
+            parkingYard: `Yard ${yardId}` // You can customize this based on your yard names
+          }));
+          
+          allVehiclesData = [...allVehiclesData, ...vehiclesWithYard];
+        }
+      }
+      
+      setAllVehicles(allVehiclesData);
+    } catch (error) {
+      console.error('Error loading vehicles from storage:', error);
+    }
+  };
+
+  // Load vehicles on component mount
+  useEffect(() => {
+    loadAllVehicles();
+  }, []);
 
   const handleSearch = text => {
     setSearchText(text);
@@ -22,7 +61,21 @@ const SearchScreen = ({navigation}) => {
     if (text.trim() === '') {
       setFilteredData([]); // blank hone par list clear
     } else {
-      const newData = vinList?.filter(item => {
+      // Search in AsyncStorage data first
+      const asyncStorageData = allVehicles?.filter(item => {
+        const lowerText = text.toLowerCase();
+        return (
+          item.vin?.toLowerCase().includes(lowerText) ||
+          item.make?.toLowerCase().includes(lowerText) ||
+          item.model?.toLowerCase().includes(lowerText) ||
+          item.year?.toString().includes(lowerText) ||
+          item.parkingYard?.toString().includes(lowerText) ||
+          item.chipId?.toLowerCase().includes(lowerText)
+        );
+      });
+
+      // Also search in VIN list as fallback
+      const vinListData = vinList?.filter(item => {
         const lowerText = text.toLowerCase();
         return (
           item.vin.toLowerCase().includes(lowerText) ||
@@ -32,7 +85,16 @@ const SearchScreen = ({navigation}) => {
           item.parkingYard.toString().includes(lowerText)
         );
       });
-      setFilteredData(newData);
+
+      // Combine both results, prioritizing AsyncStorage data
+      const combinedData = [...asyncStorageData, ...vinListData];
+      
+      // Remove duplicates based on VIN
+      const uniqueData = combinedData.filter((item, index, self) => 
+        index === self.findIndex(t => t.vin === item.vin)
+      );
+      
+      setFilteredData(uniqueData);
     }
   };
 
@@ -40,13 +102,23 @@ const SearchScreen = ({navigation}) => {
     <TouchableOpacity
       style={styles.card}
       onPress={() =>
-        navigation.navigate('YardDetailsScreen', {selectedVin: item})
+        navigation.navigate('YardDetailScreen', {
+          yardId: item.yardId,
+          yardName: item.parkingYard,
+          selectedVin: item
+        })
       }>
       <Text style={styles.vin}>{item.vin}</Text>
-      <Text>
+      <Text style={styles.vehicleInfo}>
         {item.year} - {item.make} {item.model}
       </Text>
-      <Text>Parking Yard: {item.parkingYard}</Text>
+      <Text style={styles.yardInfo}>Parking Yard: {item.parkingYard}</Text>
+      {item.chipId && (
+        <Text style={styles.chipInfo}>Chip ID: {item.chipId}</Text>
+      )}
+      {item.isActive && (
+        <Text style={styles.statusInfo}>Status: Active</Text>
+      )}
     </TouchableOpacity>
   );
 
@@ -66,7 +138,7 @@ const SearchScreen = ({navigation}) => {
         <Icon name="search" size={22} color="#555" style={{marginRight: 8}} />
         <TextInput
           style={styles.input}
-          placeholder="Search VIN, Make, Model, Year..."
+          placeholder="Search VIN, Make, Model, Year, Chip ID..."
           value={searchText}
           onChangeText={handleSearch}
         />
@@ -146,6 +218,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
     marginBottom: 4,
+    color: '#333',
+  },
+  vehicleInfo: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  yardInfo: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  chipInfo: {
+    fontSize: 12,
+    color: '#28a745',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  statusInfo: {
+    fontSize: 12,
+    color: '#007bff',
+    fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',

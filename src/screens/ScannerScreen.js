@@ -10,8 +10,7 @@ import {
 } from 'dynamsoft-capture-vision-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-const LICENSE = 't0089pwAAAGhb81iy7n5fl95LSpqqKYmFugxYb0CdzMZSNU22/mifpi6+do3D7oDcPtvfKt5TnmZxUxv9ZEHD476NGNgnZTG+1SWdYDw32dfGX1uxWtzrDUzTImI=;t0089pwAAAG4Nl1WMs7tSfwa4ErLs53Q+2R4dtEegG/i+cOFIrIqT8kXC4oEApNuywNlIJxkkno4ihaS7T4H9WZnZVmh6xss78EWXHmo+G7W18VepotVdT2W/Iow=;t0090pwAAADFvwlIFpw76wSOpv0jkRjunEM+/LF2/TFlVUWufoEax0td4TOlV/jIkmkaCQI13hko7TAXn//xXxz5h94I8BoTs8K1OpQeMZ5dtbvy1FrUSYSdq9yKV';
-
+const LICENSE = 't0105HAEAADcNHV64OJlipcqCx3exOR+gSUqL7YqPqsz7SETM98L2Lvx6wS622L8kpqIvn+Jy7Y7dR1SpS4fQIOlJgnXwUlXbAF3cfFzzoBne6J2Tas81yMvxzdMpCv+dSl9nXy279wYdTDrk;t0109HAEAAJRt4MPEuaQhDlCa6yhda0j07Z/FYbFCd65Ty9mXDgoozD8MgTXwcxZlT+cz8Keo0zcHr2z3xne26lirx+S2TPkgLgCnAYbYvK+paIY7esaO4fu5Bfl3PHN1isx7p/zpHJvJbPQNKuw68w=='
 const ScannerScreen = ({ navigation, route }) => {
   const returnTo = route?.params?.returnTo;
   const yardId = route?.params?.yardId;
