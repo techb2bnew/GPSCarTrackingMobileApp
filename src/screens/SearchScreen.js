@@ -24,6 +24,13 @@ const SearchScreen = ({navigation}) => {
       const keys = await AsyncStorage.getAllKeys();
       const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
       
+      // Get all yards data for name lookup
+      const savedYards = await AsyncStorage.getItem('parking_yards');
+      let yardsData = [];
+      if (savedYards) {
+        yardsData = JSON.parse(savedYards);
+      }
+      
       let allVehiclesData = [];
       
       for (const key of yardKeys) {
@@ -33,11 +40,15 @@ const SearchScreen = ({navigation}) => {
           // Extract yard ID from key (yard_1_vehicles -> 1)
           const yardId = key.replace('yard_', '').replace('_vehicles', '');
           
+          // Find actual yard name
+          const yard = yardsData.find(y => y.id === yardId);
+          const actualYardName = yard ? yard.name : `Yard ${yardId}`;
+          
           // Add yard information to each vehicle
           const vehiclesWithYard = parsedVehicles.map(vehicle => ({
             ...vehicle,
             yardId: yardId,
-            parkingYard: `Yard ${yardId}` // You can customize this based on your yard names
+            parkingYard: actualYardName // Use actual yard name
           }));
           
           allVehiclesData = [...allVehiclesData, ...vehiclesWithYard];

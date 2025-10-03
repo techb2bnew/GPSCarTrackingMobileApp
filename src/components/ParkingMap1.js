@@ -1028,6 +1028,8 @@ const ParkingMap1 = () => {
 
   // 🔹 Get current device location
   useEffect(() => {
+    let watchId = null;
+
     const getLocation = async () => {
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
@@ -1052,7 +1054,7 @@ const ParkingMap1 = () => {
       );
 
       // 🔁 Live location updates
-      const watchId = Geolocation.watchPosition(
+      watchId = Geolocation.watchPosition(
         pos => {
           const { latitude, longitude } = pos.coords;
           setCurrentLocation({ latitude, longitude });
@@ -1068,17 +1070,16 @@ const ParkingMap1 = () => {
           showsBackgroundLocationIndicator: false,
         },
       );
-
-      // cleanup
-      return () => {
-        if (watchId != null) {
-          Geolocation.clearWatch(watchId);
-        }
-      };
     };
 
-    const cleanup = getLocation();
-    return cleanup;
+    getLocation();
+
+    // cleanup
+    return () => {
+      if (watchId != null) {
+        Geolocation.clearWatch(watchId);
+      }
+    };
   }, []);
 
   if (!initialRegion) {

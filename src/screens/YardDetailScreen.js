@@ -32,7 +32,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   const [showVinModal, setShowVinModal] = useState(false);
   const [scannedVinData, setScannedVinData] = useState(null);
   const [isScanningChip, setIsScanningChip] = useState(false);
-  const { yardId, yardName } = route?.params || {};
+  const { yardId, yardName, fromScreen } = route?.params || {};
 
   // Get yard name from parkingYards
   const currentYard = parkingYards.find(yard => yard?.id === yardId);
@@ -40,6 +40,17 @@ const YardDetailScreen = ({ navigation, route }) => {
 
   // Local storage key for this yard
   const storageKey = `yard_${yardId}_vehicles`;
+
+  // Handle back navigation based on source screen
+  const handleBackNavigation = () => {
+    if (fromScreen === 'ScannerScreen') {
+      // If coming from ScannerScreen, switch to Home tab
+      navigation.getParent()?.getParent()?.navigate('Home');
+    } else {
+      // Otherwise use normal back navigation
+      navigation.goBack();
+    }
+  };
 
   // Load vehicles from local storage
   const loadVehiclesFromStorage = async () => {
@@ -389,7 +400,7 @@ const YardDetailScreen = ({ navigation, route }) => {
     <View style={styles.container}>
       <View style={[styles.header, flexDirectionRow, alignItemsCenter]}>
         <TouchableOpacity
-          onPress={() => navigation.navigate('HomeScreen')}
+          onPress={handleBackNavigation}
           style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color="#000" />
         </TouchableOpacity>

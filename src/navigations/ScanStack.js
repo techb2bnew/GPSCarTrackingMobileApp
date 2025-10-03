@@ -6,6 +6,7 @@ import ParkingHistory from '../screens/ParkingHistory';
 import NotificationScreen from '../screens/NotificationScreen';
 import ValidIDScreen from '../screens/ValidIDScreen';
 import EditConnection from '../screens/EditConnection';
+import YardDetailScreen from '../screens/YardDetailScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -46,7 +47,7 @@ export default function ScanStack() {
           },
         }} />
         <Stack.Screen name="ValidIDScreen" component={ValidIDScreen} />
-
+        <Stack.Screen name="YardDetailScreen" component={YardDetailScreen} />
 
     </Stack.Navigator>
   );
