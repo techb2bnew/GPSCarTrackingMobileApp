@@ -45,7 +45,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   const handleBackNavigation = () => {
     if (fromScreen === 'ScannerScreen') {
       // If coming from ScannerScreen, switch to Home tab
-      navigation.getParent()?.getParent()?.navigate('Home');
+      navigation.navigate('HomeScreen');
     } else {
       // Otherwise use normal back navigation
       navigation.goBack();
@@ -317,12 +317,17 @@ const YardDetailScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const renderNoVehicles = () => (
+const renderNoVehicles = () => {
+  // First letter capital
+  const formattedYardName =
+    displayYardName?.charAt(0).toUpperCase() + displayYardName?.slice(1);
+
+  return (
     <View style={[styles.noVehicleContainer, alignJustifyCenter]}>
       <Ionicons name="car-outline" size={80} color="#ccc" />
       <Text style={styles.noVehicleText}>No Vehicles Found</Text>
       <Text style={[styles.noVehicleSubtext, textAlign]}>
-        This yard "{displayYardName}" has no vehicles
+        This yard "{formattedYardName}" has no vehicles
       </Text>
       <CustomButton
         title="Add Vehicle"
@@ -331,6 +336,8 @@ const YardDetailScreen = ({ navigation, route }) => {
       />
     </View>
   );
+};
+
 
   const renderSearchBar = () => (
     <View style={styles.searchContainer}>

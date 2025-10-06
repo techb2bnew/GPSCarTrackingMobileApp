@@ -1,12 +1,12 @@
-import React, {useState, useEffect} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, FlatList} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, FlatList } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {widthPercentageToDP} from '../utils';
+import { widthPercentageToDP } from '../utils';
 import AnimatedLottieView from 'lottie-react-native';
 import BleTesting from '../components/BleTesting';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function ScanScreen({navigation, route}) {
+export default function ScanScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
@@ -34,7 +34,7 @@ export default function ScanScreen({navigation, route}) {
     try {
       const savedYards = await AsyncStorage.getItem('parking_yards');
       console.log('savedYards>>', savedYards);
-      
+
       if (savedYards) {
         const yards = JSON.parse(savedYards);
         const yard = yards.find(y => y.id === yardId);
@@ -52,22 +52,22 @@ export default function ScanScreen({navigation, route}) {
     if (route?.params?.foundVehicle && route?.params?.foundYardName) {
       console.log('route.params.foundVehicle>>', route.params.foundVehicle);
       console.log('route.params.foundYardName>>', route.params.foundYardName);
-      
+
       setFoundVehicle(route.params.foundVehicle);
       setFoundYardName(route.params.foundYardName);
       setShowDetailModal(true);
-      
+
       // Get actual yard name from yardId
       if (route.params.foundVehicle?.yardId) {
         getActualYardName(route.params.foundVehicle.yardId).then(name => {
           setActualYardName(name);
         });
       }
-      
+
       // Clear the params so the modal doesn't show again
       navigation.setParams({ foundVehicle: null, foundYardName: null });
     }
-    
+
     // Check if we're returning from ScannerScreen with not found data
     if (route?.params?.notFoundData) {
       setNotFoundData(route.params.notFoundData);
@@ -89,7 +89,7 @@ export default function ScanScreen({navigation, route}) {
     <View style={styles.container}>
 
       {/* <BleTesting/> */}
-       <Text style={styles.title}>Scan Options</Text> 
+      <Text style={styles.title}>Scan Options</Text>
 
       <TouchableOpacity
         style={styles.button}
@@ -104,8 +104,8 @@ export default function ScanScreen({navigation, route}) {
         <Text style={styles.buttonText}>Scan VIN</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        style={styles.button} 
+      <TouchableOpacity
+        style={styles.button}
         onPress={() => navigation.navigate('ScannerScreen', { scanType: 'chip' })}
       >
         <Ionicons name="barcode" size={24} color="white" style={styles.icon} />
@@ -120,7 +120,7 @@ export default function ScanScreen({navigation, route}) {
                 source={require('../assets/scan.json')}
                 autoPlay
                 loop
-                style={{width: 180, height: 300}}
+                style={{ width: 180, height: 300 }}
               />
             </>
           </View>
@@ -173,7 +173,7 @@ export default function ScanScreen({navigation, route}) {
                   <Ionicons name="hardware-chip" size={24} color="#28a745" />
                   <View style={styles.detailTextContainer}>
                     <Text style={styles.detailLabel}>Chip ID</Text>
-                    <Text style={[styles.detailValue, {color: '#28a745'}]}>{foundVehicle?.chipId}</Text>
+                    <Text style={[styles.detailValue, { color: '#28a745' }]}>{foundVehicle?.chipId}</Text>
                   </View>
                 </View>
               )}
@@ -191,7 +191,7 @@ export default function ScanScreen({navigation, route}) {
                   <Ionicons name="checkmark-circle" size={24} color="#28a745" />
                   <View style={styles.detailTextContainer}>
                     <Text style={styles.detailLabel}>Status</Text>
-                    <Text style={[styles.detailValue, {color: '#28a745'}]}>Active</Text>
+                    <Text style={[styles.detailValue, { color: '#28a745' }]}>Active</Text>
                   </View>
                 </View>
               )}
@@ -216,29 +216,26 @@ export default function ScanScreen({navigation, route}) {
         <View style={styles.notFoundModalOverlay}>
           <View style={styles.notFoundModalContent}>
             <View style={styles.notFoundModalHeader}>
-              <Ionicons name="search" size={40} color="#ff6b6b" />
-              <Text style={styles.notFoundModalTitle}>Not Found</Text>
-              <Pressable onPress={() => {
-                setShowNotFoundModal(false);
-                setNotFoundData(null);
-              }}>
-                <Ionicons name="close" size={28} color="#666" />
-              </Pressable>
+              <Text style={styles.notFoundQuestion}>
+                {notFoundData?.type === 'vin'
+                  ? 'This VIN number is not found in any parking yard.'
+                  : 'This tracker chip is not found in any parking yard.'
+                }
+              </Text>
+
             </View>
 
             <View style={styles.notFoundContent}>
               <Text style={styles.notFoundText}>
-                {notFoundData?.type === 'vin' 
-                  ? 'This VIN number is not added to any yard yet.'
-                  : 'This chip is not assigned to any vehicle yet.'
-                }
-              </Text>
-              
-              <Text style={styles.notFoundQuestion}>
-                Do you want to add it to a yard?
+                Would you like to add it to a yard?
               </Text>
             </View>
-
+            <Pressable onPress={() => {
+              setShowNotFoundModal(false);
+              setNotFoundData(null);
+            }} style={{ position: 'absolute', top: 10, right: 10 }}>
+              <Ionicons name="close" size={28} color="#666" />
+            </Pressable>
             <View style={styles.notFoundButtons}>
               <Pressable
                 style={[styles.notFoundButton, styles.noButton]}
@@ -248,7 +245,7 @@ export default function ScanScreen({navigation, route}) {
                 }}>
                 <Text style={styles.noButtonText}>No</Text>
               </Pressable>
-              
+
               <Pressable
                 style={[styles.notFoundButton, styles.yesButton]}
                 onPress={async () => {
@@ -297,7 +294,7 @@ export default function ScanScreen({navigation, route}) {
                         yardName: item.name
                       });
                       // Navigate to YardDetailScreen with selected yard and VIN
-                      navigation.navigate('YardDetailScreen', { 
+                      navigation.navigate('YardDetailScreen', {
                         vinNumber: notFoundData?.scannedValue,
                         yardId: item.id,
                         yardName: item.name,
@@ -354,7 +351,7 @@ const styles = StyleSheet.create({
 
     // Shadow
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 3},
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,

@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
   Modal,
+  Pressable,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -14,15 +15,13 @@ import Animated, {
   useAnimatedStyle,
 } from 'react-native-reanimated';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import AnimationScreen from './AnimationScreen';
 import AnimatedLottieView from 'lottie-react-native';
-import {widthPercentageToDP} from '../utils';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useDispatch} from 'react-redux';
-import {clearUser} from '../redux/userSlice';
-// import AnimationScreen from './AnimationScreen';
+import { heightPercentageToDP, widthPercentageToDP } from '../utils';
+import { useDispatch } from 'react-redux';
+import { clearUser } from '../redux/userSlice';
+import { whiteColor } from '../constants/Color';
 
-const {width, height} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
 
 export default function DrawerMenu({
@@ -41,55 +40,43 @@ export default function DrawerMenu({
     setIsLoggingOut(false);
   };
 
-  // const handleLogout = () => {
-  //   setIsLoggingOut(true);
-  //   // simulate logout delay
-  //   navigation.navigate('AuthStack');
-  //   setShowModal(false);
-  //   setTimeout(() => {
-  //     setShowModal(false);
-  //     // reset isLoggingOut AFTER modal fully closes
-  //     setTimeout(() => {
-  //       setIsLoggingOut(false);
-  //     }, 500); // adjust if needed
-  //     console.log('Logged out successfully');
-
-  //     // Perform actual logout here
-  //   }, 3000);
-  // };
-
   const handleLogout = async () => {
     setIsLoggingOut(true);
-
     try {
-      // await AsyncStorage.removeItem('user');
       dispatch(clearUser());
       console.log('User data removed from AsyncStorage');
-      // setCheckUser(null);
     } catch (error) {
       console.error('Error clearing user data:', error);
     }
     setShowModal(false);
-    // navigation.navigate('AuthStack');
-    setTimeout(() => {
-      setIsLoggingOut(false);
-    }, 500);
+    setTimeout(() => setIsLoggingOut(false), 500);
   };
 
+  // Drawer slide animation
   const translateX = useSharedValue(-DRAWER_WIDTH);
 
   useEffect(() => {
-    translateX.value = withTiming(isOpen ? 0 : -DRAWER_WIDTH, {duration: 400});
+    translateX.value = withTiming(isOpen ? 0 : -DRAWER_WIDTH, { duration: 400 });
   }, [isOpen]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{translateX: translateX.value}],
+    transform: [{ translateX: translateX.value }],
   }));
 
   return (
-    <Animated.View style={[styles.drawer, animatedStyle]}>
+    <Animated.View
+      style={[styles.drawer, animatedStyle]}
+      // prevent touches from bubbling to any parent/backdrop that might fade
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => false}
+      onResponderTerminationRequest={() => false}
+    >
       {/* Close button */}
-      <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+      <TouchableOpacity
+        onPress={onClose}
+        style={styles.closeButton}
+        activeOpacity={1}
+      >
         <Ionicons name="close" size={28} color="black" />
       </TouchableOpacity>
 
@@ -107,68 +94,84 @@ export default function DrawerMenu({
       {/* Menu items */}
       <View style={styles.menuItems}>
         {[
-          {label: 'Facility History', icon: 'time'},
-          {label: 'How it works', icon: 'information-circle'},
-          {label: 'Support', icon: 'help-circle'},
-          {label: 'Settings', icon: 'settings'},
+          { label: 'Facility History', icon: 'time', nav: 'ActivityHistoryScreen' },
+          { label: 'How it works', icon: 'information-circle' },
+          { label: 'Support', icon: 'help-circle' },
+          { label: 'Settings', icon: 'settings' },
         ].map((item, idx) => (
-          <TouchableOpacity
-            onPress={() => {
-              if (item.label === 'Facility History') {
-                navigation.navigate('ActivityHistoryScreen');
-              }
-              // add other navigation if needed
-            }}
-            key={idx}
-            style={styles.menuItem}>
-            <Ionicons
-              name={item.icon}
-              size={20}
-              color="black"
-              style={{marginRight: 10}}
-            />
-            <Text>{item.label}</Text>
-          </TouchableOpacity>
+          // OUTER ROW is a plain View => empty area is NOT clickable
+          <View key={idx} style={styles.menuItem}>
+            {/* Only this compact area is touchable (no fade) */}
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.menuTap}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              onPress={() => {
+                if (item.nav) navigation?.navigate(item.nav);
+                onClose(); // if you want to close after navigation
+              }}
+            >
+              <Ionicons
+                name={item.icon}
+                size={20}
+                color="black"
+                style={{ marginRight: 10 }}
+              />
+              <Text>{item.label}</Text>
+            </TouchableOpacity>
+          </View>
         ))}
       </View>
 
-      {/* Logout */}
-      <TouchableOpacity style={styles.logout} onPress={handleOpenLogoutModal}>
-        <Ionicons
-          name="log-out-outline"
-          size={20}
-          color="#613EEA"
-          style={{marginRight: 10}}
-        />
-        <Text style={{color: '#613EEA'}}>Logout</Text>
-      </TouchableOpacity>
+      {/* Logout (same compact tap) */}
+      <View style={styles.logout}>
+        <TouchableOpacity
+          style={styles.menuTap}
+          onPress={handleOpenLogoutModal}
+          activeOpacity={1}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={20}
+            color="#613EEA"
+            style={{ marginRight: 10 }}
+          />
+          <Text style={{ color: '#613EEA' }}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Modal (unchanged look) */}
       <Modal visible={showModal} transparent animationType="fade">
         <View style={styles.modalContainer}>
+          {/* Use Pressable for backdrop tap (never TouchableOpacity here) */}
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowModal(false)} />
           <View style={styles.modalContent}>
-            <>
-              <AnimatedLottieView
-                source={require('../assets/logout.json')}
-                autoPlay
-                loop
-                style={{width: 180, height: 180}}
-              />
-            </>
-            <>
-              <Text style={{fontSize: 16, marginBottom: 20}}>
-                Are you sure you want to log out?
-              </Text>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.button} onPress={handleLogout}>
-                  <Text style={{color: 'white'}}>Yes</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.button, {backgroundColor: 'grey'}]}
-                  onPress={() => setShowModal(false)}>
-                  <Text style={{color: 'white'}}>No</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-            {/* )} */}
+            <AnimatedLottieView
+              source={require('../assets/logout.json')}
+              autoPlay
+              loop
+              style={{ width: 180, height: 180 }}
+            />
+            <Text style={{ fontSize: 16, marginBottom: 20 }}>
+              Are you sure you want to log out?
+            </Text>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleLogout}
+                activeOpacity={1}
+              >
+                <Text style={{ color: 'white' }}>Yes</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: 'grey' }]}
+                onPress={() => setShowModal(false)}
+                activeOpacity={1}
+              >
+                <Text style={{ color: 'white' }}>No</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -179,51 +182,50 @@ export default function DrawerMenu({
 const styles = StyleSheet.create({
   drawer: {
     position: 'absolute',
-    top: -50,
+    top: 0,
     bottom: 0,
-    left: -20,
+    left: 0,
     width: DRAWER_WIDTH,
-    backgroundColor: 'white',
+    backgroundColor: whiteColor,
     borderTopRightRadius: 30,
     borderBottomRightRadius: 30,
     paddingTop: 50,
     paddingHorizontal: 20,
     zIndex: 999999999,
-    elevation: 10,
-    height: 780,
+    elevation: 12,
+    height: heightPercentageToDP(100),
   },
-  closeButton: {
-    alignSelf: 'flex-start',
-  },
-  profileContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  avatar: {
-    height: 80,
-    width: 80,
-    borderRadius: 40,
-  },
-  name: {
-    marginTop: 10,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  menuItems: {
-    marginTop: 30,
-  },
+  closeButton: { alignSelf: 'flex-start' },
+
+  profileContainer: { alignItems: 'center', marginVertical: 20 },
+  avatar: { height: 80, width: 80, borderRadius: 40, backgroundColor: '#eee' },
+  name: { marginTop: 10, fontWeight: 'bold', fontSize: 16 },
+
+  menuItems: { marginTop: 30 },
+
+  // OUTER row is NOT touchable
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: 12,
   },
-  logout: {
+
+  // ONLY this compact area is touchable
+  menuTap: {
     flexDirection: 'row',
-    marginTop: 300,
     alignItems: 'center',
-    alignSelf: 'baseline',
+    alignSelf: 'flex-start', // so tap area is just content width
   },
 
+  logout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'baseline',
+    position: 'absolute',
+    bottom: heightPercentageToDP(4),
+    left: 20,
+  },
+  // Modal
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -251,5 +253,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-
-// export default  DrawerMenu;

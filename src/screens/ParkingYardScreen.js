@@ -138,7 +138,7 @@
 // });
 
 // export default ParkingYardScreen;
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -158,15 +158,15 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
-import {parkingYards} from '../constants/Constants';
+import { parkingYards } from '../constants/Constants';
 import useFacilityFetch from '../hooks/useFacilityFetch';
-import {heightPercentageToDP} from '../utils';
+import { heightPercentageToDP } from '../utils';
 import { redColor } from '../constants/Color';
 
-const ParkingYardScreen = ({navigation}) => {
+const ParkingYardScreen = ({ navigation }) => {
   const [selectedYard, setSelectedYard] = useState(null);
   const [searchText, setSearchText] = useState('');
-  
+
   // Dynamic yards state
   const [yards, setYards] = useState([]);
   const [filteredYards, setFilteredYards] = useState([]);
@@ -174,7 +174,7 @@ const ParkingYardScreen = ({navigation}) => {
   const [yardName, setYardName] = useState('');
   const [yardSlots, setYardSlots] = useState('');
   const [yardAddress, setYardAddress] = useState('');
-  
+
   // Validation errors
   const [errors, setErrors] = useState({
     yardName: '',
@@ -223,7 +223,7 @@ const ParkingYardScreen = ({navigation}) => {
 
   // Clear specific error
   const clearError = (field) => {
-    setErrors(prev => ({...prev, [field]: ''}));
+    setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   // Clear form data
@@ -231,7 +231,7 @@ const ParkingYardScreen = ({navigation}) => {
     setYardName('');
     setYardSlots('');
     setYardAddress('');
-    setErrors({yardName: '', yardSlots: '', yardAddress: ''});
+    setErrors({ yardName: '', yardSlots: '', yardAddress: '' });
   };
 
   // Validate form
@@ -272,7 +272,7 @@ const ParkingYardScreen = ({navigation}) => {
     }
 
     const newId = Date.now().toString();
-    
+
     const newYard = {
       id: newId,
       name: yardName,
@@ -291,18 +291,20 @@ const ParkingYardScreen = ({navigation}) => {
     Toast.show('✅ Yard added successfully!', Toast.LONG);
   };
 
-  const renderItem = ({item}) => {
+  const renderItem = ({ item }) => {
     const isSelected = item?.id === selectedYard;
+    const displayName =
+      item?.name?.charAt(0).toUpperCase() + item?.name?.slice(1);
 
     return (
       <TouchableOpacity
         style={[styles.card, isSelected && styles.selectedCard]}
         onPress={() => {
           setSelectedYard(item?.id),
-            navigation.navigate('YardDetailsScreen', {isSelected: item?.id});
+            navigation.navigate('YardDetailsScreen', { isSelected: item?.id });
         }}>
         <Text style={[styles.name, isSelected && styles.selectedText]}>
-          {item?.name}
+          {displayName}
         </Text>
         <Text style={[styles.address, isSelected && styles.selectedText]}>
           {item?.address}
@@ -312,8 +314,8 @@ const ParkingYardScreen = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={{flex: 1}}>
-      <ImageBackground style={{flex: 1}} resizeMode="cover">
+    <SafeAreaView style={{ flex: 1 }}>
+      <ImageBackground style={{ flex: 1 }} resizeMode="cover">
         <View style={styles.container}>
           <View style={styles.headerContainer}>
             <View style={styles.headerLeft}>
@@ -322,7 +324,7 @@ const ParkingYardScreen = ({navigation}) => {
               </TouchableOpacity>
               <Text style={styles.title}>Parking Yards</Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addButton}
               onPress={() => setShowAddYardModal(true)}
             >
@@ -389,7 +391,7 @@ const ParkingYardScreen = ({navigation}) => {
           >
             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
               <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback onPress={() => {}}>
+                <TouchableWithoutFeedback onPress={() => { }}>
                   <View style={styles.modalContent}>
                     <View style={styles.modalHeader}>
                       <Text style={styles.modalTitle}>Add New Parking Yard</Text>
@@ -402,7 +404,7 @@ const ParkingYardScreen = ({navigation}) => {
                       </TouchableOpacity>
                     </View>
 
-                    <ScrollView 
+                    <ScrollView
                       style={styles.formContainer}
                       keyboardShouldPersistTaps="handled"
                       showsVerticalScrollIndicator={false}
@@ -481,8 +483,8 @@ const ParkingYardScreen = ({navigation}) => {
                         <Icon name="checkmark-circle" size={24} color="#fff" />
                         <Text style={styles.submitButtonText}>Add Yard</Text>
                       </TouchableOpacity>
-                      
-                      <View style={{height: 20}} />
+
+                      <View style={{ height: 20 }} />
                     </ScrollView>
                   </View>
                 </TouchableWithoutFeedback>

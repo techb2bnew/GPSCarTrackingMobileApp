@@ -1,4 +1,4 @@
-import React, {useState, useRef} from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,11 @@ import {
   Modal,
 } from 'react-native';
 import OTPTextInput from 'react-native-otp-textinput';
-import {useNavigation} from '@react-navigation/native';
-import {FORGOT_1, FORGOT_2} from '../assests/images';
+import { useNavigation } from '@react-navigation/native';
+import { FORGOT_1, FORGOT_2 } from '../assests/images';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AnimatedLottieView from 'lottie-react-native';
-import {widthPercentageToDP} from '../utils';
+import { widthPercentageToDP } from '../utils';
 
 const ForgetPasswordFlow = () => {
   const navigation = useNavigation();
@@ -28,38 +28,79 @@ const ForgetPasswordFlow = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  
-    const handleOpen = () => {
-      setShowModal(true);
-  
-      setTimeout(() => {
-        navigation.navigate('Login');
-        setShowModal(false);
-      }, 2000);
-    };
+  const [emailError, setEmailError] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
+
+  const clearErrors = () => {
+    setEmailError('');
+    setOtpError('');
+    setPasswordError('');
+    setConfirmPasswordError('');
+    setGeneralError('');
+  };
+
+  const handleOpen = () => {
+    setShowModal(true);
+
+    setTimeout(() => {
+      navigation.navigate('Login');
+      setShowModal(false);
+    }, 2000);
+  };
 
   const handleContinue = () => {
+    clearErrors();
     if (!emailOrPhone) {
-      alert('Please enter email or phone');
+      setEmailError('Please enter email or phone number');
       return;
     }
+
+    // Basic email/phone validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^[0-9]{10}$/;
+
+    if (!emailRegex.test(emailOrPhone) && !phoneRegex.test(emailOrPhone.replace(/\D/g, ''))) {
+      setEmailError('Please enter a valid email or phone number');
+      return;
+    }
+
     setStep(2);
   };
 
   const handleOtpSubmit = () => {
+    clearErrors();
     if (otp.length < 4) {
-      alert('Please enter full OTP');
+      setOtpError('Please enter full OTP');
       return;
     }
     setStep(3);
   };
 
   const handleReset = () => {
-    if (!password || !confirmPassword) {
-      alert('Please fill both fields');
+    clearErrors();
+    if (!password) {
+      setPasswordError('Please enter new password');
       return;
     }
-     setShowModal(true);
+
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return;
+    }
+
+    if (!confirmPassword) {
+      setConfirmPasswordError('Please confirm your password');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+      return;
+    }
+    setShowModal(true);
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
@@ -90,9 +131,20 @@ const ForgetPasswordFlow = () => {
           <TextInput
             placeholder="Email ID/ Mobile Number"
             value={emailOrPhone}
-            onChangeText={setEmailOrPhone}
-            style={styles.input}
+            onChangeText={(text) => {
+              setEmailOrPhone(text);
+              if (emailError) clearErrors();
+            }}
+            style={[styles.input, emailError ? styles.inputError : null]}
           />
+          {emailError ? (
+            <Text style={styles.fieldErrorText}>{emailError}</Text>
+          ) : null}
+          {generalError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{generalError}</Text>
+            </View>
+          ) : null}
           <TouchableOpacity style={styles.button} onPress={handleContinue}>
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
@@ -109,13 +161,26 @@ const ForgetPasswordFlow = () => {
           </Text>
           <OTPTextInput
             ref={otpInputRef}
-            handleTextChange={code => setOtp(code)}
+            handleTextChange={code => {
+              setOtp(code);
+              if (otpError) clearErrors();
+            }}
             inputCount={5}
             tintColor="#613EEA"
             offTintColor="#ccc"
-            containerStyle={{marginBottom: 20}}
-            textInputStyle={{borderWidth: 2, borderRadius: 10}}
+            containerStyle={{ marginBottom: 20 }}
+            textInputStyle={{ borderWidth: 2, borderRadius: 10 }}
           />
+          {otpError ? (
+            <Text style={styles.fieldErrorText}>{otpError}</Text>
+          ) : null}
+
+          {generalError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{generalError}</Text>
+            </View>
+          ) : null}
+          
           <TouchableOpacity style={styles.button} onPress={handleOtpSubmit}>
             <Text style={styles.buttonText}>Reset Password</Text>
           </TouchableOpacity>
@@ -123,7 +188,7 @@ const ForgetPasswordFlow = () => {
             style={styles.signupContainer}
             onPress={() => console.log("getotp")}>
             <Text style={styles.signupText}>
-             Didn’t get OTP?{' '}
+              Didn’t get OTP?{' '}
               <Text style={styles.signupLink}>Resend OTP</Text>
             </Text>
           </TouchableOpacity>
@@ -150,12 +215,15 @@ const ForgetPasswordFlow = () => {
             style={styles.input}
           /> */}
 
-          <View style={styles.passwordContainer}>
+          <View style={[styles.passwordContainer, passwordError ? styles.passwordContainerError : null]}>
             <TextInput
               placeholder="New Password"
               secureTextEntry={!showPassword}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) clearErrors();
+              }}
               style={styles.inputPassword}
             />
             <TouchableOpacity
@@ -168,13 +236,19 @@ const ForgetPasswordFlow = () => {
               />
             </TouchableOpacity>
           </View>
+          {passwordError ? (
+            <Text style={styles.fieldErrorText}>{passwordError}</Text>
+          ) : null}
 
-          <View style={styles.passwordContainer}>
+          <View style={[styles.passwordContainer, confirmPasswordError ? styles.passwordContainerError : null]}>
             <TextInput
               placeholder="Confirm Password"
               secureTextEntry={!showConfirmPassword}
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (confirmPasswordError) clearErrors();
+              }}
               style={styles.inputPassword}
             />
             <TouchableOpacity
@@ -187,6 +261,15 @@ const ForgetPasswordFlow = () => {
               />
             </TouchableOpacity>
           </View>
+          {confirmPasswordError ? (
+            <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>
+          ) : null}
+
+          {generalError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{generalError}</Text>
+            </View>
+          ) : null}
           <TouchableOpacity style={styles.button} onPress={handleReset}>
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -195,22 +278,22 @@ const ForgetPasswordFlow = () => {
             )}
           </TouchableOpacity>
 
-           <Modal visible={showModal} transparent animationType="fade">
-                  <View style={styles.modalContainer1}>
-                    <View style={styles.modalContent1}>
-                      {/* {isLoggingOut ? ( */}
-                      <>
-                        <AnimatedLottieView
-                          source={require('../assets/successfully.json')}
-                          autoPlay
-                          loop
-                          style={{width: 180, height: 300}}
-                        />
-                      </>
-                      {/* )} */}
-                    </View>
-                  </View>
-                </Modal>
+          <Modal visible={showModal} transparent animationType="fade">
+            <View style={styles.modalContainer1}>
+              <View style={styles.modalContent1}>
+                {/* {isLoggingOut ? ( */}
+                <>
+                  <AnimatedLottieView
+                    source={require('../assets/successfully.json')}
+                    autoPlay
+                    loop
+                    style={{ width: 180, height: 300 }}
+                  />
+                </>
+                {/* )} */}
+              </View>
+            </View>
+          </Modal>
         </>
       )}
     </View>
@@ -224,12 +307,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
   },
-  backButton: {position: 'absolute', top: 60, left: 20, zIndex: 1},
-  image: {width: 100, height: 100, alignSelf: 'center', marginBottom: 20},
-  title: {fontSize: 22, fontWeight: 'bold', textAlign: 'center'},
-  desc: {textAlign: 'center', marginVertical: 20, color: '#666'},
- signupContainer: {
-    alignItems: "flex-start",
+  backButton: { position: 'absolute', top: 60, left: 20, zIndex: 1 },
+  image: { width: 100, height: 100, alignSelf: 'center', marginBottom: 20 },
+  title: { fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
+  desc: { textAlign: 'center', marginVertical: 20, color: '#666' },
+  signupContainer: {
+    alignItems: "center",
     marginTop: 20,
   },
   signupText: {
@@ -246,7 +329,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    marginBottom: 40,
+    marginBottom: 20,
   },
   passwordContainer: {
     height: 45,
@@ -257,16 +340,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 20,
   },
-  inputPassword: {flex: 1, padding: 10},
-  eyeIcon: {paddingHorizontal: 10},
+  inputPassword: { flex: 1, padding: 10 },
+  eyeIcon: { paddingHorizontal: 10 },
   button: {
     backgroundColor: '#613EEA',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
   },
-  buttonText: {color: '#fff', fontSize: 16, fontWeight: 600},
-   modalContainer1: {
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: 600 },
+  modalContainer1: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
@@ -278,6 +361,34 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     width: widthPercentageToDP(80),
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#f44336',
+    borderWidth: 2,
+  },
+  passwordContainerError: {
+    borderColor: '#f44336',
+    borderWidth: 2,
+  },
+  fieldErrorText: {
+    color: '#f44336',
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: 10,
+    marginLeft: 4,
   },
 });
 

@@ -1099,13 +1099,23 @@ const ParkingMap1 = () => {
         initialRegion={initialRegion}
         showsUserLocation={true}
       >
-        {/* 🚗 Car Marker */}
+        {/* 🚗 Car Marker with Tooltip */}
         <Marker.Animated coordinate={animatedCoord}>
-          <Image
-            source={CAR}
-            style={{ height: 40, width: 40 }}
-            resizeMode="contain"
-          />
+          <View style={styles.markerContainer}>
+            {/* Tooltip */}
+            {lastUpdatedTs && (
+              <View style={styles.tooltip}>
+                <Text style={styles.tooltipText}>Last updated: {getTimeAgo(lastUpdatedTs)}</Text>
+                <View style={styles.tooltipArrow} />
+              </View>
+            )}
+            {/* Car Icon */}
+            <Image
+              source={CAR}
+              style={{ height: 40, width: 40 }}
+              resizeMode="contain"
+            />
+          </View>
         </Marker.Animated>
 
         {/* 📍 Directions from user → car */}
@@ -1127,12 +1137,6 @@ const ParkingMap1 = () => {
         )}
       </MapView>
 
-      {/* 🕒 Last updated badge */}
-      {lastUpdatedTs && (
-        <View style={styles.lastUpdatedBox}>
-          <Text style={styles.lastUpdatedText}>Last updated: {getTimeAgo(lastUpdatedTs)}</Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -1140,19 +1144,37 @@ const ParkingMap1 = () => {
 const styles = StyleSheet.create({
   map: { flex: 1 },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  lastUpdatedBox: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  lastUpdatedText: {
+  tooltip: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 5,
+    position: 'relative',
+  },
+  tooltipText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    bottom: -4,
+    left: '50%',
+    marginLeft: -4,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderTopWidth: 4,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: 'rgba(0,0,0,0.8)',
   },
 });
 

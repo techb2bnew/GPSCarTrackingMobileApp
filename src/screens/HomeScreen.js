@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -29,16 +29,17 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DrawerMenu from '../components/DrawerMenu';
 import ParkingMap from '../components/ParkingMap';
-import {parkingYards} from '../constants/Constants';
+import { parkingYards } from '../constants/Constants';
 import {
   heightPercentageToDP,
   heightPercentageToDP as hp,
   widthPercentageToDP,
   widthPercentageToDP as wp,
 } from '../utils';
-import {useFocusEffect} from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import ParkingYardScreen from './ParkingYardScreen';
-import { redColor } from '../constants/Color';
+import { blackColor, blackOpacity5, darkgrayColor, grayColor, redColor, whiteColor } from '../constants/Color';
+import { spacings, style } from '../constants/Fonts';
 
 const cardData = [
   // {
@@ -74,17 +75,17 @@ const cardData = [
     type: 'lowBattery',
   },
 ];
-export default function HomeScreen({navigation, setCheckUser}) {
+export default function HomeScreen({ navigation, setCheckUser }) {
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [selectedYard, setSelectedYard] = useState(null);
-  
+
   // Dynamic yards state
   const [yards, setYards] = useState([]);
   const [showAddYardModal, setShowAddYardModal] = useState(false);
   const [yardName, setYardName] = useState('');
   const [yardSlots, setYardSlots] = useState('');
   const [yardAddress, setYardAddress] = useState('');
-  
+
   // Validation errors
   const [errors, setErrors] = useState({
     yardName: '',
@@ -119,7 +120,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
 
   // Clear specific error
   const clearError = (field) => {
-    setErrors(prev => ({...prev, [field]: ''}));
+    setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   // Clear form data
@@ -127,7 +128,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
     setYardName('');
     setYardSlots('');
     setYardAddress('');
-    setErrors({yardName: '', yardSlots: '', yardAddress: ''});
+    setErrors({ yardName: '', yardSlots: '', yardAddress: '' });
   };
 
   // Validate form
@@ -169,7 +170,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
 
     // Generate unique ID
     const newId = Date.now().toString();
-    
+
     const newYard = {
       id: newId,
       name: yardName,
@@ -189,12 +190,15 @@ export default function HomeScreen({navigation, setCheckUser}) {
     Toast.show('✅ Yard added successfully!', Toast.LONG);
   };
 
-  const renderItem = ({item}) => {
+  const renderItem = ({ item }) => {
     const isSelected = item?.id === selectedYard;
+
+    const displayName =
+      item?.name?.charAt(0).toUpperCase() + item?.name?.slice(1);
 
     return (
       <TouchableOpacity
-        style={[styles.card1, isSelected && styles.selectedCard]}
+        style={[styles.simpleYardCard, isSelected && styles.selectedSimpleCard]}
         onPress={() => {
           setSelectedYard(item?.id),
             navigation.navigate('YardDetailScreen', {
@@ -203,12 +207,27 @@ export default function HomeScreen({navigation, setCheckUser}) {
               fromScreen: 'HomeScreen'
             });
         }}>
-        <Text style={[styles.name1, isSelected && styles.selectedText]}>
-          {item?.name}
-        </Text>
-        <Text style={[styles.address, isSelected && styles.selectedText]}>
-          {item?.address}
-        </Text>
+        <View style={styles.simpleCardContent}>
+          <View style={styles.simpleCardLeft}>
+            <View style={styles.simpleIconContainer}>
+              <Ionicons name="business" size={24} color="#613EEA" />
+            </View>
+            <View style={styles.simpleTextContainer}>
+              <Text style={[styles.simpleYardName, isSelected && styles.selectedText]}>
+                {displayName}
+              </Text>
+              <Text style={[styles.simpleYardAddress, isSelected && styles.selectedText]}>
+                {item?.address}
+              </Text>
+              <Text style={styles.simpleSlotText}>
+                {item?.slots} parking slots
+              </Text>
+            </View>
+          </View>
+          <View style={styles.simpleArrowContainer}>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -216,87 +235,74 @@ export default function HomeScreen({navigation, setCheckUser}) {
     setDrawerOpen(true);
 
     // Hide tab bar when modal opens
-    navigation.getParent()?.setOptions({tabBarStyle: {display: 'none'}});
+    navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
   };
 
   const closeModal = () => {
     setDrawerOpen(false);
 
     // Show tab bar again
-    navigation.getParent()?.setOptions({tabBarStyle: {display: 'flex'}});
+    navigation.getParent()?.setOptions({ tabBarStyle: { display: 'flex' } });
   };
   useFocusEffect(
     React.useCallback(() => {
-      navigation.getParent()?.setOptions({tabBarStyle: {display: 'flex'}});
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'flex' } });
     }, []),
   );
 
   const handleOpenAR = () => {
     // Send static coordinates instead of yard center
     // Static location 500m away in Mohali
-    const target = {latitude:30.713452,  longitude: 76.691131};
-    navigation.navigate('ARNavigationScreen', {target});
+    const target = { latitude: 30.713452, longitude: 76.691131 };
+    navigation.navigate('ARNavigationScreen', { target });
   };
 
   return (
-    <View style={[styles.container, {marginBottom: 0}]}>
-      <View
-        style={[
-          styles.header,
-          {position: 'absolute', top: 30, width: '100%', zIndex: 1},
-        ]}>
-        <TouchableOpacity onPress={handlePress}>
-          <DrawerMenu
-            isOpen={isDrawerOpen}
-            onClose={closeModal}
-            navigation={navigation}
-            setCheckUser={setCheckUser}
-          />
-          <Ionicons name="menu" size={30} color="black" />
-        </TouchableOpacity>
+    <View style={[styles.container, { marginBottom: 0 }]}>
+      {/* Beautiful Gradient Header */}
+      <View style={styles.beautifulHeader}>
+        <View style={styles.headerTop}>
+          <TouchableOpacity onPress={handlePress} style={styles.menuBtn}>
+            <Ionicons name="menu" size={26} color="#fff" />
+          </TouchableOpacity>
+
+          <View style={styles.welcomeSection}>
+            <Text style={styles.welcomeText}>Welcome back!</Text>
+            <Text style={styles.userName}>Parking Manager</Text>
+          </View>
+
+          <View style={styles.headerIcons}>
+            <TouchableOpacity onPress={handleOpenAR} style={styles.iconBtn}>
+              <Ionicons name="navigate" size={24} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('NotificationScreen')}
+              style={styles.iconBtn}>
+              <Ionicons name="notifications" size={24} color="#fff" />
+
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {!isDrawerOpen && (
           <TouchableOpacity
-            style={styles.searchBar}
+            style={styles.beautifulSearchBar}
             onPress={() => navigation.navigate('SearchScreen')}>
-            <Ionicons
-              name="search"
-              size={22}
-              color="#555"
-              style={{marginRight: 8}}
-            />
-            <Text style={{color: '#555'}}>
-              Search VIN, Make, Model, Year...
+            <View style={styles.searchIconContainer}>
+              <Ionicons name="search" size={20} color="#613EEA" />
+            </View>
+            <Text style={styles.searchText}>
+              Search VIN, Make, Model...
             </Text>
-            {/* <TextInput
-            style={styles.input}
-            placeholder="Search VIN, Make, Model, Year..."
-             editable={false} 
-          /> */}
+            <View style={styles.searchArrow}>
+              <Ionicons name="chevron-forward" size={16} color="#999" />
+            </View>
           </TouchableOpacity>
         )}
-        {/* <TouchableOpacity onPress={() => navigation.navigate('SearchScreen')}>
-          <Ionicons name="search" size={30} color="black" />
-        </TouchableOpacity> */}
-        <View style={{flexDirection: 'row', alignItems: 'center'}}>
-          <TouchableOpacity onPress={handleOpenAR} style={{marginRight: 12}}>
-            <Ionicons name="navigate" size={28} color="#613EEA" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('NotificationScreen')}>
-            <Image
-              source={NOTIFICATION}
-              style={{
-                height: 36,
-                width: 36,
-              }}
-            />
-          </TouchableOpacity>
-        </View>
       </View>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Top Map and Menu */}
+      {/* Top Map and Menu */}
 
-        {/* <TouchableOpacity
+      {/* <TouchableOpacity
         style={{
           position: 'absolute',
           backgroundColor: '#613EEA',
@@ -314,7 +320,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
         <Ionicons name="search" size={20} color="#fff" />
       </TouchableOpacity> */}
 
-        {/* <View style={{height: hp(45)}}>
+      {/* <View style={{height: hp(45)}}>
           <ParkingMap
             parkingYards={parkingYards}
             homeScreen={true}
@@ -322,80 +328,103 @@ export default function HomeScreen({navigation, setCheckUser}) {
             home={true}
           />
         </View>  */}
-        <View style={{height: hp(10)}}></View>
 
-        {/* Options Cards */}
-        <View style={styles.cardsContainer}>
-          {cardData?.map(item => (
-            <TouchableOpacity
-              key={item?.id}
-              style={[
-                styles.card,
-                {marginLeft: 0, backgroundColor: item.backgroundColor},
-              ]}
-              onPress={() =>
-                navigation.navigate('ActiveChipScreen', {type: item.type})
-              }>
-              <Text style={styles.cardText}>{item.text}</Text>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                }}>
-                <Text style={[styles.cardText, {fontSize: 22}]}>
-                  {item.count}
-                </Text>
-                <Image
-                  source={item?.icon}
-                  style={{
-                    height: 40,
-                    width: 40,
-                  }}
-                />
+      <Modal
+        visible={isDrawerOpen}
+        transparent
+        animationType="none"         // Drawer apni reanimated se slide hoga
+        onRequestClose={() => setDrawerOpen(false)}
+      >
+
+        <DrawerMenu
+          isOpen={isDrawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          navigation={navigation}
+          setCheckUser={setCheckUser}
+        />
+      </Modal>
+      {/* Beautiful Stats Cards */}
+      <View style={styles.beautifulCardsContainer}>
+        {cardData?.map(item => (
+          <TouchableOpacity
+            key={item?.id}
+            style={styles.beautifulCard}
+            onPress={() =>
+              navigation.navigate('ActiveChipScreen', { type: item.type })
+            }>
+            <View style={[styles.cardBackground, { backgroundColor: item.backgroundColor }]}>
+              <View style={styles.cardContent}>
+                <View style={styles.cardLeft}>
+                  <Text style={styles.beautifulCardText}>{item.text}</Text>
+                  <Text style={styles.beautifulCardCount}>{item.count}</Text>
+                </View>
+                <View style={styles.cardRight}>
+                  <View style={styles.iconWrapper}>
+                    <Image
+                      source={item?.icon}
+                      style={styles.beautifulCardIcon}
+                    />
+                  </View>
+                </View>
               </View>
+              <View style={styles.cardFooter}>
+                <View style={styles.footerLine} />
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={{ flex: 1, marginBottom: 100 }}>
+        <View style={{ flex: 1, paddingTop: 30, paddingHorizontal: 20 }}>
+          <View style={styles.beautifulYardsHeader}>
+            <View style={styles.yardsTitleSection}>
+              <Text style={styles.beautifulTitle}>Parking Yards</Text>
+              <Text style={styles.yardsSubtitle}>Manage your facilities</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.beautifulAddButton}
+              onPress={() => setShowAddYardModal(true)}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
             </TouchableOpacity>
-          ))}
-        </View>
-        <View style={{flex: 1, marginBottom: 100}}>
-          <View style={{flex: 1, paddingTop: 20, paddingHorizontal: 16}}>
-            <View style={styles.yardsHeader}>
-              <Text style={styles.title}>Parking Yards</Text>
-              <TouchableOpacity 
-                style={styles.addYardButton}
+          </View>
+
+          {/* Dynamic Yards */}
+          {yards.length > 0 ? (
+            <FlatList
+              data={yards}
+              keyExtractor={item => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContainer}
+            />
+          ) : (
+            <View style={styles.beautifulEmptyContainer}>
+              <View style={styles.emptyIconWrapper}>
+                <Ionicons name="business-outline" size={30} color="#613EEA" />
+              </View>
+              <Text style={styles.beautifulEmptyText}>No Parking Yards Yet</Text>
+              <Text style={styles.beautifulEmptySubtext}>
+                Get started by adding your first parking facility
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyActionButton}
                 onPress={() => setShowAddYardModal(true)}
               >
-                <Ionicons name="add-circle" size={32} color="#613EEA" />
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.emptyActionText}>Add First Yard</Text>
               </TouchableOpacity>
             </View>
+          )}
 
-            {/* Dynamic Yards */}
-            {yards.length > 0 ? (
-              <FlatList
-                data={yards}
-                keyExtractor={item => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContainer}
-              />
-            ) : (
-              <View style={styles.emptyYardContainer}>
-                <Ionicons name="business-outline" size={80} color="#ccc" />
-                <Text style={styles.emptyYardText}>No Parking Yards Yet</Text>
-                <Text style={styles.emptyYardSubtext}>
-                  Tap the + button above to add your first parking yard
-                </Text>
-              </View>
-            )}
-
-            {/* Static Yards - Commented for future use */}
-            {/* <FlatList
+          {/* Static Yards - Commented for future use */}
+          {/* <FlatList
               data={parkingYards}
               keyExtractor={item => item.id}
               renderItem={renderItem}
               contentContainerStyle={styles.listContainer}
             /> */}
-          </View>
         </View>
-      </ScrollView>
+      </View>
 
       {/* Add Yard Modal */}
       <Modal
@@ -414,7 +443,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback onPress={() => {}}>
+              <TouchableWithoutFeedback onPress={() => { }}>
                 <View style={styles.modalContent}>
                   <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>Add New Parking Yard</Text>
@@ -427,7 +456,7 @@ export default function HomeScreen({navigation, setCheckUser}) {
                     </TouchableOpacity>
                   </View>
 
-                  <ScrollView 
+                  <ScrollView
                     style={styles.formContainer}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
@@ -506,9 +535,9 @@ export default function HomeScreen({navigation, setCheckUser}) {
                       <Ionicons name="checkmark-circle" size={24} color="#fff" />
                       <Text style={styles.submitButtonText}>Add Yard</Text>
                     </TouchableOpacity>
-                    
+
                     {/* Extra space for keyboard */}
-                    <View style={{height: 20}} />
+                    <View style={{ height: 20 }} />
                   </ScrollView>
                 </View>
               </TouchableWithoutFeedback>
@@ -521,7 +550,103 @@ export default function HomeScreen({navigation, setCheckUser}) {
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: 'white'},
+  container: { flex: 1, backgroundColor: whiteColor },
+
+  // Beautiful Header Styles
+  beautifulHeader: {
+    backgroundColor: '#613EEA',
+    paddingTop: heightPercentageToDP(6),
+    paddingBottom: spacings.Large1x,
+    paddingHorizontal: spacings.xxxxLarge,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacings.Large1x,
+  },
+  menuBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 25,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  welcomeSection: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  welcomeText: {
+    color: whiteColor,
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: '500',
+    opacity: 0.9,
+  },
+  userName: {
+    color: whiteColor,
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: 'bold',
+    marginTop: spacings.xsmall,
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: spacings.large,
+    padding: spacings.large,
+    marginLeft: spacings.large,
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: spacings.xsmall },
+    shadowOpacity: 0.1,
+    shadowRadius: spacings.normal,
+    elevation: 4,
+  },
+  notifIcon: {
+    height: spacings.medium,
+    width: spacings.medium,
+    tintColor: whiteColor,
+  },
+  beautifulSearchBar: {
+    backgroundColor: whiteColor,
+    borderRadius: spacings.large,
+    paddingHorizontal: spacings.large,
+    paddingVertical: spacings.large,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  searchIconContainer: {
+    borderRadius: spacings.fontSizeSmall2x,
+    padding: spacings.small2x,
+    marginRight: spacings.fontSizeSmall2x,
+  },
+  searchText: {
+    flex: 1,
+    fontSize: style.fontSizeNormal.fontSize,
+    color: darkgrayColor,
+    fontWeight: '500',
+  },
+  searchArrow: {
+    marginLeft: spacings.large,
+  },
+
+  // Legacy header styles
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -548,9 +673,9 @@ const styles = StyleSheet.create({
     right: -100,
     top: 100,
   },
-  headerTitle: {fontWeight: 'bold', fontSize: 16},
-  topContainer: {backgroundColor: 'white'},
-  mapPlaceholder: {position: 'relative', alignItems: 'flex-end'},
+  headerTitle: { fontWeight: 'bold', fontSize: 16 },
+  topContainer: { backgroundColor: 'white' },
+  mapPlaceholder: { position: 'relative', alignItems: 'flex-end' },
   mapImage: {
     width: '80%',
     height: 160,
@@ -565,15 +690,15 @@ const styles = StyleSheet.create({
     padding: 8,
     elevation: 4,
   },
-  detailsContainer: {marginTop: 40},
-  locationText: {fontWeight: 'bold', fontSize: 18, textAlign: 'center'},
+  detailsContainer: { marginTop: 40 },
+  locationText: { fontWeight: 'bold', fontSize: 18, textAlign: 'center' },
   profileContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 30,
     paddingLeft: 16,
   },
-  profileImage: {width: 60, height: 60, borderRadius: 30},
+  profileImage: { width: 60, height: 60, borderRadius: 30 },
   onlineDot: {
     width: 12,
     height: 12,
@@ -585,102 +710,235 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'white',
   },
-  name: {fontWeight: 'bold', fontSize: 16},
-  role: {color: 'gray'},
-  badge: {color: 'gray'},
-  cardsContainer: {
+  name: { fontWeight: 'bold', fontSize: 16 },
+  role: { color: 'gray' },
+  badge: { color: 'gray' },
+  // Beautiful Cards Styles
+  beautifulCardsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 30,
-    paddingHorizontal: 16,
+    marginTop: 15,
+    paddingHorizontal: 20,
   },
-  card: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
+  beautifulCard: {
     width: '48%',
-    height: 140,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: 'white',
-    marginBottom: 20,
-    elevation: 4,
-    // Bottom shadow
+    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 3},
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  cardText: {marginTop: 8, fontWeight: 600, fontSize: 15, color: '#fff'},
-  redDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: 'red',
-    position: 'absolute',
-    top: 10,
-    right: 30,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
-  },
-  card1: {
-    width: '100%', // full width
-    borderWidth: 1,
-    borderColor: '#c1b7ed',
-    borderRadius: 10,
+  cardBackground: {
     padding: 16,
-    marginBottom: 12, // spacing between rows
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+    minHeight: 110,
   },
-  name1: {
+  cardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flex: 1,
+  },
+  cardLeft: {
+    flex: 1,
+  },
+  cardRight: {
+    alignItems: 'center',
+  },
+  iconWrapper: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 16,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  cardFooter: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  footerLine: {
+    width: 40,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 2,
+  },
+  beautifulCardText: {
+    color: whiteColor,
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: '600',
+    marginBottom: spacings.small2x,
+    opacity: 0.95,
+  },
+  beautifulCardCount: {
+    color: whiteColor,
+    fontSize: style.fontSizeLargeXX.fontSize,
     fontWeight: 'bold',
-    fontSize: 17,
-    color: '#252837',
-    marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  address: {
-    fontSize: 13,
-    color: '#252837',
+  beautifulCardIcon: {
+    height: spacings.fontSizeLargeXX,
+    width: spacings.fontSizeLargeXX,
+    tintColor: whiteColor,
   },
-  selectedText: {
-    color: '#613EEA',
-  },
-  // Yards Header
-  yardsHeader: {
+
+  // Beautiful Yards Section
+  beautifulYardsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
-  addYardButton: {
-    padding: 5,
+  yardsTitleSection: {
+    flex: 1,
   },
-  // Empty State
-  emptyYardContainer: {
+  beautifulTitle: {
+    fontSize: style.fontSizeLargeX.fontSize,
+    fontWeight: 'bold',
+    color: darkgrayColor,
+    marginBottom: spacings.xsmall,
+  },
+  yardsSubtitle: {
+    fontSize: style.fontSizeNormal.fontSize,
+    color: grayColor,
+    fontWeight: '500',
+  },
+  beautifulAddButton: {
+    backgroundColor: '#613EEA',
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  // Simple Yard Cards (Clean Design)
+  simpleYardCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  selectedSimpleCard: {
+    borderColor: '#613EEA',
+    borderWidth: 2,
+    backgroundColor: '#faf9ff',
+  },
+  simpleCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  simpleCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  simpleIconContainer: {
+    backgroundColor: '#f3f0ff',
+    borderRadius: 8,
+    padding: 6,
+    marginRight: 10,
+  },
+  simpleTextContainer: {
+    flex: 1,
+  },
+  simpleYardName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+    marginBottom: 3,
+  },
+  simpleYardAddress: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 3,
+    lineHeight: 16,
+  },
+  simpleSlotText: {
+    fontSize: 11,
+    color: '#613EEA',
+    fontWeight: '600',
+  },
+  simpleArrowContainer: {
+    padding: 4,
+  },
+
+  selectedText: {
+    color: '#613EEA',
+  },
+  // Beautiful Empty State
+  beautifulEmptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 40,
+    paddingHorizontal: 25,
   },
-  emptyYardText: {
-    fontSize: 20,
+  emptyIconWrapper: {
+    backgroundColor: '#f3f0ff',
+    borderRadius: 40,
+    padding: 10,
+    marginBottom: 16,
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  beautifulEmptyText: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
-    marginBottom: 10,
+    color: '#1a1a1a',
+    marginBottom: 6,
+    textAlign: 'center',
   },
-  emptyYardSubtext: {
-    fontSize: 14,
+  beautifulEmptySubtext: {
+    fontSize: 13,
     color: '#666',
     textAlign: 'center',
-    paddingHorizontal: 40,
-    lineHeight: 20,
+    lineHeight: 18,
+    marginBottom: 20,
   },
-  // Modal Styles
+  emptyActionButton: {
+    backgroundColor: '#613EEA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  emptyActionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+
+  // Modal Overlay
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

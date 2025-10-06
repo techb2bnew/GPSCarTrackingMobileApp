@@ -196,7 +196,7 @@
 //   },
 // });
 
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -210,28 +210,61 @@ import {
 } from 'react-native';
 import bcrypt from 'bcryptjs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {supabase} from '../lib/supabaseClient'; // adjust path to your Supabase client
-import {MAIN_LOGO} from '../assests/images';
-import {useDispatch} from 'react-redux';
-import {setUser} from '../redux/userSlice';
+import { supabase } from '../lib/supabaseClient'; // adjust path to your Supabase client
+import { MAIN_LOGO } from '../assests/images';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../redux/userSlice';
 
-const LoginScreen = ({navigation}) => {
+const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [email, setEmail] = useState('test@yopmail.com');
   const [password, setPassword] = useState('12345678');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
+
+  const clearErrors = () => {
+    setEmailError('');
+    setPasswordError('');
+    setGeneralError('');
+  };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      alert('Please enter email and password');
+    // Clear previous errors
+    setEmailError('');
+    setPasswordError('');
+    setGeneralError('');
+
+    // Validate email
+    if (!email) {
+      setEmailError('Please enter your email');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+
+    // Validate password
+    if (!password) {
+      setPasswordError('Please enter your password');
+      return;
+    }
+
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
       return;
     }
     setLoading(true);
-     dispatch(setUser(email));
-      await AsyncStorage.setItem('user', JSON.stringify(email));
-      setLoading(false);
-      // login successful
-      navigation.navigate('mainscreens');
+    dispatch(setUser(email));
+    await AsyncStorage.setItem('user', JSON.stringify(email));
+    setLoading(false);
+    // login successful
+    navigation.navigate('mainscreens');
     // try {
     //   // const {data, error} = await supabase
     //   //   .from('staff')
@@ -287,27 +320,45 @@ const LoginScreen = ({navigation}) => {
 
         <Text style={styles.label}>Email</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, emailError ? styles.inputError : null]}
           placeholder="hello@example.com"
           placeholderTextColor="#aaa"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (emailError) clearErrors();
+          }}
         />
+        {emailError ? (
+          <Text style={styles.fieldErrorText}>{emailError}</Text>
+        ) : null}
 
         <View style={styles.passwordRow}>
           <Text style={styles.label}>Password</Text>
         </View>
         <TextInput
-          style={styles.input}
+          style={[styles.input, passwordError ? styles.inputError : null]}
           placeholder="**********"
           placeholderTextColor="#aaa"
           secureTextEntry
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (passwordError) clearErrors();
+          }}
         />
+        {passwordError ? (
+          <Text style={styles.fieldErrorText}>{passwordError}</Text>
+        ) : null}
+
+        {generalError ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{generalError}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
-          style={{alignSelf: 'flex-end'}}
+          style={{ alignSelf: 'flex-end' }}
           onPress={() => navigation.navigate('ForgetPasswordFlow')}>
           <Text style={styles.forgot}>Forget Password?</Text>
         </TouchableOpacity>
@@ -388,5 +439,29 @@ const styles = StyleSheet.create({
   signupLink: {
     fontWeight: 'bold',
     color: '#613EEA',
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#f44336',
+    borderWidth: 2,
+  },
+  fieldErrorText: {
+    color: '#f44336',
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: 10,
+    marginLeft: 4,
   },
 });

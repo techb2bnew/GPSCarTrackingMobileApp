@@ -17,7 +17,65 @@ import {orangeColor} from '../constants/Color';
 const RegisterScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
+
+  const clearErrors = () => {
+    setEmailError('');
+    setPasswordError('');
+    setConfirmPasswordError('');
+    setGeneralError('');
+  };
+
+  const handleRegister = () => {
+    // Clear previous errors
+    setEmailError('');
+    setPasswordError('');
+    setConfirmPasswordError('');
+    setGeneralError('');
+    
+    // Validate email
+    if (!email) {
+      setEmailError('Please enter your email');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+    
+    // Validate password
+    if (!password) {
+      setPasswordError('Please enter your password');
+      return;
+    }
+    
+    if (password.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return;
+    }
+    
+    // Validate confirm password
+    if (!confirmPassword) {
+      setConfirmPasswordError('Please confirm your password');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+      return;
+    }
+    
+    // If all validations pass, navigate to main screens
+    navigation.navigate('mainscreens');
+  };
 
   return (
     <ImageBackground
@@ -50,12 +108,18 @@ const RegisterScreen = ({navigation}) => {
         />
         <Text style={styles.label}>Email</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, emailError ? styles.inputError : null]}
           placeholder="hello@example.com"
           placeholderTextColor="#aaa"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (emailError) clearErrors();
+          }}
         />
+        {emailError ? (
+          <Text style={styles.fieldErrorText}>{emailError}</Text>
+        ) : null}
 
         <View style={styles.passwordRow}>
           <Text style={styles.label}>Password</Text>
@@ -64,26 +128,45 @@ const RegisterScreen = ({navigation}) => {
         </TouchableOpacity> */}
         </View>
         <TextInput
-          style={styles.input}
+          style={[styles.input, passwordError ? styles.inputError : null]}
           placeholder="**********"
           placeholderTextColor="#aaa"
           secureTextEntry
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (passwordError) clearErrors();
+          }}
         />
+        {passwordError ? (
+          <Text style={styles.fieldErrorText}>{passwordError}</Text>
+        ) : null}
         <Text style={styles.label}>Confirm Password</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, confirmPasswordError ? styles.inputError : null]}
           placeholder="**********"
           placeholderTextColor="#aaa"
           secureTextEntry
-          value={password}
-          onChangeText={setPassword}
+          value={confirmPassword}
+          onChangeText={(text) => {
+            setConfirmPassword(text);
+            if (confirmPasswordError) clearErrors();
+          }}
         />
+        {confirmPasswordError ? (
+          <Text style={styles.fieldErrorText}>{confirmPasswordError}</Text>
+        ) : null}
+
+
+        {generalError ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{generalError}</Text>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={styles.loginButton}
-          onPress={() => navigation.navigate('mainscreens')}>
+          onPress={handleRegister}>
           <Text style={styles.loginButtonText}>Register</Text>
         </TouchableOpacity>
 
@@ -199,5 +282,29 @@ const styles = StyleSheet.create({
   signupLink: {
     fontWeight: 'bold',
     textDecorationLine: 'underline',
+  },
+  errorContainer: {
+    backgroundColor: '#ffebee',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+  },
+  errorText: {
+    color: '#f44336',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#f44336',
+    borderWidth: 2,
+  },
+  fieldErrorText: {
+    color: '#f44336',
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: 10,
+    marginLeft: 4,
   },
 });
