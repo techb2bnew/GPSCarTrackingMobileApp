@@ -41,21 +41,14 @@ import ParkingYardScreen from './ParkingYardScreen';
 import { blackColor, blackOpacity5, darkgrayColor, grayColor, redColor, whiteColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
 
-const cardData = [
-  // {
-  //   id: 1,
-  //   icon: VEHICLE_REG,
-  //   text: 'Vehicles Registered',
-  //   showRedDot: true,
-  //   backgroundColor: '#613EEA',
-  //   count: 40,
-  // },
+// Dynamic card data function
+const getCardData = (chipStats) => [
   {
     id: 1,
     icon: ACTIVE,
     text: 'Active Chips',
     backgroundColor: '#F2893D',
-    count: 30,
+    count: chipStats.activeChips,
     type: 'active',
   },
   {
@@ -63,7 +56,7 @@ const cardData = [
     icon: INACTIVE,
     text: 'In-Active Chips',
     backgroundColor: '#F24369',
-    count: 10,
+    count: chipStats.inactiveChips,
     type: 'inactive',
   },
   {
@@ -71,7 +64,7 @@ const cardData = [
     icon: BATTERY,
     text: 'Low Battery Chips',
     backgroundColor: '#45C64F',
-    count: 5,
+    count: chipStats.lowBatteryChips,
     type: 'lowBattery',
   },
 ];
@@ -93,10 +86,30 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     yardAddress: '',
   });
 
-  // Load yards from AsyncStorage
+  // Chip stats state
+  const [chipStats, setChipStats] = useState({
+    activeChips: 0,
+    inactiveChips: 0,
+    lowBatteryChips: 0,
+  });
+
+  // User state
+  const [user, setUser] = useState(null);
+
+  // Load yards, chip stats, and user data from AsyncStorage
   useEffect(() => {
     loadYards();
+    loadChipStats();
+    loadUserData();
   }, []);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadChipStats();
+      loadUserData();
+    }, [])
+  );
 
   const loadYards = async () => {
     try {
@@ -106,6 +119,59 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       }
     } catch (error) {
       console.error('Error loading yards:', error);
+    }
+  };
+
+  // Load user data from AsyncStorage
+  const loadUserData = async () => {
+    try {
+      const userData = await AsyncStorage.getItem('user');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  };
+
+  // Load chip stats from AsyncStorage
+  const loadChipStats = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      
+      let activeChips = 0;
+      let inactiveChips = 0;
+      let lowBatteryChips = 0;
+
+      for (const key of yardKeys) {
+        const vehicles = await AsyncStorage.getItem(key);
+        if (vehicles) {
+          const parsedVehicles = JSON.parse(vehicles);
+          
+          // Count active chips (vehicles with chipId and isActive = true)
+          const activeVehicles = parsedVehicles.filter(v => v.chipId && v.isActive);
+          activeChips += activeVehicles.length;
+          
+          // Count inactive chips (vehicles with chipId but isActive = false)
+          const inactiveVehicles = parsedVehicles.filter(v => v.chipId && !v.isActive);
+          inactiveChips += inactiveVehicles.length;
+          
+          // Estimate low battery chips (10% of active chips - mock data)
+          lowBatteryChips += Math.floor(activeVehicles.length * 0.1);
+        }
+      }
+
+      setChipStats({
+        activeChips,
+        inactiveChips,
+        lowBatteryChips,
+      });
+
+      console.log('Chip stats loaded:', { activeChips, inactiveChips, lowBatteryChips });
+    } catch (error) {
+      console.error('Error loading chip stats:', error);
     }
   };
 
@@ -325,7 +391,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeText}>Welcome back!</Text>
-            <Text style={styles.userName}>Parking Manager</Text>
+            <Text style={styles.userName}>{user?.name || 'Parking Manager'}</Text>
           </View>
 
           <View style={styles.headerIcons}>
@@ -402,7 +468,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       </Modal>
       {/* Beautiful Stats Cards */}
       <View style={styles.beautifulCardsContainer}>
-        {cardData?.map(item => (
+        {getCardData(chipStats)?.map(item => (
           <TouchableOpacity
             key={item?.id}
             style={styles.beautifulCard}
@@ -416,12 +482,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                   <Text style={styles.beautifulCardCount}>{item.count}</Text>
                 </View>
                 <View style={styles.cardRight}>
-                  <View style={styles.iconWrapper}>
                     <Image
                       source={item?.icon}
                       style={styles.beautifulCardIcon}
                     />
-                  </View>
                 </View>
               </View>
               <View style={styles.cardFooter}>
@@ -805,16 +869,6 @@ const styles = StyleSheet.create({
   cardRight: {
     alignItems: 'center',
   },
-  iconWrapper: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    borderRadius: 16,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
   cardFooter: {
     marginTop: 12,
     alignItems: 'center',
@@ -841,9 +895,9 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
   },
   beautifulCardIcon: {
-    height: spacings.fontSizeLargeXX,
-    width: spacings.fontSizeLargeXX,
-    tintColor: whiteColor,
+    height: hp(4.2),
+    width: hp(4.2),
+    resizeMode: 'contain',
   },
 
   // Beautiful Yards Section

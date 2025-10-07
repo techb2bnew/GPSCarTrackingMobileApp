@@ -127,7 +127,8 @@ const ScannerScreen = ({ navigation, route }) => {
               vinNumber: vin,
               yardId: yardId,
               yardName: route?.params?.yardName,
-              existingVehicles: route?.params?.existingVehicles || []
+              existingVehicles: route?.params?.existingVehicles || [],
+              fromScreen: 'ScannerScreen'
             });
           } 
           // If coming from ScanScreen (search flow)

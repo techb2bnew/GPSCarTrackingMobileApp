@@ -22,6 +22,7 @@ import { spacings, style } from '../constants/Fonts';
 import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -46,35 +47,76 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const [mqttConnected, setMqttConnected] = useState(false);
   const [mqttDataReceived, setMqttDataReceived] = useState(false);
 
+  // Saved location states
+  const [savedLocation, setSavedLocation] = useState(null);
+  const [timeAgo, setTimeAgo] = useState('');
+
   // Duplicate validation states
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
 
-  // Mock chip location (in real app, this would come from chip data)
-  const mockChipLocation = {
-    latitude: 30.713452,
-    longitude: 76.691131
-  };
+  // Remove mock data - will use real MQTT data
 
-  // Mock car location (in real app, this would come from vehicle data)
-  const mockCarLocation = {
-    latitude: 30.713452,
-    longitude: 76.691131
-  };
-
-  // MQTT Configuration
+  // MQTT Configuration (same as ParkingMap1)
   const MQTT_CONFIG = {
-    host: 'sensecap-openstream.seeed.cc',
-    port: 1883,
-    username: 'org-449810146246400',
-    password: '9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3',
-    clientId: 'org-449810146246400-quickstart',
-    protocol: 'mqttv311'
+    host: "ws://sensecap-openstream.seeed.cc:8083/mqtt",
+    username: "org-449810146246400",
+    password: "9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3",
+    clientId: "org-449810146246400-react-" + Math.random().toString(16).substr(2, 8),
+    protocolVersion: 4,
   };
 
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
-    return vehicle?.chipId || '2CF7F1C07190019F'; // Fallback to default chip ID
+    return vehicle?.chipId ; // Fallback to default chip ID
+  };
+
+  // Save chip location to AsyncStorage
+  const saveChipLocation = async (chipId, latitude, longitude, timestamp) => {
+    try {
+      const chipData = {
+        latitude,
+        longitude,
+        timestamp,
+        lastUpdated: new Date(timestamp).toLocaleTimeString()
+      };
+      
+      await AsyncStorage.setItem(`chip_${chipId}`, JSON.stringify(chipData));
+      console.log(`Saved location for chip ${chipId}:`, chipData);
+    } catch (error) {
+      console.error('Error saving chip location:', error);
+    }
+  };
+
+  // Load saved chip location from AsyncStorage
+  const loadChipLocation = async (chipId) => {
+    try {
+      const saved = await AsyncStorage.getItem(`chip_${chipId}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log(`Loaded saved location for chip ${chipId}:`, parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading chip location:', error);
+    }
+    return null;
+  };
+
+  // Calculate time ago from timestamp
+  const getTimeAgo = (timestamp) => {
+    const now = Date.now();
+    const diffMs = now - timestamp;
+    
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    
+    if (diffSec < 60) return `${diffSec}s ago`;
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHour < 24) return `${diffHour}h ago`;
+    return `${diffDay}d ago`;
   };
 
   // Check if chip already exists in any yard
@@ -83,20 +125,20 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       const keys = await AsyncStorage.getAllKeys();
       const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
-      
+
       for (const key of yardKeys) {
         const vehicles = await AsyncStorage.getItem(key);
         if (vehicles) {
           const parsedVehicles = JSON.parse(vehicles);
           const foundVehicle = parsedVehicles.find(v => v.chipId === chipId);
-          
+
           if (foundVehicle) {
             const foundYardId = key.replace('yard_', '').replace('_vehicles', '');
-            
+
             // Get actual yard name from parking_yards
             const savedYards = await AsyncStorage.getItem('parking_yards');
             let actualYardName = `Yard ${foundYardId}`; // fallback
-            
+
             if (savedYards) {
               const yards = JSON.parse(savedYards);
               const yard = yards.find(y => y.id === foundYardId);
@@ -104,7 +146,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                 actualYardName = yard.name;
               }
             }
-            
+
             return { exists: true, vehicle: foundVehicle, yardName: actualYardName };
           }
         }
@@ -116,106 +158,134 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Parse MQTT data to extract coordinates
-  const parseMqttData = (topic, message) => {
-    try {
-      const data = JSON.parse(message.toString());
-      console.log('MQTT Data received:', data);
 
-      // Extract latitude and longitude from the data
-      // The exact structure depends on your API response
-      let latitude, longitude;
-
-      if (data.latitude && data.longitude) {
-        latitude = parseFloat(data.latitude);
-        longitude = parseFloat(data.longitude);
-      } else if (data.coordinates) {
-        latitude = parseFloat(data.coordinates.latitude);
-        longitude = parseFloat(data.coordinates.longitude);
-      } else if (data.location) {
-        latitude = parseFloat(data.location.lat);
-        longitude = parseFloat(data.location.lng);
-      } else if (data.lat && data.lng) {
-        latitude = parseFloat(data.lat);
-        longitude = parseFloat(data.lng);
-      }
-
-      if (latitude && longitude && !isNaN(latitude) && !isNaN(longitude)) {
-        const newChipLocation = { latitude, longitude };
-        setChipLocation(newChipLocation);
-        setMqttDataReceived(true);
-
-        console.log('Updated chip location from MQTT:', newChipLocation);
-
-        // Update last update time
-        setLastUpdateTime(new Date().toLocaleTimeString());
-
-        // Recalculate distance if current location is available
-        if (currentLocation) {
-          const distance = calculateDistance(currentLocation, newChipLocation);
-          setDistanceToCar(distance);
-        }
-
-        // Update map region to include new chip location
-        if (mapRef.current && currentLocation) {
-          const region = calculateMapRegion(currentLocation, newChipLocation);
-          mapRef.current.animateToRegion(region, 1000);
-        }
-
-        return true;
-      }
-    } catch (error) {
-      console.error('Error parsing MQTT data:', error);
-    }
-    return false;
-  };
-
-  // Initialize MQTT connection
+  // Initialize MQTT connection (same as ParkingMap1 but with chip ID filtering)
   const initializeMqtt = () => {
     try {
-      const client = mqtt.connect(MQTT_CONFIG);
+      console.log('Initializing MQTT for chip ID:', getChipId());
+      
+      const client = mqtt.connect(MQTT_CONFIG.host, {
+        username: MQTT_CONFIG.username,
+        password: MQTT_CONFIG.password,
+        clientId: MQTT_CONFIG.clientId,
+        protocolVersion: MQTT_CONFIG.protocolVersion,
+      });
 
-      client.on('connect', () => {
-        console.log('MQTT Connected to SenseCAP');
+      let latestLat = null;
+      let latestLon = null;
+      const targetChipId = getChipId();
+
+      client.on("connect", () => {
+        console.log("✅ Connected to MQTT for chip:", targetChipId);
         setMqttConnected(true);
 
-        // Subscribe to the chip location topics
-        const chipId = getChipId();
-        const topics = [
-          `/device_sensor_data/449810146246400/${chipId}/+/vs/4197`,
-          `/device_sensor_data/449810146246400/${chipId}/+/vs/4198`
-        ];
-
-        topics.forEach(topic => {
-          client.subscribe(topic, (err) => {
-            if (err) {
-              console.error('MQTT Subscribe error:', err);
-            } else {
-              console.log(`Subscribed to topic: ${topic}`);
-            }
-          });
+        // Subscribe to specific chip ID topics (like mosquitto_sub command)
+        const latitudeTopic = `/device_sensor_data/449810146246400/${targetChipId}/+/vs/4198`;
+        const longitudeTopic = `/device_sensor_data/449810146246400/${targetChipId}/+/vs/4197`;
+        
+        console.log("Subscribing to topics:");
+        console.log("Latitude topic:", latitudeTopic);
+        console.log("Longitude topic:", longitudeTopic);
+        
+        client.subscribe(latitudeTopic, (err) => {
+          if (err) {
+            console.error('MQTT Subscribe error (latitude):', err);
+          } else {
+            console.log(`✅ Subscribed to latitude topic: ${latitudeTopic}`);
+          }
+        });
+        
+        client.subscribe(longitudeTopic, (err) => {
+          if (err) {
+            console.error('MQTT Subscribe error (longitude):', err);
+          } else {
+            console.log(`✅ Subscribed to longitude topic: ${longitudeTopic}`);
+          }
         });
       });
 
-      client.on('message', (topic, message) => {
-        console.log(`MQTT Message received on topic: ${topic}`);
-        parseMqttData(topic, message);
+      client.on("message", async (topic, message) => {
+        try {
+          const payload = JSON.parse(message.toString());
+          
+          console.log('MQTT message received on topic:', topic);
+          console.log('Message payload:', payload);
+          
+          // Since we're subscribed to specific chip ID topics, all messages are for our target chip
+          if (topic.includes("4197")) {
+            latestLon = payload.value;   // longitude
+            console.log('Longitude received for chip', targetChipId, ':', latestLon);
+          } else if (topic.includes("4198")) {
+            latestLat = payload.value;   // latitude
+            console.log('Latitude received for chip', targetChipId, ':', latestLat);
+          }
+
+          // Update location when both coordinates are received
+          if (latestLat !== null && latestLon !== null) {
+            const latitude = parseFloat(latestLat);
+            const longitude = parseFloat(latestLon);
+            console.log("📡 MQTT GPS for chip", targetChipId, ":", latitude, longitude);
+
+            if (!isNaN(latitude) && !isNaN(longitude)) {
+              const timestamp = Date.now();
+              const nextCoords = { latitude, longitude };
+              
+              // Save to AsyncStorage with chip ID and timestamp
+              await saveChipLocation(targetChipId, latitude, longitude, timestamp);
+              
+              // Update saved location state
+              setSavedLocation({
+                latitude,
+                longitude,
+                timestamp,
+                lastUpdated: new Date(timestamp).toLocaleTimeString()
+              });
+              
+              // Set both chip location and car location to same coordinates
+              setChipLocation(nextCoords);
+              setCarLocation(nextCoords);
+              setMqttDataReceived(true);
+              
+              // Update last update time
+              setLastUpdateTime(new Date().toLocaleTimeString());
+
+              // Recalculate distance if current location is available
+              if (currentLocation) {
+                const distance = calculateDistance(currentLocation, nextCoords);
+                setDistanceToCar(distance);
+                console.log('Distance calculated:', distance, 'meters');
+              }
+
+              // Update map region to include new car location
+              if (mapRef.current && currentLocation) {
+                const region = calculateMapRegion(currentLocation, nextCoords);
+                mapRef.current.animateToRegion(region, 1000);
+              }
+              
+              // Reset coordinates for next update
+              latestLat = null;
+              latestLon = null;
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing MQTT message:', error);
+        }
       });
 
-      client.on('error', (error) => {
-        console.error('MQTT Error:', error);
+      client.on("error", (error) => {
+        console.error("MQTT Error:", error);
         setMqttConnected(false);
       });
 
-      client.on('close', () => {
-        console.log('MQTT Connection closed');
+      client.on("close", () => {
+        console.log("MQTT Connection closed");
         setMqttConnected(false);
       });
 
       setMqttClient(client);
 
     } catch (error) {
-      console.error('MQTT Initialization error:', error);
+      console.error("MQTT Initialization error:", error);
       setMqttConnected(false);
     }
   };
@@ -326,48 +396,30 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         const newCurrentLocation = { latitude, longitude };
         setCurrentLocation(newCurrentLocation);
 
-        // Set chip location from MQTT data if available, otherwise use mock data
-        if (!mqttDataReceived) {
-          setChipLocation(mockChipLocation);
-        }
-        setCarLocation(mockCarLocation);
+        // Car location will be set by MQTT data when available
 
-        // Calculate distance to car
-        const distance = calculateDistance(newCurrentLocation, mockCarLocation);
-        setDistanceToCar(distance);
+        // Calculate distance to car if car location is available
+        if (carLocation) {
+          const distance = calculateDistance(newCurrentLocation, carLocation);
+          setDistanceToCar(distance);
+        }
 
         // Set last update time
         setLastUpdateTime(new Date().toLocaleTimeString());
 
         setIsLoading(false);
 
-        // Calculate optimal region and animate to it
-        if (mapRef.current) {
-          const region = calculateMapRegion(newCurrentLocation, mockCarLocation);
+        // Calculate optimal region and animate to it if car location is available
+        if (mapRef.current && carLocation) {
+          const region = calculateMapRegion(newCurrentLocation, carLocation);
           mapRef.current.animateToRegion(region, 1500);
         }
       },
       (error) => {
         console.log('Location error:', error);
         setIsLoading(false);
-        // Set mock locations if permission denied
-        const mockCurrentLocation = { latitude: 30.7093774, longitude: 76.6921674 };
-        setCurrentLocation(mockCurrentLocation);
-        setChipLocation(mockChipLocation);
-        setCarLocation(mockCarLocation);
-
-        // Calculate distance with mock location
-        const distance = calculateDistance(mockCurrentLocation, mockCarLocation);
-        setDistanceToCar(distance);
-
-        // Set last update time
+        // Don't set mock locations - wait for MQTT data
         setLastUpdateTime(new Date().toLocaleTimeString());
-
-        // Calculate optimal region and animate to it for mock locations too
-        if (mapRef.current) {
-          const region = calculateMapRegion(mockCurrentLocation, mockCarLocation);
-          mapRef.current.animateToRegion(region, 1500);
-        }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
@@ -376,34 +428,31 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Initialize location tracking and MQTT
   useEffect(() => {
     const initializeLocation = async () => {
-      // Initialize MQTT connection first
-      initializeMqtt();
+      const chipId = getChipId();
+      
+      // Only proceed if chip is assigned
+      if (chipId) {
+        // Load saved location first
+        const saved = await loadChipLocation(chipId);
+        if (saved) {
+          setSavedLocation(saved);
+          setChipLocation({ latitude: saved.latitude, longitude: saved.longitude });
+          setCarLocation({ latitude: saved.latitude, longitude: saved.longitude });
+          setMqttDataReceived(true);
+          setTimeAgo(getTimeAgo(saved.timestamp));
+          console.log('Loaded saved location on page open:', saved);
+        }
+
+        // Initialize MQTT connection only if chip is assigned
+        initializeMqtt();
+      }
 
       const hasPermission = await requestLocationPermission();
       if (hasPermission) {
         getCurrentLocation();
       } else {
-        // Use mock locations if permission denied
-        const mockCurrentLocation = { latitude: 30.7093774, longitude: 76.6921674 };
-        setCurrentLocation(mockCurrentLocation);
-        setChipLocation(mockChipLocation);
-        setCarLocation(mockCarLocation);
         setIsLoading(false);
-
-        // Calculate distance with mock location
-        const distance = calculateDistance(mockCurrentLocation, mockCarLocation);
-        setDistanceToCar(distance);
-
-        // Set last update time
         setLastUpdateTime(new Date().toLocaleTimeString());
-
-        // Animate to optimal region after a short delay to ensure map is ready
-        setTimeout(() => {
-          if (mapRef.current) {
-            const region = calculateMapRegion(mockCurrentLocation, mockCarLocation);
-            mapRef.current.animateToRegion(region, 1500);
-          }
-        }, 500);
       }
     };
 
@@ -420,10 +469,25 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       clearInterval(locationInterval);
       // Disconnect MQTT client on cleanup
       if (mqttClient) {
+        console.log('Disconnecting MQTT client...');
         mqttClient.end();
+        setMqttClient(null);
+        setMqttConnected(false);
       }
     };
   }, [locationPermission]);
+
+  // Real-time time ago updates (every 1 minute)
+  useEffect(() => {
+    if (savedLocation) {
+      const interval = setInterval(() => {
+        const updatedTime = getTimeAgo(savedLocation.timestamp);
+        setTimeAgo(updatedTime);
+      }, 60000); // 1 minute = 60000ms
+      
+      return () => clearInterval(interval);
+    }
+  }, [savedLocation]);
 
   // Handle initial zoom when both locations are available
   useEffect(() => {
@@ -442,16 +506,16 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const updateVehicleWithChip = async (chipId) => {
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      
+
       // Get the yard ID from route params or vehicle data
       const currentYardId = yardId || vehicle?.parkingYard || 1;
       const storageKey = `yard_${currentYardId}_vehicles`;
-      
+
       // Get existing vehicles from storage
       const savedVehicles = await AsyncStorage.getItem(storageKey);
       if (savedVehicles) {
         const vehicles = JSON.parse(savedVehicles);
-        
+
         // Find and update the vehicle
         const updatedVehicles = vehicles.map(v => {
           if (v.id === vehicle.id || v.vin === vehicle.vin) {
@@ -464,10 +528,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           }
           return v;
         });
-        
+
         // Save updated vehicles back to storage
         await AsyncStorage.setItem(storageKey, JSON.stringify(updatedVehicles));
-        
+
         // Update the local vehicle state to reflect the change
         const updatedVehicle = {
           ...vehicle,
@@ -475,11 +539,11 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           isActive: chipId ? true : false,
           lastUpdated: new Date().toISOString()
         };
-        
+
         // Update the vehicle state so the UI reflects the change immediately
         // This will cause the component to re-render and show the assigned chip
         setVehicle(updatedVehicle);
-        
+
         console.log(chipId ? `Vehicle updated with chip: ${chipId}` : 'Chip unassigned from vehicle');
       }
     } catch (error) {
@@ -536,7 +600,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             type: 'chip',
             value: chipId,
             yardName: chipCheck.yardName,
-            vin: chipCheck.vehicle.vin
+            vin: chipCheck.vehicle.vin,
+            vehicleId: chipCheck.vehicle.id // Store vehicle ID for unassigning
           });
           setShowDuplicateModal(true);
           return;
@@ -552,8 +617,86 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  // Handle unassigning chip from duplicate vehicle
+  const handleUnassignFromDuplicate = async () => {
+    try {
+      Alert.alert(
+        'Unassign Chip',
+        'Are you sure you want to unassign this chip from the vehicle in ' + duplicateInfo?.yardName + '?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Unassign',
+            style: 'destructive',
+            onPress: async () => {
+              const success = await unassignChipFromVehicle(duplicateInfo?.value, duplicateInfo?.vehicleId);
+              setShowDuplicateModal(false);
+
+              if (success) {
+                // Navigate to YardDetailScreen to reload data
+                navigation.navigate('YardDetailScreen', {
+                  yardName: duplicateInfo?.yardName,
+                  yardId: yardId, // Use current yard ID
+                  refreshData: true // Flag to indicate data should be refreshed
+                });
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error unassigning chip from duplicate vehicle:', error);
+    }
+  };
+
+  // Unassign chip from a specific vehicle
+  const unassignChipFromVehicle = async (chipId, vehicleId) => {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const keys = await AsyncStorage.getAllKeys();
+      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+
+      for (const key of yardKeys) {
+        const vehicles = await AsyncStorage.getItem(key);
+        if (vehicles) {
+          const parsedVehicles = JSON.parse(vehicles);
+          const foundVehicleIndex = parsedVehicles.findIndex(v => v.id === vehicleId && v.chipId === chipId);
+
+          if (foundVehicleIndex !== -1) {
+            // Update the vehicle to remove chip assignment
+            parsedVehicles[foundVehicleIndex] = {
+              ...parsedVehicles[foundVehicleIndex],
+              chipId: null,
+              isActive: false,
+              lastUpdated: new Date().toISOString()
+            };
+
+            // Save updated vehicles back to storage
+            await AsyncStorage.setItem(key, JSON.stringify(parsedVehicles));
+            console.log(`Chip ${chipId} unassigned from vehicle ${vehicleId} in ${key}`);
+            return true;
+          }
+        }
+      }
+      return false;
+    } catch (error) {
+      console.error('Error unassigning chip from vehicle:', error);
+      return false;
+    }
+  };
+
   const renderMap = () => (
     <View style={styles.mapContainer}>
+      {/* Show note if no chip assigned */}
+      {!getChipId() && (
+        <View style={styles.noChipNote}>
+          <Text style={styles.noChipText}>📍 Please assign a chip to track vehicle location</Text>
+        </View>
+      )}
+      
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -581,20 +724,36 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         )}
 
 
-        {/* Car Location Marker */}
-        {carLocation && (
+        {/* Car Location Marker - Only show if chip is assigned */}
+        {getChipId() && carLocation && (
           <Marker
             coordinate={carLocation}
             title="Vehicle Location"
             description={`${vehicle?.make} ${vehicle?.model}`}
           >
-            <View style={styles.carLocationMarker}>
-              <Ionicons name="car" size={20} color="#fff" />
+            <View style={styles.carMarkerContainer}>
+              {/* Tooltip */}
+              {savedLocation && (
+                <View style={styles.tooltip}>
+                  <Text style={styles.tooltipText}>
+                    Last updated: {timeAgo || getTimeAgo(savedLocation.timestamp)}
+                  </Text>
+                  {/* <Text style={styles.tooltipText}>
+                    Location: {carLocation.latitude.toFixed(6)}, {carLocation.longitude.toFixed(6)}
+                  </Text> */}
+                </View>
+              )}
+              
+              {/* Car Icon */}
+              <View style={styles.carLocationMarker}>
+                <Ionicons name="car" size={20} color="#fff" />
+              </View>
             </View>
           </Marker>
         )}
 
-        {currentLocation && carLocation && (
+        {/* Directions - Only show if chip is assigned and both locations available */}
+        {getChipId() && currentLocation && carLocation && (
           <MapViewDirections
             origin={currentLocation}
             destination={carLocation}
@@ -638,15 +797,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.infoLabel}>Chip Number:</Text>
           <View style={styles.statusContainer}>
             {vehicle?.chipId ? (
-              <>
-                <Text style={[styles.infoValue, { color: greenColor }]}>{vehicle.chipId}</Text>
+              <View style={styles.statusContainer}>
                 <View style={[styles.statusDot, { backgroundColor: greenColor }]} />
-              </>
+                <Text style={[styles.infoValue, { color: greenColor }]}>{vehicle?.chipId}</Text>
+              </View>
             ) : (
-              <>
-                <Text style={[styles.infoValue, { color: '#ff6b6b' }]}>Not Assigned</Text>
+              <View style={styles.statusContainer}>
                 <View style={[styles.statusDot, { backgroundColor: '#ff6b6b' }]} />
-              </>
+                <Text style={[styles.infoValue, { color: '#ff6b6b' }]}>Not Assigned</Text>
+              </View>
             )}
           </View>
         </View>
@@ -678,9 +837,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               'Getting location...'
             }
           </Text>
-        </View>
+        </View> */}
 
-        <View style={styles.infoRow}>
+        {/* <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Chip Location:</Text>
           <Text style={styles.infoValue}>
             {chipLocation ? 
@@ -688,9 +847,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               'Not available'
             }
           </Text>
-        </View>
+        </View> */}
 
-        <View style={styles.infoRow}>
+        {/* <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Vehicle Location:</Text>
           <Text style={styles.infoValue}>
             {carLocation ? 
@@ -709,8 +868,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             }
           </Text>
         </View>
-        {/* 
-        <View style={styles.infoRow}>
+        {/* <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Data Source:</Text>
           <View style={styles.statusContainer}>
             <View style={[styles.statusDot, { backgroundColor: mqttDataReceived ? greenColor : '#ff9500' }]} />
@@ -718,9 +876,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               {mqttDataReceived ? 'Live GPS Data' : 'Static Data'}
             </Text>
           </View>
-        </View>
+        </View> */}
 
-        <View style={styles.infoRow}>
+        {/* <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>MQTT Status:</Text>
           <View style={styles.statusContainer}>
             <View style={[styles.statusDot, { backgroundColor: mqttConnected ? greenColor : '#ff6b6b' }]} />
@@ -808,30 +966,41 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               <Text style={styles.duplicateMainMessage}>
                 This chip is already assigned to a vehicle in
               </Text>
-              
+
               {/* Yard Name - Bold Text */}
               <Text style={styles.duplicateYardText}>{duplicateInfo?.yardName}</Text>
-              
+
               {/* VIN Number - Bold Text */}
               <Text style={styles.duplicateVinText}>
                 VIN: {duplicateInfo?.vin}
               </Text>
-              
+
               {/* Chip ID - Bold Text */}
               <Text style={styles.duplicateChipText}>
                 Chip: {duplicateInfo?.value}
               </Text>
             </View>
 
-            {/* Close Button */}
-            <TouchableOpacity
-              style={styles.duplicateCloseButton}
-              onPress={() => setShowDuplicateModal(false)}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="checkmark" size={20} color="#fff" />
-              <Text style={styles.duplicateCloseButtonText}>Got it</Text>
-            </TouchableOpacity>
+            {/* Action Buttons */}
+            <View style={styles.duplicateButtonContainer}>
+              <TouchableOpacity
+                style={styles.duplicateUnassignButton}
+                onPress={handleUnassignFromDuplicate}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="radio-outline" size={20} color="#fff" />
+                <Text style={styles.duplicateUnassignButtonText}>Unassigned Chip</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.duplicateCloseButton}
+                onPress={() => setShowDuplicateModal(false)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="checkmark" size={20} color="#fff" />
+                <Text style={styles.duplicateCloseButtonText}>Got it</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -865,8 +1034,27 @@ const styles = StyleSheet.create({
     color: grayColor,
   },
   mapContainer: {
-    height: height * 0.3, // 30% of screen height
+    height: height * 0.28, // 30% of screen height
     width: '100%',
+    position: 'relative',
+  },
+  noChipNote: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: '#FFF5F5',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE5E5',
+    zIndex: 1000,
+  },
+  noChipText: {
+    color: '#FF6B6B',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   map: {
     flex: 1,
@@ -891,15 +1079,40 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
+  carMarkerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tooltip: {
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 5,
+    position: 'relative',
+    minWidth: 150,
+  },
+  tooltipText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 12,
+  },
   carLocationMarker: {
-    backgroundColor: '#34C759',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    backgroundColor: '#FF6B6B',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   detailsContainer: {
     flex: 1,
@@ -955,7 +1168,7 @@ const styles = StyleSheet.create({
     fontSize: style.fontSizeNormal.fontSize,
     color: blackColor,
     fontWeight: '600',
-    flex: 2,
+    // flex: 2,
     textAlign: 'right',
   },
   statusContainer: {
@@ -1094,14 +1307,46 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: 'monospace',
   },
-  duplicateCloseButton: {
-    backgroundColor: '#613EEA',
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    borderRadius: 0,
+  duplicateButtonContainer: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    padding: 10,
+    justifyContent: 'space-between',
+  },
+  duplicateUnassignButton: {
+    backgroundColor: '#FF6B6B',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 10,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  duplicateUnassignButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+  duplicateCloseButton: {
+    backgroundColor: '#613EEA',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    flex: 1,
+    marginLeft: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
     shadowColor: '#613EEA',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1110,7 +1355,7 @@ const styles = StyleSheet.create({
   },
   duplicateCloseButtonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
     marginLeft: 8,
     letterSpacing: 0.5,

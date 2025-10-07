@@ -435,6 +435,11 @@ const YardDetailScreen = ({ navigation, route }) => {
         setScannedVinData(null);
 
         console.log('Success', `Chip ${chipId} assigned successfully!`);
+        
+        // Navigate back to HomeScreen after successful vehicle addition with chip
+        setTimeout(() => {
+          navigation.navigate('HomeScreen');
+        }, 1000);
       } else {
         console.log('Error', 'Chip scanning cancelled or failed');
       }
@@ -472,6 +477,11 @@ const YardDetailScreen = ({ navigation, route }) => {
       setScannedVinData(null);
 
       console.log('Vehicle Added', 'Vehicle added successfully without chip. You can assign chip later.');
+      
+      // Navigate back to HomeScreen after successful vehicle addition without chip
+      setTimeout(() => {
+        navigation.navigate('HomeScreen');
+      }, 1000);
     }
   };
 

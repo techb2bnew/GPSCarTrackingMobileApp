@@ -82,18 +82,18 @@ export default function DrawerMenu({
 
       {/* Profile */}
       <View style={styles.profileContainer}>
-        <Image
-          source={{
-            uri: user?.image || 'https://randomuser.me/api/portraits/men/1.jpg',
-          }}
-          style={styles.avatar}
-        />
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {(user?.name || 'Mark Evans').charAt(0).toUpperCase()}
+          </Text>
+        </View>
         <Text style={styles.name}>{user?.name || 'Mark Evans'}</Text>
       </View>
 
       {/* Menu items */}
       <View style={styles.menuItems}>
         {[
+          { label: 'Profile', icon: 'person', nav: 'ProfileScreen' },
           { label: 'Facility History', icon: 'time', nav: 'ActivityHistoryScreen' },
           { label: 'How it works', icon: 'information-circle' },
           { label: 'Support', icon: 'help-circle' },
@@ -198,7 +198,19 @@ const styles = StyleSheet.create({
   closeButton: { alignSelf: 'flex-start' },
 
   profileContainer: { alignItems: 'center', marginVertical: 20 },
-  avatar: { height: 80, width: 80, borderRadius: 40, backgroundColor: '#eee' },
+  avatar: { 
+    height: 80, 
+    width: 80, 
+    borderRadius: 40, 
+    backgroundColor: '#613EEA',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
   name: { marginTop: 10, fontWeight: 'bold', fontSize: 16 },
 
   menuItems: { marginTop: 30 },

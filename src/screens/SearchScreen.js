@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons'; // vector-icons
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {vinList} from '../constants/Constants';
+import { useFocusEffect } from '@react-navigation/native';
 import {heightPercentageToDP} from '../utils';
 
 const SearchScreen = ({navigation}) => {
@@ -66,14 +66,21 @@ const SearchScreen = ({navigation}) => {
     loadAllVehicles();
   }, []);
 
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadAllVehicles();
+    }, [])
+  );
+
   const handleSearch = text => {
     setSearchText(text);
 
     if (text.trim() === '') {
       setFilteredData([]); // blank hone par list clear
     } else {
-      // Search in AsyncStorage data first
-      const asyncStorageData = allVehicles?.filter(item => {
+      // Search only in real AsyncStorage data
+      const filteredResults = allVehicles?.filter(item => {
         const lowerText = text.toLowerCase();
         return (
           item.vin?.toLowerCase().includes(lowerText) ||
@@ -84,28 +91,8 @@ const SearchScreen = ({navigation}) => {
           item.chipId?.toLowerCase().includes(lowerText)
         );
       });
-
-      // Also search in VIN list as fallback
-      const vinListData = vinList?.filter(item => {
-        const lowerText = text.toLowerCase();
-        return (
-          item.vin.toLowerCase().includes(lowerText) ||
-          item.make.toLowerCase().includes(lowerText) ||
-          item.model.toLowerCase().includes(lowerText) ||
-          item.year.toString().includes(lowerText) ||
-          item.parkingYard.toString().includes(lowerText)
-        );
-      });
-
-      // Combine both results, prioritizing AsyncStorage data
-      const combinedData = [...asyncStorageData, ...vinListData];
       
-      // Remove duplicates based on VIN
-      const uniqueData = combinedData.filter((item, index, self) => 
-        index === self.findIndex(t => t.vin === item.vin)
-      );
-      
-      setFilteredData(uniqueData);
+      setFilteredData(filteredResults || []);
     }
   };
 

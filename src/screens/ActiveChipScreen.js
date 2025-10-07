@@ -7,41 +7,116 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { heightPercentageToDP } from '../utils';
 import { vinList } from '../constants/Constants';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 const ActiveChipScreen = ({ navigation, route }) => {
   const { type } = route.params;
   const [searchText, setSearchText] = useState('');
   const [filteredData, setFilteredData] = useState([]);
+  const [allVehicles, setAllVehicles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load real vehicle data from AsyncStorage
+  const loadVehicleData = async () => {
+    try {
+      setIsLoading(true);
+      const keys = await AsyncStorage.getAllKeys();
+      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      
+      // Load saved yards to get real yard names
+      const savedYards = await AsyncStorage.getItem('parking_yards');
+      let yardsData = [];
+      if (savedYards) {
+        yardsData = JSON.parse(savedYards);
+      }
+      
+      let allVehiclesData = [];
+      
+      for (const key of yardKeys) {
+        const vehicles = await AsyncStorage.getItem(key);
+        if (vehicles) {
+          const parsedVehicles = JSON.parse(vehicles);
+          // Add yard info to each vehicle
+          const yardId = key.replace('yard_', '').replace('_vehicles', '');
+          
+          // Find the actual yard name from saved yards
+          const yard = yardsData.find(y => y.id === yardId);
+          const yardName = yard ? yard.name : `Yard ${yardId}`;
+          
+          const vehiclesWithYard = parsedVehicles.map(vehicle => ({
+            ...vehicle,
+            yardId: yardId,
+            yardName: yardName
+          }));
+          allVehiclesData = [...allVehiclesData, ...vehiclesWithYard];
+        }
+      }
+      
+      setAllVehicles(allVehiclesData);
+      console.log('Loaded vehicles:', allVehiclesData.length);
+    } catch (error) {
+      console.error('Error loading vehicle data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load data on component mount and when screen comes into focus
+  useEffect(() => {
+    loadVehicleData();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadVehicleData();
+    }, [])
+  );
 
   useEffect(() => {
     if (searchText.trim() === '') {
-      setFilteredData(vinList);
+      setFilteredData(getDataByType());
     } else {
-      const filtered = vinList?.filter(
+      const currentData = getDataByType();
+      const filtered = currentData?.filter(
         item =>
           item.vin.toLowerCase().includes(searchText.toLowerCase()) ||
-          item.model.toLowerCase().includes(searchText.toLowerCase()) ||
-          item.year.includes(searchText),
+          item.model?.toLowerCase().includes(searchText.toLowerCase()) ||
+          item.make?.toLowerCase().includes(searchText.toLowerCase()) ||
+          item.year?.toString().includes(searchText),
       );
       setFilteredData(filtered);
     }
-  }, [searchText]);
+  }, [searchText, allVehicles]);
 
   const getDataByType = () => {
-    if (type === "active") return vinList.slice(0, 30);
-    if (type === "inactive") return vinList.slice(30, 40);
-    if (type === "lowBattery") return vinList.slice(40, 45);
-    return [];
+    if (!allVehicles || allVehicles.length === 0) return [];
+    
+    switch (type) {
+      case "active":
+        // Vehicles with chipId and isActive = true
+        return allVehicles.filter(v => v.chipId && v.isActive);
+      case "inactive":
+        // Vehicles with chipId but isActive = false
+        return allVehicles.filter(v => v.chipId && !v.isActive);
+      case "lowBattery":
+        // For now, return a subset of active vehicles as low battery (mock data)
+        const activeVehicles = allVehicles.filter(v => v.chipId && v.isActive);
+        return activeVehicles.slice(0, Math.floor(activeVehicles.length * 0.2)); // 20% of active vehicles
+      default:
+        return [];
+    }
   };
 
   useEffect(() => {
     setFilteredData(getDataByType());
-  }, [type]);
+  }, [type, allVehicles]);
 
   const getHeading = () => {
     switch (type) {
@@ -57,14 +132,28 @@ const ActiveChipScreen = ({ navigation, route }) => {
   };
 
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.card} onPress={() => { navigation.navigate('MapViewScreen'); }}>
+    <TouchableOpacity 
+      style={styles.card} 
+      onPress={() => { 
+        navigation.navigate('VehicleDetailsScreen', { 
+          vehicle: item, 
+          yardName: item.yardName,
+          yardId: item.yardId 
+        }); 
+      }}>
       <View style={{ flex: 1 }}>
         <Text style={styles.vin}>{item.vin}</Text>
         <Text style={styles.subText}>
           {item.year} • {item.make} {item.model}
         </Text>
+        {item.chipId && (
+          <Text style={styles.chipText}>Chip: {item.chipId}</Text>
+        )}
+        {item.yardName && (
+          <Text style={styles.yardText}>Yard: {item.yardName}</Text>
+        )}
       </View>
-      {/* Green Tag */}
+      {/* Status Tag */}
       <View
         style={[
           styles.activeTag,
@@ -74,7 +163,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                 ? 'rgba(0, 128, 0, 0.2)'
                 : type == 'inactive'
                   ? 'rgba(255, 13, 0, 0.2)'
-                  : 'rgba(255, 13, 0, 0.2)',
+                  : 'rgba(255, 165, 0, 0.2)',
           },
         ]}>
         <Text
@@ -82,7 +171,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
             styles.activeText,
             {
               color:
-                type == 'active' ? 'green' : type == 'inactive' ? 'red' : 'red',
+                type == 'active' ? 'green' : type == 'inactive' ? 'red' : 'orange',
             },
           ]}>
           {type == 'active'
@@ -122,14 +211,33 @@ const ActiveChipScreen = ({ navigation, route }) => {
       </View>
 
       {/* List */}
-      <FlatList
-        data={filteredData}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        ListEmptyComponent={<Text style={styles.noData}>No Records Found</Text>}
-      />
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#613EEA" />
+          <Text style={styles.loadingText}>Loading chip data...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredData}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          ListEmptyComponent={
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noData}>No {type} chips found</Text>
+              <Text style={styles.noDataSubtext}>
+                {type === 'active' 
+                  ? 'No vehicles with active chips'
+                  : type === 'inactive'
+                  ? 'No vehicles with inactive chips'
+                  : 'No vehicles with low battery chips'
+                }
+              </Text>
+            </View>
+          }
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -199,6 +307,40 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
     color: '#999',
+    fontWeight: '600',
+  },
+  noDataContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noDataSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+    color: '#bbb',
+    paddingHorizontal: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 12,
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+    fontFamily: 'monospace',
+  },
+  yardText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
   },
 });
 
