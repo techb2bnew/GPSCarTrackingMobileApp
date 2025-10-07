@@ -190,23 +190,52 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     Toast.show('✅ Yard added successfully!', Toast.LONG);
   };
 
-  const renderItem = ({ item }) => {
-    const isSelected = item?.id === selectedYard;
+  // Helper function to get slot information for a yard
+  const getSlotInfo = async (yardId) => {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const storageKey = `yard_${yardId}_vehicles`;
+      const savedVehicles = await AsyncStorage.getItem(storageKey);
+      const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
+      
+      // First check in yards state (dynamic yards), then static parkingYards
+      let yard = yards.find(y => y.id === yardId);
+      if (!yard) {
+        yard = parkingYards.find(y => y.id === yardId);
+      }
+      
+      const totalSlots = parseInt(yard?.slots) || 50; // Default to 50 if not specified
+      const availableSlots = Math.max(0, totalSlots - vehicleCount);
+      
+      return {
+        total: totalSlots,
+        occupied: vehicleCount,
+        available: availableSlots
+      };
+    } catch (error) {
+      console.error('Error calculating slot info:', error);
+      return { total: 50, occupied: 0, available: 50 };
+    }
+  };
 
-    const displayName =
-      item?.name?.charAt(0).toUpperCase() + item?.name?.slice(1);
+  // Yard Card Component with dynamic slot info
+  const YardCard = ({ item, isSelected, onPress }) => {
+    const [slotInfo, setSlotInfo] = useState({ total: item?.slots || 50, occupied: 0, available: item?.slots || 50 });
+
+    useEffect(() => {
+      const loadSlotInfo = async () => {
+        const info = await getSlotInfo(item.id);
+        setSlotInfo(info);
+      };
+      loadSlotInfo();
+    }, [item.id]);
+
+    const displayName = item?.name?.charAt(0).toUpperCase() + item?.name?.slice(1);
 
     return (
       <TouchableOpacity
         style={[styles.simpleYardCard, isSelected && styles.selectedSimpleCard]}
-        onPress={() => {
-          setSelectedYard(item?.id),
-            navigation.navigate('YardDetailScreen', {
-              yardId: item?.id,
-              yardName: item?.name,
-              fromScreen: 'HomeScreen'
-            });
-        }}>
+        onPress={onPress}>
         <View style={styles.simpleCardContent}>
           <View style={styles.simpleCardLeft}>
             <View style={styles.simpleIconContainer}>
@@ -219,9 +248,18 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               <Text style={[styles.simpleYardAddress, isSelected && styles.selectedText]}>
                 {item?.address}
               </Text>
-              <Text style={styles.simpleSlotText}>
-                {item?.slots} parking slots
-              </Text>
+              {slotInfo.available === 0 ? (
+                <View style={styles.fullYardContainer}>
+                  <Ionicons name="warning" size={16} color="#FF6B6B" />
+                  <Text style={styles.fullYardText}>
+                    Yard is full! ({slotInfo.total}/{slotInfo.total} slots)
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.simpleSlotText}>
+                  {slotInfo.available} available • {slotInfo.total} total slots
+                </Text>
+              )}
             </View>
           </View>
           <View style={styles.simpleArrowContainer}>
@@ -229,6 +267,25 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </View>
         </View>
       </TouchableOpacity>
+    );
+  };
+
+  const renderItem = ({ item }) => {
+    const isSelected = item?.id === selectedYard;
+
+    return (
+      <YardCard
+        item={item}
+        isSelected={isSelected}
+        onPress={() => {
+          setSelectedYard(item?.id);
+          navigation.navigate('YardDetailScreen', {
+            yardId: item?.id,
+            yardName: item?.name,
+            fromScreen: 'HomeScreen'
+          });
+        }}
+      />
     );
   };
   const handlePress = item => {
@@ -874,10 +931,28 @@ const styles = StyleSheet.create({
     marginBottom: 3,
     lineHeight: 16,
   },
+  slotInfoContainer: {
+    marginTop: 2,
+  },
   simpleSlotText: {
     fontSize: 11,
     color: '#613EEA',
     fontWeight: '600',
+  },
+  fullYardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  fullYardText: {
+    fontSize: 11,
+    color: '#FF6B6B',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  totalSlotText: {
+    fontSize: 10,
+    color: '#999',
   },
   simpleArrowContainer: {
     padding: 4,

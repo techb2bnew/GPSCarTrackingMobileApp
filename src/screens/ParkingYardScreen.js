@@ -146,7 +146,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   SafeAreaView,
-  ImageBackground,
   TextInput,
   Modal,
   ScrollView,
@@ -155,13 +154,14 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
 import { parkingYards } from '../constants/Constants';
 import useFacilityFetch from '../hooks/useFacilityFetch';
-import { heightPercentageToDP } from '../utils';
-import { redColor } from '../constants/Color';
+import { heightPercentageToDP, heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
+import { redColor, whiteColor, blackColor, grayColor } from '../constants/Color';
+import { spacings, style } from '../constants/Fonts';
 
 const ParkingYardScreen = ({ navigation }) => {
   const [selectedYard, setSelectedYard] = useState(null);
@@ -181,6 +181,29 @@ const ParkingYardScreen = ({ navigation }) => {
     yardSlots: '',
     yardAddress: '',
   });
+
+  // Helper function to get slot information for a yard
+  const getSlotInfo = async (yardId) => {
+    try {
+      const storageKey = `yard_${yardId}_vehicles`;
+      const savedVehicles = await AsyncStorage.getItem(storageKey);
+      const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
+      
+      // Find the yard to get total slots
+      const yard = yards.find(y => y.id === yardId) || parkingYards.find(y => y.id === yardId);
+      const totalSlots = parseInt(yard?.slots) || 50; // Default to 50 if not specified
+      const availableSlots = Math.max(0, totalSlots - vehicleCount);
+      
+      return {
+        total: totalSlots,
+        occupied: vehicleCount,
+        available: availableSlots
+      };
+    } catch (error) {
+      console.error('Error calculating slot info:', error);
+      return { total: 50, occupied: 0, available: 50 };
+    }
+  };
 
   // Load yards from AsyncStorage
   useEffect(() => {
@@ -291,214 +314,265 @@ const ParkingYardScreen = ({ navigation }) => {
     Toast.show('✅ Yard added successfully!', Toast.LONG);
   };
 
-  const renderItem = ({ item }) => {
-    const isSelected = item?.id === selectedYard;
-    const displayName =
-      item?.name?.charAt(0).toUpperCase() + item?.name?.slice(1);
+  // Yard Card Component with dynamic slot info
+  const YardCard = ({ item, isSelected, onPress }) => {
+    const [slotInfo, setSlotInfo] = useState({ total: item?.slots || 50, occupied: 0, available: item?.slots || 50 });
+
+    useEffect(() => {
+      const loadSlotInfo = async () => {
+        const info = await getSlotInfo(item.id);
+        setSlotInfo(info);
+      };
+      loadSlotInfo();
+    }, [item.id]);
+
+    const displayName = item?.name?.charAt(0).toUpperCase() + item?.name?.slice(1);
 
     return (
       <TouchableOpacity
-        style={[styles.card, isSelected && styles.selectedCard]}
-        onPress={() => {
-          setSelectedYard(item?.id),
-            navigation.navigate('YardDetailsScreen', { isSelected: item?.id });
-        }}>
-        <Text style={[styles.name, isSelected && styles.selectedText]}>
-          {displayName}
-        </Text>
-        <Text style={[styles.address, isSelected && styles.selectedText]}>
-          {item?.address}
-        </Text>
+        style={[styles.simpleYardCard, isSelected && styles.selectedSimpleCard]}
+        onPress={onPress}>
+        <View style={styles.simpleCardContent}>
+          <View style={styles.simpleCardLeft}>
+            <View style={styles.simpleIconContainer}>
+              <Ionicons name="business" size={24} color="#613EEA" />
+            </View>
+            <View style={styles.simpleTextContainer}>
+              <Text style={[styles.simpleYardName, isSelected && styles.selectedText]}>
+                {displayName}
+              </Text>
+              <Text style={[styles.simpleYardAddress, isSelected && styles.selectedText]}>
+                {item?.address}
+              </Text>
+              {slotInfo.available === 0 ? (
+                <View style={styles.fullYardContainer}>
+                  <Ionicons name="warning" size={16} color="#FF6B6B" />
+                  <Text style={styles.fullYardText}>
+                    Yard is full! ({slotInfo.total}/{slotInfo.total} slots)
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.simpleSlotText}>
+                  {slotInfo.available} available • {slotInfo.total} total slots
+                </Text>
+              )}
+            </View>
+          </View>
+          <View style={styles.simpleArrowContainer}>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </View>
+        </View>
       </TouchableOpacity>
     );
   };
 
+  const renderItem = ({ item }) => {
+    const isSelected = item?.id === selectedYard;
+
+    return (
+      <YardCard
+        item={item}
+        isSelected={isSelected}
+        onPress={() => {
+          setSelectedYard(item?.id);
+          navigation.navigate('YardDetailScreen', {
+            yardId: item?.id,
+            yardName: item?.name,
+            fromScreen: 'ParkingYardScreen'
+          });
+        }}
+      />
+    );
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ImageBackground style={{ flex: 1 }} resizeMode="cover">
-        <View style={styles.container}>
-          <View style={styles.headerContainer}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
-                <Icon name="arrow-back" size={24} color="#000" />
-              </TouchableOpacity>
-              <Text style={styles.title}>Parking Yards</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => setShowAddYardModal(true)}
-            >
-              <Icon name="add-circle" size={32} color="#613EEA" />
+    <SafeAreaView style={styles.container}>
+      <View style={styles.contentContainer}>
+        <View style={styles.headerContainer}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Ionicons name="arrow-back" size={24} color="#000" />
             </TouchableOpacity>
+            <Text style={styles.title}>Parking Yards</Text>
           </View>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setShowAddYardModal(true)}
+          >
+            <Ionicons name="add-circle" size={32} color="#613EEA" />
+          </TouchableOpacity>
+        </View>
 
-          {/* 🔍 Search Bar */}
-          <View style={styles.searchContainer}>
-            <Icon name="search-outline" size={20} color="#666" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search parking yard..."
-              placeholderTextColor="#999"
-              value={searchText}
-              onChangeText={setSearchText}
-            />
+        {/* 🔍 Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#666" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search parking yard..."
+            placeholderTextColor="#999"
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+        </View>
+
+        {/* 📝 List */}
+        {yards.length > 0 ? (
+          <FlatList
+            data={filteredYards}
+            keyExtractor={item => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContainer}
+            ListEmptyComponent={
+              <Text style={styles.noData}>No Parking Yard Found</Text>
+            }
+          />
+        ) : (
+          <View style={styles.emptyYardContainer}>
+            <Ionicons name="business-outline" size={80} color="#ccc" />
+            <Text style={styles.emptyYardText}>No Parking Yards Yet</Text>
+            <Text style={styles.emptyYardSubtext}>
+              Tap the + button above to add your first parking yard
+            </Text>
           </View>
+        )}
 
-          {/* 📝 List */}
-          {yards.length > 0 ? (
-            <FlatList
-              data={filteredYards}
-              keyExtractor={item => item.id}
-              renderItem={renderItem}
-              contentContainerStyle={styles.listContainer}
-              ListEmptyComponent={
-                <Text style={styles.noData}>No Parking Yard Found</Text>
-              }
-            />
-          ) : (
-            <View style={styles.emptyYardContainer}>
-              <Icon name="business-outline" size={80} color="#ccc" />
-              <Text style={styles.emptyYardText}>No Parking Yards Yet</Text>
-              <Text style={styles.emptyYardSubtext}>
-                Tap the + button above to add your first parking yard
-              </Text>
-            </View>
-          )}
-
-          {/* Static Yards - Commented for future use */}
-          {/* <FlatList
+        {/* Static Yards - Commented for future use */}
+        {/* <FlatList
             data={parkingYards}
             keyExtractor={item => item.id}
             renderItem={renderItem}
             contentContainerStyle={styles.listContainer}
           /> */}
-        </View>
+      </View>
 
-        {/* Add Yard Modal */}
-        <Modal
-          visible={showAddYardModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => {
-            Keyboard.dismiss();
-            clearFormData();
-            setShowAddYardModal(false);
-          }}
+      {/* Add Yard Modal */}
+      <Modal
+        visible={showAddYardModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          clearFormData();
+          setShowAddYardModal(false);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalOverlay}
-          >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={styles.modalOverlay}>
-                <TouchableWithoutFeedback onPress={() => { }}>
-                  <View style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Add New Parking Yard</Text>
-                      <TouchableOpacity onPress={() => {
-                        Keyboard.dismiss();
-                        clearFormData();
-                        setShowAddYardModal(false);
-                      }}>
-                        <Icon name="close" size={28} color="#666" />
-                      </TouchableOpacity>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback onPress={() => { }}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Add New Parking Yard</Text>
+                    <TouchableOpacity onPress={() => {
+                      Keyboard.dismiss();
+                      clearFormData();
+                      setShowAddYardModal(false);
+                    }}>
+                      <Ionicons name="close" size={28} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView
+                    style={styles.formContainer}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Yard Name *</Text>
+                      <TextInput
+                        style={[styles.textInput, errors.yardName && styles.inputError]}
+                        placeholder="e.g., North Parking Yard"
+                        value={yardName}
+                        onChangeText={(text) => {
+                          setYardName(text);
+                          clearError('yardName');
+                        }}
+                        returnKeyType="next"
+                      />
+                      {errors.yardName ? (
+                        <View style={styles.errorContainer}>
+                          <Ionicons name="alert-circle" size={16} color={redColor} />
+                          <Text style={styles.errorText}>{errors.yardName}</Text>
+                        </View>
+                      ) : null}
                     </View>
 
-                    <ScrollView
-                      style={styles.formContainer}
-                      keyboardShouldPersistTaps="handled"
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Yard Name *</Text>
-                        <TextInput
-                          style={[styles.textInput, errors.yardName && styles.inputError]}
-                          placeholder="e.g., North Parking Yard"
-                          value={yardName}
-                          onChangeText={(text) => {
-                            setYardName(text);
-                            clearError('yardName');
-                          }}
-                          returnKeyType="next"
-                        />
-                        {errors.yardName ? (
-                          <View style={styles.errorContainer}>
-                            <Icon name="alert-circle" size={16} color={redColor} />
-                            <Text style={styles.errorText}>{errors.yardName}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Address *</Text>
-                        <TextInput
-                          style={[styles.textInput, errors.yardAddress && styles.inputError]}
-                          placeholder="e.g., 123 Main Street, City"
-                          value={yardAddress}
-                          onChangeText={(text) => {
-                            setYardAddress(text);
-                            clearError('yardAddress');
-                          }}
-                          multiline
-                          numberOfLines={2}
-                          returnKeyType="next"
-                        />
-                        {errors.yardAddress ? (
-                          <View style={styles.errorContainer}>
-                            <Icon name="alert-circle" size={16} color={redColor} />
-                            <Text style={styles.errorText}>{errors.yardAddress}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>Number of Parking Slots *</Text>
-                        <TextInput
-                          style={[styles.textInput, errors.yardSlots && styles.inputError]}
-                          placeholder="e.g., 50"
-                          value={yardSlots}
-                          onChangeText={(text) => {
-                            setYardSlots(text);
-                            clearError('yardSlots');
-                          }}
-                          keyboardType="number-pad"
-                          returnKeyType="done"
-                          onSubmitEditing={Keyboard.dismiss}
-                        />
-                        {errors.yardSlots ? (
-                          <View style={styles.errorContainer}>
-                            <Icon name="alert-circle" size={16} color={redColor} />
-                            <Text style={styles.errorText}>{errors.yardSlots}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.submitButton}
-                        onPress={() => {
-                          Keyboard.dismiss();
-                          handleAddYard();
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Address *</Text>
+                      <TextInput
+                        style={[styles.textInput, errors.yardAddress && styles.inputError]}
+                        placeholder="e.g., 123 Main Street, City"
+                        value={yardAddress}
+                        onChangeText={(text) => {
+                          setYardAddress(text);
+                          clearError('yardAddress');
                         }}
-                      >
-                        <Icon name="checkmark-circle" size={24} color="#fff" />
-                        <Text style={styles.submitButtonText}>Add Yard</Text>
-                      </TouchableOpacity>
+                        multiline
+                        numberOfLines={2}
+                        returnKeyType="next"
+                      />
+                      {errors.yardAddress ? (
+                        <View style={styles.errorContainer}>
+                          <Ionicons name="alert-circle" size={16} color={redColor} />
+                          <Text style={styles.errorText}>{errors.yardAddress}</Text>
+                        </View>
+                      ) : null}
+                    </View>
 
-                      <View style={{ height: 20 }} />
-                    </ScrollView>
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
-            </TouchableWithoutFeedback>
-          </KeyboardAvoidingView>
-        </Modal>
-      </ImageBackground>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Number of Parking Slots *</Text>
+                      <TextInput
+                        style={[styles.textInput, errors.yardSlots && styles.inputError]}
+                        placeholder="e.g., 50"
+                        value={yardSlots}
+                        onChangeText={(text) => {
+                          setYardSlots(text);
+                          clearError('yardSlots');
+                        }}
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                      />
+                      {errors.yardSlots ? (
+                        <View style={styles.errorContainer}>
+                          <Ionicons name="alert-circle" size={16} color={redColor} />
+                          <Text style={styles.errorText}>{errors.yardSlots}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.submitButton}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        handleAddYard();
+                      }}
+                    >
+                      <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                      <Text style={styles.submitButtonText}>Add Yard</Text>
+                    </TouchableOpacity>
+
+                    <View style={{ height: 20 }} />
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  contentContainer: {
     flex: 1,
     paddingTop: 20,
     paddingHorizontal: 16,
@@ -541,29 +615,80 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingBottom: 20,
   },
-  card: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#c1b7ed',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
+  // Simple Yard Cards (Clean Design - Same as HomeScreen)
+  simpleYardCard: {
     backgroundColor: '#fff',
-    justifyContent: 'center',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
-  selectedCard: {
-    backgroundColor: '#d6d3e6',
+  selectedSimpleCard: {
     borderColor: '#613EEA',
+    borderWidth: 2,
+    backgroundColor: '#faf9ff',
   },
-  name: {
+  simpleCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  simpleCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  simpleIconContainer: {
+    backgroundColor: '#f3f0ff',
+    borderRadius: 8,
+    padding: 6,
+    marginRight: 10,
+  },
+  simpleTextContainer: {
+    flex: 1,
+  },
+  simpleYardName: {
+    fontSize: 14,
     fontWeight: 'bold',
-    fontSize: 17,
-    color: '#252837',
-    marginBottom: 4,
+    color: '#1a1a1a',
+    marginBottom: 3,
   },
-  address: {
-    fontSize: 13,
-    color: '#252837',
+  simpleYardAddress: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 3,
+  },
+  slotInfoContainer: {
+    marginTop: 2,
+  },
+  simpleSlotText: {
+    fontSize: 12,
+    color: '#613EEA',
+    fontWeight: '600',
+  },
+  fullYardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  fullYardText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  totalSlotText: {
+    fontSize: 11,
+    color: '#999',
+  },
+  simpleArrowContainer: {
+    padding: 8,
   },
   selectedText: {
     color: '#613EEA',

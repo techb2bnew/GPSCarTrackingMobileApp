@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Image,
   Modal,
   TextInput,
+  Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -32,10 +33,14 @@ const YardDetailScreen = ({ navigation, route }) => {
   const [showVinModal, setShowVinModal] = useState(false);
   const [scannedVinData, setScannedVinData] = useState(null);
   const [isScanningChip, setIsScanningChip] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState(null);
+  const [slotInfo, setSlotInfo] = useState({ total: 50, occupied: 0, available: 50 });
   const { yardId, yardName, fromScreen } = route?.params || {};
+  const duplicateTimeoutRef = useRef(null);
 
-  // Get yard name from parkingYards
-  const currentYard = parkingYards.find(yard => yard?.id === yardId);
+  // Get yard name - first check dynamic yards, then static yards
+  const [currentYard, setCurrentYard] = useState(null);
   const displayYardName = yardName || currentYard?.name || 'Parking Yard';
 
   // Local storage key for this yard
@@ -52,15 +57,87 @@ const YardDetailScreen = ({ navigation, route }) => {
     }
   };
 
+  // Load current yard information
+  const loadCurrentYard = async () => {
+    try {
+      // First check in AsyncStorage for dynamic yards (user-created yards)
+      const savedYards = await AsyncStorage.getItem('parking_yards');
+      if (savedYards) {
+        const dynamicYards = JSON.parse(savedYards);
+        const foundYard = dynamicYards.find(yard => yard?.id === yardId);
+        if (foundYard) {
+          setCurrentYard(foundYard);
+          return foundYard;
+        }
+      }
+
+      // If not found in dynamic yards, check in static parkingYards
+      const staticYard = parkingYards.find(yard => yard?.id === yardId);
+      if (staticYard) {
+        setCurrentYard(staticYard);
+        return staticYard;
+      }
+
+      // If still not found, create a default yard
+      const defaultYard = { id: yardId, name: 'Unknown Yard', slots: 50 };
+      setCurrentYard(defaultYard);
+      return defaultYard;
+    } catch (error) {
+      console.error('Error loading current yard:', error);
+      const defaultYard = { id: yardId, name: 'Unknown Yard', slots: 50 };
+      setCurrentYard(defaultYard);
+      return defaultYard;
+    }
+  };
+
+  // Helper function to calculate slot information
+  const calculateSlotInfo = (vehicleList, yardData = null) => {
+    try {
+      const yard = yardData || currentYard;
+      const totalSlots = parseInt(yard?.slots) || 50;
+      const occupied = vehicleList.length;
+      const available = Math.max(0, totalSlots - occupied);
+
+      return {
+        total: totalSlots,
+        occupied: occupied,
+        available: available
+      };
+    } catch (error) {
+      console.error('Error calculating slot info:', error);
+      return { total: 50, occupied: 0, available: 50 };
+    }
+  };
+
   // Load vehicles from local storage
   const loadVehiclesFromStorage = async () => {
     try {
+      // First load the current yard information
+      const yardData = await loadCurrentYard();
+
       const savedVehicles = await AsyncStorage.getItem(storageKey);
       if (savedVehicles) {
         const parsedVehicles = JSON.parse(savedVehicles);
         setVehicles(parsedVehicles);
         setFilteredVehicles(parsedVehicles);
         setHasBeenInitialized(true);
+
+        // Calculate slot information using the loaded yard data
+        const slotData = calculateSlotInfo(parsedVehicles, yardData);
+        setSlotInfo(slotData);
+
+        console.log(`Loaded ${parsedVehicles.length} vehicles from storage for yard ${yardId}`);
+      } else {
+        // If no saved vehicles, initialize with empty array
+        setVehicles([]);
+        setFilteredVehicles([]);
+        setHasBeenInitialized(true);
+
+        // Calculate slot information for empty list using the loaded yard data
+        const slotData = calculateSlotInfo([], yardData);
+        setSlotInfo(slotData);
+
+        console.log('No vehicles found in storage, initialized with empty array');
       }
     } catch (error) {
       console.error('Error loading vehicles from storage:', error);
@@ -101,6 +178,26 @@ const YardDetailScreen = ({ navigation, route }) => {
     loadVehiclesFromStorage();
   }, []);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (duplicateTimeoutRef.current) {
+        clearTimeout(duplicateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Refresh vehicles when screen comes into focus (e.g., returning from VehicleDetailsScreen)
+  useFocusEffect(
+    React.useCallback(() => {
+      // Only refresh if the screen has been initialized to avoid unnecessary calls
+      if (hasBeenInitialized) {
+        console.log('YardDetailScreen focused - refreshing vehicle data silently');
+        loadVehiclesFromStorage();
+      }
+    }, [hasBeenInitialized])
+  );
+
   // Initialize existing vehicles on first load (fallback for route params)
   useEffect(() => {
     if (!hasBeenInitialized && route?.params?.existingVehicles && vehicles.length === 0) {
@@ -124,9 +221,99 @@ const YardDetailScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.vinNumber]);
 
+  // Check if VIN already exists in any yard
+  const checkVinExists = async (vin) => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      
+      for (const key of yardKeys) {
+        const vehicles = await AsyncStorage.getItem(key);
+        if (vehicles) {
+          const parsedVehicles = JSON.parse(vehicles);
+          const foundVehicle = parsedVehicles.find(v => v.vin === vin);
+          
+          if (foundVehicle) {
+            const foundYardId = key.replace('yard_', '').replace('_vehicles', '');
+            
+            // Get actual yard name from parking_yards
+            const savedYards = await AsyncStorage.getItem('parking_yards');
+            let actualYardName = `Yard ${foundYardId}`; // fallback
+            
+            if (savedYards) {
+              const yards = JSON.parse(savedYards);
+              const yard = yards.find(y => y.id === foundYardId);
+              if (yard) {
+                actualYardName = yard.name;
+              }
+            }
+            
+            return { exists: true, vehicle: foundVehicle, yardName: actualYardName };
+          }
+        }
+      }
+      return { exists: false };
+    } catch (error) {
+      console.error('Error checking VIN existence:', error);
+      return { exists: false };
+    }
+  };
+
+  // Check if chip already exists in any yard
+  const checkChipExists = async (chipId) => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      
+      for (const key of yardKeys) {
+        const vehicles = await AsyncStorage.getItem(key);
+        if (vehicles) {
+          const parsedVehicles = JSON.parse(vehicles);
+          const foundVehicle = parsedVehicles.find(v => v.chipId === chipId);
+          
+          if (foundVehicle) {
+            const foundYardId = key.replace('yard_', '').replace('_vehicles', '');
+            
+            // Get actual yard name from parking_yards
+            const savedYards = await AsyncStorage.getItem('parking_yards');
+            let actualYardName = `Yard ${foundYardId}`; // fallback
+            
+            if (savedYards) {
+              const yards = JSON.parse(savedYards);
+              const yard = yards.find(y => y.id === foundYardId);
+              if (yard) {
+                actualYardName = yard.name;
+              }
+            }
+            
+            return { exists: true, vehicle: foundVehicle, yardName: actualYardName, yardId: foundYardId };
+          }
+        }
+      }
+      return { exists: false };
+    } catch (error) {
+      console.error('Error checking chip existence:', error);
+      return { exists: false };
+    }
+  };
+
   const fetchVehicleDetails = async vinNumber => {
     try {
       setIsLoading(true);
+      
+      // First check if VIN already exists in any yard
+      const vinCheck = await checkVinExists(vinNumber);
+      if (vinCheck.exists) {
+        setDuplicateInfo({
+          type: 'vin',
+          value: vinNumber,
+          yardName: vinCheck.yardName
+        });
+        setShowDuplicateModal(true);
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch(
         `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVIN/${vinNumber}?format=json`,
       );
@@ -180,40 +367,73 @@ const YardDetailScreen = ({ navigation, route }) => {
   const handleAssignChip = async () => {
     try {
       setIsScanningChip(true);
-      
+
       // Import barcode scanner for chip scanning
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
-      
+
       const config = {
         license: 't0105HAEAADcNHV64OJlipcqCx3exOR+gSUqL7YqPqsz7SETM98L2Lvx6wS622L8kpqIvn+Jy7Y7dR1SpS4fQIOlJgnXwUlXbAF3cfFzzoBne6J2Tas81yMvxzdMpCv+dSl9nXy279wYdTDrk;t0109HAEAAJRt4MPEuaQhDlCa6yhda0j07Z/FYbFCd65Ty9mXDgoozD8MgTXwcxZlT+cz8Keo0zcHr2z3xne26lirx+S2TPkgLgCnAYbYvK+paIY7esaO4fu5Bfl3PHN1isx7p/zpHJvJbPQNKuw68w==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
       const result = await BarcodeScanner.launch(config);
-      
+
       if (result.resultStatus === EnumResultStatus.RS_FINISHED && result.barcodes?.length) {
         const fullText = result.barcodes[0].text;
         // Extract EUI ID (first 16 characters)
         const chipId = fullText.substring(0, 16);
-        
+
         console.log('Scanned chip full text:', fullText);
         console.log('Extracted EUI ID:', chipId);
-        
+
+        // Check if chip already exists in any yard
+        const chipCheck = await checkChipExists(chipId);
+        if (chipCheck.exists) {
+          // Clear any existing timeout
+          if (duplicateTimeoutRef.current) {
+            clearTimeout(duplicateTimeoutRef.current);
+          }
+          
+          // Close VIN modal first
+          setShowVinModal(false);
+          setScannedVinData(null);
+          setIsScanningChip(false);
+          
+          // Set duplicate info and show modal after delay to ensure VIN modal is fully closed
+          setDuplicateInfo({
+            type: 'chip',
+            value: chipId,
+            yardName: chipCheck.yardName,
+            vin: chipCheck.vehicle.vin,
+            yardId: chipCheck.yardId
+          });
+          
+          duplicateTimeoutRef.current = setTimeout(() => {
+            setShowDuplicateModal(true);
+          }, 500);
+          return;
+        }
+
         // Add vehicle with chip ID
         const vehicleWithChip = {
           ...scannedVinData,
           chipId: chipId,
           isActive: true,
         };
-        
+
         setVehicles(prevVehicles => {
           const updatedVehicles = [...prevVehicles, vehicleWithChip];
           setFilteredVehicles(updatedVehicles);
           return updatedVehicles;
         });
+
+        // Update slot information after state update
+        const updatedVehicles = [...vehicles, vehicleWithChip];
+        const slotData = calculateSlotInfo(updatedVehicles);
+        setSlotInfo(slotData);
         setShowVinModal(false);
         setScannedVinData(null);
-        
+
         console.log('Success', `Chip ${chipId} assigned successfully!`);
       } else {
         console.log('Error', 'Chip scanning cancelled or failed');
@@ -234,18 +454,23 @@ const YardDetailScreen = ({ navigation, route }) => {
         chipId: null,
         isActive: false,
       };
-      
+
       console.log('Adding vehicle without chip:', vehicleWithoutChip);
       setVehicles(prevVehicles => {
         const updatedVehicles = [...prevVehicles, vehicleWithoutChip];
         setFilteredVehicles(updatedVehicles);
+
+        // Update slot information
+        const slotData = calculateSlotInfo(updatedVehicles);
+        setSlotInfo(slotData);
+
         console.log('Updated vehicles list:', updatedVehicles.length);
         return updatedVehicles;
       });
-      
+
       setShowVinModal(false);
       setScannedVinData(null);
-      
+
       console.log('Vehicle Added', 'Vehicle added successfully without chip. You can assign chip later.');
     }
   };
@@ -254,22 +479,35 @@ const YardDetailScreen = ({ navigation, route }) => {
     try {
       // Import barcode scanner for chip scanning
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
-      
+
       const config = {
         license: 't0105HAEAADcNHV64OJlipcqCx3exOR+gSUqL7YqPqsz7SETM98L2Lvx6wS622L8kpqIvn+Jy7Y7dR1SpS4fQIOlJgnXwUlXbAF3cfFzzoBne6J2Tas81yMvxzdMpCv+dSl9nXy279wYdTDrk;t0109HAEAAJRt4MPEuaQhDlCa6yhda0j07Z/FYbFCd65Ty9mXDgoozD8MgTXwcxZlT+cz8Keo0zcHr2z3xne26lirx+S2TPkgLgCnAYbYvK+paIY7esaO4fu5Bfl3PHN1isx7p/zpHJvJbPQNKuw68w==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
       const result = await BarcodeScanner.launch(config);
-      
+
       if (result.resultStatus === EnumResultStatus.RS_FINISHED && result.barcodes?.length) {
         const fullText = result.barcodes[0].text;
         // Extract EUI ID (first 16 characters)
         const chipId = fullText.substring(0, 16);
-        
+
         console.log('Scanned chip full text:', fullText);
         console.log('Extracted EUI ID:', chipId);
-        
+
+        // Check if chip already exists in any yard
+        const chipCheck = await checkChipExists(chipId);
+        if (chipCheck.exists) {
+          setDuplicateInfo({
+            type: 'chip',
+            value: chipId,
+            yardName: chipCheck.yardName,
+            vin: chipCheck.vehicle.vin
+          });
+          setShowDuplicateModal(true);
+          return;
+        }
+
         // Update the specific vehicle with chip ID
         setVehicles(prevVehicles => {
           const updatedVehicles = prevVehicles.map(vehicle =>
@@ -280,7 +518,7 @@ const YardDetailScreen = ({ navigation, route }) => {
           setFilteredVehicles(updatedVehicles);
           return updatedVehicles;
         });
-        
+
         console.log('Success', `Chip ${chipId} assigned successfully!`);
       } else {
         console.log('Info', 'Chip scanning cancelled');
@@ -292,7 +530,15 @@ const YardDetailScreen = ({ navigation, route }) => {
   };
 
   const renderVehicleCard = ({ item }) => (
-    <View style={styles.vehicleCard}>
+    <Pressable style={styles.vehicleCard}
+      onPress={() => {
+        navigation.navigate('VehicleDetailsScreen', {
+          vehicle: item,
+          yardName: displayYardName,
+          yardId: yardId
+        });
+      }}
+    >
       <View style={[flexDirectionRow, alignItemsCenter, justifyContentSpaceBetween]}>
         <View style={styles.vehicleTitleContainer}>
           <Text style={styles.vinNumber}>{item?.vin}</Text>
@@ -314,29 +560,29 @@ const YardDetailScreen = ({ navigation, route }) => {
         )}
 
       </View>
-    </View>
+    </Pressable>
   );
 
-const renderNoVehicles = () => {
-  // First letter capital
-  const formattedYardName =
-    displayYardName?.charAt(0).toUpperCase() + displayYardName?.slice(1);
+  const renderNoVehicles = () => {
+    // First letter capital
+    const formattedYardName =
+      displayYardName?.charAt(0).toUpperCase() + displayYardName?.slice(1);
 
-  return (
-    <View style={[styles.noVehicleContainer, alignJustifyCenter]}>
-      <Ionicons name="car-outline" size={80} color="#ccc" />
-      <Text style={styles.noVehicleText}>No Vehicles Found</Text>
-      <Text style={[styles.noVehicleSubtext, textAlign]}>
-        This yard "{formattedYardName}" has no vehicles
-      </Text>
-      <CustomButton
-        title="Add Vehicle"
-        onPress={handleAddVehicle}
-        style={styles.addVehicleButton}
-      />
-    </View>
-  );
-};
+    return (
+      <View style={[styles.noVehicleContainer, alignJustifyCenter]}>
+        <Ionicons name="car-outline" size={80} color="#ccc" />
+        <Text style={styles.noVehicleText}>No Vehicles Found</Text>
+        <Text style={[styles.noVehicleSubtext, textAlign]}>
+          This yard "{formattedYardName}" has no vehicles
+        </Text>
+        <CustomButton
+          title="Add Vehicle"
+          onPress={handleAddVehicle}
+          style={styles.addVehicleButton}
+        />
+      </View>
+    );
+  };
 
 
   const renderSearchBar = () => (
@@ -363,24 +609,38 @@ const renderNoVehicles = () => {
     <ScrollView style={styles.scrollContainer}>
       <View style={[styles.headerWithButton, justifyContentSpaceBetween, flexDirectionRow, alignItemsCenter]}>
         <View style={styles.titleSection}>
-          <Text style={styles.yardTitle}>{displayYardName}</Text>
+          <Text style={styles.yardTitle}>
+            {displayYardName
+              ? displayYardName.charAt(0).toUpperCase() + displayYardName.slice(1)
+              : ''}
+          </Text>
           <Text style={styles.vehiclesCount}>
-            {searchQuery ? filteredVehicles.length : vehicles.length} {vehicles.length === 1 ? 'Vehicle' : 'Vehicles'} 
+            {searchQuery ? filteredVehicles.length : vehicles.length} {vehicles.length === 1 ? 'Vehicle' : 'Vehicles'}
             {searchQuery && ` (${vehicles.length} total)`}
           </Text>
           {currentYard && currentYard.address && (
             <Text style={styles.yardAddress}>{currentYard.address}</Text>
           )}
+          {slotInfo.available === 0 && (
+            <View style={styles.fullYardMessageContainer}>
+              <Ionicons name="information-circle" size={16} color="#FF6B6B" />
+              <Text style={styles.fullYardMessageText}>
+                Cannot add more vehicles - yard is at full capacity
+              </Text>
+            </View>
+          )}
         </View>
-        <TouchableOpacity
-          onPress={handleAddVehicle}
-          style={styles.addMoreButton}
-          activeOpacity={0.8}
-        >
-          <View style={[flexDirectionRow, alignJustifyCenter]}>
-            <Text style={styles.addMoreButtonText}>Add More Vehicle</Text>
-          </View>
-        </TouchableOpacity>
+        {slotInfo.available > 0 && (
+          <TouchableOpacity
+            onPress={handleAddVehicle}
+            style={styles.addMoreButton}
+            activeOpacity={0.8}
+          >
+            <View style={[flexDirectionRow, alignJustifyCenter]}>
+              <Text style={styles.addMoreButtonText}>Add More Vehicle</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {renderSearchBar()}
@@ -411,7 +671,23 @@ const renderNoVehicles = () => {
           style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color="#000" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Yard Details</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Yard Details</Text>
+          <View style={styles.slotInfoHeader}>
+            {slotInfo.available === 0 ? (
+              <View style={styles.fullYardHeaderContainer}>
+                <Ionicons name="warning" size={16} color="#FF6B6B" />
+                <Text style={styles.fullYardHeaderText}>
+                  Yard is full! ({slotInfo.total}/{slotInfo.total} slots)
+                </Text>
+              </View>
+            ) : (
+              <Text style={styles.slotInfoText}>
+                {slotInfo.available} available • {slotInfo.total} total slots
+              </Text>
+            )}
+          </View>
+        </View>
       </View>
 
       {isLoading ? (
@@ -438,21 +714,21 @@ const renderNoVehicles = () => {
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.vinDetailsContainer}>
               <Text style={styles.vinLabel}>VIN Number:</Text>
               <Text style={styles.vinValue}>{scannedVinData?.vin}</Text>
-              
+
               <Text style={styles.vinLabel}>Make:</Text>
               <Text style={styles.vinValue}>{scannedVinData?.make}</Text>
-              
+
               <Text style={styles.vinLabel}>Model:</Text>
               <Text style={styles.vinValue}>{scannedVinData?.model}</Text>
-              
+
               <Text style={styles.vinLabel}>Year:</Text>
               <Text style={styles.vinValue}>{scannedVinData?.year}</Text>
             </View>
-            
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.cancelButton}
@@ -460,7 +736,7 @@ const renderNoVehicles = () => {
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.assignChipButton, isScanningChip && styles.disabledButton]}
                 onPress={handleAssignChip}
@@ -472,6 +748,120 @@ const renderNoVehicles = () => {
                   <Text style={styles.assignChipButtonText}>Assign Chip</Text>
                 )}
               </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Duplicate Validation Modal */}
+      <Modal
+        visible={showDuplicateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowDuplicateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.duplicateModalContent}>
+            {/* Header with Icon */}
+            <View style={styles.duplicateModalHeader}>
+              <View style={styles.duplicateIconContainer}>
+                <Ionicons name="warning" size={40} color="#FF6B6B" />
+              </View>
+              <Text style={styles.duplicateModalTitle}>
+                {duplicateInfo?.type === 'vin' ? 'Duplicate VIN Found' : 'Duplicate Chip Found'}
+              </Text>
+            </View>
+
+            {/* Content */}
+            <View style={styles.duplicateInfoContainer}>
+              <Text style={styles.duplicateMainMessage}>
+                {duplicateInfo?.type === 'vin' 
+                  ? 'This VIN is already added in' 
+                  : 'This chip is already assigned to a vehicle in'
+                }
+              </Text>
+              
+              {/* Yard Name - Bold Text */}
+              <Text style={styles.duplicateYardText}>{duplicateInfo?.yardName}</Text>
+              
+              {/* VIN Number - Bold Text */}
+              <Text style={styles.duplicateVinText}>
+                VIN: {duplicateInfo?.type === 'vin' ? duplicateInfo?.value : duplicateInfo?.vin}
+              </Text>
+              
+              {/* Chip ID - Only for chip duplicates */}
+              {duplicateInfo?.type === 'chip' && (
+                <Text style={styles.duplicateChipText}>
+                  Chip: {duplicateInfo?.value}
+                </Text>
+              )}
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.duplicateActionsRow}>
+              {duplicateInfo?.type === 'vin' ? (
+                <>
+                  <TouchableOpacity
+                    style={styles.duplicateActionButton}
+                    onPress={() => {
+                      // Close modal then navigate with full params so scanner opens correctly
+                      setShowDuplicateModal(false);
+                      setTimeout(() => {
+                        navigation.navigate('ScannerScreen', {
+                          returnTo: 'YardDetailScreen',
+                          yardId: yardId,
+                          yardName: displayYardName,
+                          existingVehicles: vehicles,
+                          scanType: 'vin',
+                        });
+                      }, 200);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.duplicateActionButtonText}>Scan New VIN</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.duplicateActionButton}
+                    onPress={() => setShowDuplicateModal(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.duplicateActionButtonText}>Got it</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.duplicateActionButton}
+                    onPress={async () => {
+                      try {
+                        // Unassign the duplicate chip from the vehicle it belongs to
+                        const foundYardId = duplicateInfo?.yardId;
+                        const storageKey = `yard_${foundYardId}_vehicles`;
+                        const saved = await AsyncStorage.getItem(storageKey);
+                        if (saved) {
+                          const list = JSON.parse(saved);
+                          const updated = list.map(v => v.chipId === duplicateInfo?.value ? { ...v, chipId: null, isActive: false } : v);
+                          await AsyncStorage.setItem(storageKey, JSON.stringify(updated));
+                        }
+                        loadVehiclesFromStorage();
+                        setShowDuplicateModal(false);
+                      } catch (e) {
+                        console.log('Error unassigning chip:', e);
+                      }
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.duplicateActionButtonText}>Unassign Chip</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.duplicateActionButton}
+                    onPress={() => setShowDuplicateModal(false)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.duplicateActionButtonText}>Got it</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -496,10 +886,49 @@ const styles = StyleSheet.create({
     padding: spacings.small,
     marginRight: spacings.xxLarge,
   },
+  headerTitleContainer: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: style.fontSizeNormal2x.fontSize,
     fontWeight: style.fontWeightThin1x.fontWeight,
     color: blackColor,
+  },
+  slotInfoHeader: {
+    marginTop: 2,
+  },
+  slotInfoText: {
+    fontSize: 12,
+    color: '#613EEA',
+    fontWeight: '600',
+  },
+  fullYardHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fullYardHeaderText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  fullYardMessageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF6B6B',
+  },
+  fullYardMessageText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    fontWeight: '500',
+    marginLeft: 6,
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -724,6 +1153,122 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  // Duplicate Validation Modal Styles
+  duplicateModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 0,
+    width: '90%',
+    maxWidth: 380,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.3,
+    shadowRadius: 25,
+    elevation: 15,
+    overflow: 'hidden',
+  },
+  duplicateModalHeader: {
+    backgroundColor: '#FFF5F5',
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  duplicateIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFE5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: '#FF6B6B',
+  },
+  duplicateModalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  duplicateInfoContainer: {
+    padding: 24,
+  },
+  duplicateMainMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 24,
+    fontWeight: '500',
+  },
+  duplicateYardText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#613EEA',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  duplicateVinText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontFamily: 'monospace',
+  },
+  duplicateChipText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontFamily: 'monospace',
+  },
+  duplicateCloseButton: {
+    backgroundColor: '#613EEA',
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  duplicateCloseButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+  duplicateActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    padding: 16,
+  },
+  duplicateActionButton: {
+    flex: 1,
+    backgroundColor: '#613EEA',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent:"center",
+    marginHorizontal: 5,
+  },
+  duplicateActionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign:"center"
   },
   // Chip ID Styles
   chipIdTag: {
