@@ -371,14 +371,14 @@ const LoginScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.signupContainer}
           onPress={() => navigation.navigate('Register')}>
           <Text style={styles.signupText}>
             Don't have an account?{' '}
             <Text style={styles.signupLink}>Sign up</Text>
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </ImageBackground>
   );

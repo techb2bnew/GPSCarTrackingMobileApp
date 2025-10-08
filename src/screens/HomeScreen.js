@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
+import mqtt from 'mqtt/dist/mqtt';
+import { getChipCounts, getCriticalBatteryChips, updateChipBatteryLevel, getActiveChips } from '../utils/chipManager';
 import {
   ACTIVE,
   BATTERY,
@@ -96,11 +98,143 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   // User state
   const [user, setUser] = useState(null);
 
+  // MQTT and Battery states
+  const [mqttClient, setMqttClient] = useState(null);
+  const [mqttConnected, setMqttConnected] = useState(false);
+  const [batteryLevel, setBatteryLevel] = useState(null);
+
+  // Static chip ID for battery testing
+  const STATIC_CHIP_ID = "2CF7F1C07190019F";
+
+  // MQTT Configuration
+  const MQTT_CONFIG = {
+    host: "ws://sensecap-openstream.seeed.cc:8083/mqtt",
+    username: "org-449810146246400",
+    password: "9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3",
+    clientId: "org-449810146246400-react-" + Math.random().toString(16).substr(2, 8),
+    protocolVersion: 4,
+  };
+
+  // Initialize MQTT for battery monitoring
+  const initializeMqtt = async () => {
+    const client = mqtt.connect(MQTT_CONFIG.host, {
+      username: MQTT_CONFIG.username,
+      password: MQTT_CONFIG.password,
+      clientId: MQTT_CONFIG.clientId,
+      protocolVersion: MQTT_CONFIG.protocolVersion,
+    });
+
+    client.on("connect", async () => {
+      console.log("✅ HomeScreen: Connected to MQTT for battery monitoring");
+      setMqttConnected(true);
+
+      // Get all active chips and subscribe to their battery topics
+      const activeChips = await getActiveChips();
+      console.log(`🔋 Found ${activeChips.length} active chips for battery monitoring`);
+      
+      // Subscribe to battery topic for each active chip
+      for (const chip of activeChips) {
+        const batteryTopic = `/device_sensor_data/449810146246400/${chip.chipId}/+/vs/3000`;
+        console.log(`🔋 Subscribing to battery topic for chip ${chip.chipId}`);
+        
+        client.subscribe(batteryTopic, (err) => {
+          if (err) {
+            console.error(`❌ Failed to subscribe to battery topic for ${chip.chipId}:`, err);
+          } else {
+            console.log(`✅ Subscribed to battery topic for chip: ${chip.chipId}`);
+          }
+        });
+      }
+      
+      // Also subscribe to static chip for testing
+      const batteryTopic = `/device_sensor_data/449810146246400/${STATIC_CHIP_ID}/+/vs/3000`;
+      client.subscribe(batteryTopic, (err) => {
+        if (err) {
+          console.error("❌ Failed to subscribe to static battery topic:", err);
+        } else {
+          console.log(`✅ Subscribed to static battery topic: ${batteryTopic}`);
+        }
+      });
+    });
+
+    client.on("message", async (topic, message) => {
+      try {
+        const payload = JSON.parse(message.toString());
+        
+        console.log('🔋 HomeScreen: Battery data received');
+        console.log('🔋 Topic:', topic);
+        console.log('🔋 Battery Value:', payload.value);
+        
+        // Only process topic 3000 (battery data)
+        if (topic.includes('/vs/3000')) {
+          const batteryValue = payload.value;
+          
+          // Extract chip ID from topic
+          // Topic format: /device_sensor_data/449810146246400/2CF7F1C07190019F/0/vs/3000
+          // Split: ['', 'device_sensor_data', '449810146246400', '2CF7F1C07190019F', '0', 'vs', '3000']
+          const topicParts = topic.split('/');
+          const chipId = topicParts[3]; // chip ID is at index 3
+          
+          console.log(`🔋 ✅ Battery level received for chip ${chipId}: ${batteryValue}%`);
+          
+          // Update battery level in chip manager
+          const updated = await updateChipBatteryLevel(chipId, batteryValue);
+          
+          if (updated) {
+            console.log(`🔋 ✅ Battery level updated in chip manager: ${chipId} = ${batteryValue}%`);
+            // Reload chip stats to update low battery count
+            loadChipStats();
+          }
+          
+          // Update local battery level for UI (for static chip)
+          if (chipId === STATIC_CHIP_ID) {
+            setBatteryLevel(batteryValue);
+          }
+        }
+      } catch (error) {
+        console.error('🔋 ❌ Error parsing MQTT message:', error);
+      }
+    });
+
+    client.on("error", (error) => {
+      console.error("HomeScreen MQTT Error:", error);
+      setMqttConnected(false);
+    });
+
+    setMqttClient(client);
+  };
+
+  // Show battery alert
+  const showBatteryAlert = (batteryLevel) => {
+    let message = '';
+    let title = 'Battery Status';
+    
+    if (batteryLevel > 50) {
+      message = `🔋 Battery Level: ${batteryLevel}% - Good`;
+      title = 'Good Battery';
+    } else if (batteryLevel > 20) {
+      message = `🔋 Battery Level: ${batteryLevel}% - Low`;
+      title = 'Low Battery';
+    } else {
+      message = `🔋 Battery Level: ${batteryLevel}% - Critical`;
+      title = 'Critical Battery';
+    }
+    
+    Alert.alert(title, message, [
+      { text: 'OK', style: 'default' }
+    ]);
+  };
+
   // Load yards, chip stats, and user data from AsyncStorage
   useEffect(() => {
     loadYards();
     loadChipStats();
     loadUserData();
+    
+    // Initialize MQTT for battery monitoring
+    initializeMqtt();
+    
+    // Don't set mock data - wait for real MQTT data
   }, []);
 
   // Refresh data when screen comes into focus
@@ -110,6 +244,18 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       loadUserData();
     }, [])
   );
+
+  // Cleanup MQTT connection
+  useEffect(() => {
+    return () => {
+      if (mqttClient) {
+        console.log('Disconnecting MQTT client from HomeScreen...');
+        mqttClient.end();
+        setMqttClient(null);
+        setMqttConnected(false);
+      }
+    };
+  }, [mqttClient]);
 
   const loadYards = async () => {
     try {
@@ -135,41 +281,28 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }
   };
 
-  // Load chip stats from AsyncStorage
+  // Load chip stats from AsyncStorage using chip manager
   const loadChipStats = async () => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      // Get chip counts from chip manager
+      const { activeCount, inactiveCount } = await getChipCounts();
       
-      let activeChips = 0;
-      let inactiveChips = 0;
-      let lowBatteryChips = 0;
-
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          
-          // Count active chips (vehicles with chipId and isActive = true)
-          const activeVehicles = parsedVehicles.filter(v => v.chipId && v.isActive);
-          activeChips += activeVehicles.length;
-          
-          // Count inactive chips (vehicles with chipId but isActive = false)
-          const inactiveVehicles = parsedVehicles.filter(v => v.chipId && !v.isActive);
-          inactiveChips += inactiveVehicles.length;
-          
-          // Estimate low battery chips (10% of active chips - mock data)
-          lowBatteryChips += Math.floor(activeVehicles.length * 0.1);
-        }
-      }
+      // Get critical battery chips (0-20%) for count
+      const criticalChips = await getCriticalBatteryChips();
+      const lowBatteryChips = criticalChips.length;
 
       setChipStats({
-        activeChips,
-        inactiveChips,
+        activeChips: activeCount,
+        inactiveChips: inactiveCount,
         lowBatteryChips,
       });
 
-      console.log('Chip stats loaded:', { activeChips, inactiveChips, lowBatteryChips });
+      console.log('Chip stats loaded from chip manager:', { 
+        activeChips: activeCount, 
+        inactiveChips: inactiveCount, 
+        lowBatteryChips: lowBatteryChips,
+        criticalChipsDetails: criticalChips.map(c => `${c.chipId}: ${c.batteryLevel}%`)
+      });
     } catch (error) {
       console.error('Error loading chip stats:', error);
     }
@@ -423,6 +556,29 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Battery Status Indicator */}
+      {/* <View style={styles.batteryStatusContainer}>
+        <View style={styles.batteryStatusCard}>
+          <Ionicons 
+            name="battery-half" 
+            size={24} 
+            color={batteryLevel !== null ? (batteryLevel > 50 ? '#45C64F' : batteryLevel > 20 ? '#F2893D' : '#F24369') : '#999'} 
+          />
+          <View style={styles.batteryTextContainer}>
+            <Text style={styles.batteryStatusText}>
+              Chip Battery: {batteryLevel !== null ? `${batteryLevel}%` : 'Waiting...'}
+            </Text>
+            <Text style={styles.batteryStatusSubText}>
+              MQTT: {mqttConnected ? '✅ Connected' : '❌ Disconnected'}
+            </Text>
+            <Text style={styles.batteryStatusSubText}>
+              Chip ID: {STATIC_CHIP_ID}
+            </Text>
+          </View>
+        </View>
+      </View> */}
+
       {/* Top Map and Menu */}
 
       {/* <TouchableOpacity
@@ -1144,6 +1300,73 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 6,
     fontWeight: '500',
+  },
+
+  // Battery Status Styles
+  batteryStatusContainer: {
+    paddingHorizontal: spacings.xxxxLarge,
+    paddingVertical: spacings.small,
+  },
+  batteryStatusCard: {
+    backgroundColor: '#F8F9FA',
+    padding: spacings.medium,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  batteryTextContainer: {
+    marginLeft: spacings.small,
+    flex: 1,
+  },
+  batteryStatusText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#495057',
+    marginBottom: 4,
+  },
+  batteryStatusSubText: {
+    fontSize: 12,
+    color: '#6C757D',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  debugButtonsContainer: {
+    flexDirection: 'row',
+    marginTop: spacings.small,
+  },
+  testBatteryBtn: {
+    backgroundColor: '#613EEA',
+    paddingHorizontal: spacings.medium,
+    paddingVertical: spacings.small,
+    borderRadius: 8,
+    alignItems: 'center',
+    flex: 1,
+  },
+  testBatteryText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statusInfoContainer: {
+    marginTop: spacings.small,
+    padding: spacings.small,
+    backgroundColor: '#F0F8FF',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#613EEA',
+  },
+  statusInfoText: {
+    fontSize: 12,
+    color: '#613EEA',
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
 

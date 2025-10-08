@@ -20,6 +20,8 @@ import { heightPercentageToDP, widthPercentageToDP } from '../utils';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../redux/userSlice';
 import { whiteColor } from '../constants/Color';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearAllChips } from '../utils/chipManager';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
@@ -43,10 +45,42 @@ export default function DrawerMenu({
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
+      // Clear all AsyncStorage data
+      
+      // 1. Clear all chip data (active & inactive)
+      await clearAllChips();
+      console.log('✅ Cleared all chip data');
+      
+      // 2. Clear all parking yards
+      await AsyncStorage.removeItem('parking_yards');
+      console.log('✅ Cleared parking yards');
+      
+      // 3. Clear all yard vehicles
+      const keys = await AsyncStorage.getAllKeys();
+      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      for (const key of yardKeys) {
+        await AsyncStorage.removeItem(key);
+      }
+      console.log(`✅ Cleared ${yardKeys.length} yard vehicle data`);
+      
+      // 4. Clear all chip locations
+      const chipLocationKeys = keys.filter(key => key.startsWith('chip_'));
+      for (const key of chipLocationKeys) {
+        await AsyncStorage.removeItem(key);
+      }
+      console.log(`✅ Cleared ${chipLocationKeys.length} chip locations`);
+      
+      // 5. Clear user data from Redux
       dispatch(clearUser());
-      console.log('User data removed from AsyncStorage');
+      console.log('✅ User data cleared from Redux');
+      
+      // 6. Clear user data from AsyncStorage
+      await AsyncStorage.removeItem('user');
+      console.log('✅ User data cleared from AsyncStorage');
+      
+      console.log('🎉 All data cleared successfully on logout');
     } catch (error) {
-      console.error('Error clearing user data:', error);
+      console.error('❌ Error clearing data on logout:', error);
     }
     setShowModal(false);
     setTimeout(() => setIsLoggingOut(false), 500);

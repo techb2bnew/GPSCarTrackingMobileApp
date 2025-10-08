@@ -16,6 +16,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { addActiveChip, moveChipToInactive, removeInactiveChip } from '../utils/chipManager';
 import CustomButton from '../components/CustomButton';
 import { parkingYards } from '../constants/Constants';
 import { spacings, style } from '../constants/Fonts';
@@ -431,6 +432,23 @@ const YardDetailScreen = ({ navigation, route }) => {
         const updatedVehicles = [...vehicles, vehicleWithChip];
         const slotData = calculateSlotInfo(updatedVehicles);
         setSlotInfo(slotData);
+
+        // First remove from inactive chips if exists, then add to active
+        await removeInactiveChip(chipId);
+        
+        // Add to active chips array
+        await addActiveChip({
+          chipId: chipId,
+          vehicleId: vehicleWithChip.id,
+          vin: vehicleWithChip.vin,
+          make: vehicleWithChip.make,
+          model: vehicleWithChip.model,
+          year: vehicleWithChip.year,
+          yardId: yardId,
+          yardName: displayYardName
+        });
+        console.log(`✅ Chip ${chipId} added to active chips array (removed from inactive if existed)`);
+        
         setShowVinModal(false);
         setScannedVinData(null);
 
@@ -518,6 +536,9 @@ const YardDetailScreen = ({ navigation, route }) => {
           return;
         }
 
+        // Find the vehicle being updated
+        const vehicleToUpdate = vehicles.find(v => v.id === vehicleId);
+        
         // Update the specific vehicle with chip ID
         setVehicles(prevVehicles => {
           const updatedVehicles = prevVehicles.map(vehicle =>
@@ -528,6 +549,24 @@ const YardDetailScreen = ({ navigation, route }) => {
           setFilteredVehicles(updatedVehicles);
           return updatedVehicles;
         });
+
+        // Add to active chips array
+        if (vehicleToUpdate) {
+          // First remove from inactive chips if exists, then add to active
+          await removeInactiveChip(chipId);
+          
+          await addActiveChip({
+            chipId: chipId,
+            vehicleId: vehicleToUpdate.id,
+            vin: vehicleToUpdate.vin,
+            make: vehicleToUpdate.make,
+            model: vehicleToUpdate.model,
+            year: vehicleToUpdate.year,
+            yardId: yardId,
+            yardName: displayYardName
+          });
+          console.log(`✅ Chip ${chipId} added to active chips array from existing vehicle (removed from inactive if existed)`);
+        }
 
         console.log('Success', `Chip ${chipId} assigned successfully!`);
       } else {
@@ -852,6 +891,10 @@ const YardDetailScreen = ({ navigation, route }) => {
                           const list = JSON.parse(saved);
                           const updated = list.map(v => v.chipId === duplicateInfo?.value ? { ...v, chipId: null, isActive: false } : v);
                           await AsyncStorage.setItem(storageKey, JSON.stringify(updated));
+                          
+                          // Move chip to inactive array in chip manager
+                          await moveChipToInactive(duplicateInfo?.value);
+                          console.log(`✅ Chip ${duplicateInfo?.value} moved to inactive chips from YardDetailScreen duplicate modal`);
                         }
                         loadVehiclesFromStorage();
                         setShowDuplicateModal(false);

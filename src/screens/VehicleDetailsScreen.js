@@ -19,10 +19,11 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import haversine from 'haversine-distance';
 import mqtt from "mqtt/dist/mqtt"; // 👈 important for RN
 import { spacings, style } from '../constants/Fonts';
-import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
+import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor, orangeColor, lightOrangeColor } from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addActiveChip, moveChipToInactive, moveChipToActive, removeInactiveChip } from '../utils/chipManager';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -544,6 +545,31 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         // This will cause the component to re-render and show the assigned chip
         setVehicle(updatedVehicle);
 
+        // Manage chip arrays
+        if (chipId) {
+          // First remove from inactive chips if exists, then add to active
+          await removeInactiveChip(chipId);
+          
+          // Add to active chips array
+          await addActiveChip({
+            chipId: chipId,
+            vehicleId: vehicle.id,
+            vin: vehicle.vin,
+            make: vehicle.make,
+            model: vehicle.model,
+            year: vehicle.year,
+            yardId: currentYardId,
+            yardName: yardName || 'Unknown Yard'
+          });
+          console.log(`✅ Chip ${chipId} assigned and added to active chips (removed from inactive if existed)`);
+        } else {
+          // Move to inactive chips array (when unassigning)
+          if (vehicle.chipId) {
+            await moveChipToInactive(vehicle.chipId);
+            console.log(`✅ Chip ${vehicle.chipId} unassigned and moved to inactive chips`);
+          }
+        }
+
         console.log(chipId ? `Vehicle updated with chip: ${chipId}` : 'Chip unassigned from vehicle');
       }
     } catch (error) {
@@ -676,7 +702,11 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
             // Save updated vehicles back to storage
             await AsyncStorage.setItem(key, JSON.stringify(parsedVehicles));
-            console.log(`Chip ${chipId} unassigned from vehicle ${vehicleId} in ${key}`);
+            
+            // Move chip to inactive array in chip manager
+            await moveChipToInactive(chipId);
+            console.log(`✅ Chip ${chipId} unassigned from vehicle ${vehicleId} and moved to inactive chips`);
+            
             return true;
           }
         }
@@ -729,7 +759,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           <Marker
             coordinate={carLocation}
             title="Vehicle Location"
-            description={`${vehicle?.make} ${vehicle?.model}`}
+            description={`${vehicle?.vin}`}
           >
             <View style={styles.carMarkerContainer}>
               {/* Tooltip */}
@@ -1208,18 +1238,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   unassignChipButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#613EEA',
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.xLarge,
     borderRadius: 25,
     marginVertical: spacings.large,
-    shadowColor: '#FF6B6B',
+    shadowColor: '#613EEA',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
     borderWidth: 1.5,
-    borderColor: '#FF5252',
+    borderColor: '#7B68EE',
   },
   unassignChipButtonText: {
     color: whiteColor,
@@ -1315,7 +1345,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   duplicateUnassignButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: orangeColor,
     paddingVertical: 10,
     paddingHorizontal: 20,
     flex: 1,
@@ -1324,7 +1354,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
-    shadowColor: '#FF6B6B',
+    shadowColor: orangeColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
