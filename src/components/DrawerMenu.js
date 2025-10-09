@@ -118,10 +118,18 @@ export default function DrawerMenu({
       <View style={styles.profileContainer}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {(user?.name || 'Mark Evans').charAt(0).toUpperCase()}
+            {user?.name 
+              ? user.name.charAt(0).toUpperCase()
+              : 'U'}
           </Text>
         </View>
-        <Text style={styles.name}>{user?.name || 'Mark Evans'}</Text>
+        <Text style={styles.name}>
+          {user?.name 
+            ? user.name.split(' ').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+              ).join(' ')
+            : 'User'}
+        </Text>
       </View>
 
       {/* Menu items */}

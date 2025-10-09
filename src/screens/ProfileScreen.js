@@ -11,9 +11,11 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Toast from 'react-native-simple-toast';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../redux/userSlice';
 import AnimatedLottieView from 'lottie-react-native';
@@ -22,12 +24,14 @@ import { spacings, style } from '../constants/Fonts';
 import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
+import { supabase } from '../lib/supabaseClient';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
 const ProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -35,8 +39,8 @@ const ProfileScreen = ({ navigation }) => {
   const [editData, setEditData] = useState({
     name: '',
     email: '',
-    phone: '',
-    company: '',
+    contact: '',
+    joiningDate: '',
   });
   const [stats, setStats] = useState({
     totalYards: 0,
@@ -64,19 +68,49 @@ const ProfileScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
+      setLoading(true);
+      // Get user data from AsyncStorage first
       const userData = await AsyncStorage.getItem('user');
+      
       if (userData) {
         const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        setEditData({
-          name: parsedUser.name || '',
-          email: parsedUser.email || '',
-          phone: parsedUser.phone || '',
-          company: parsedUser.company || '',
-        });
+        
+        // Fetch latest user data from Supabase
+        const { data, error } = await supabase
+          .from('staff')
+          .select('*')
+          .eq('email', parsedUser.email)
+          .single();
+        console.log("data",data);
+        
+        if (data && !error) {
+          // Update with Supabase data
+          console.log('User data from Supabase:', data);
+          setUser(data);
+          setEditData({
+            name: data.name || '',
+            email: data.email || '',
+            contact: data.contact || '',
+            joiningDate: data.joiningDate || '',
+          });
+          // Update AsyncStorage with latest data
+          await AsyncStorage.setItem('user', JSON.stringify(data));
+        } else {
+          // Fallback to AsyncStorage data
+          console.log('Fallback to AsyncStorage data');
+          setUser(parsedUser);
+          setEditData({
+            name: parsedUser.name || '',
+            email: parsedUser.email || '',
+            contact: parsedUser.contact || '',
+            joiningDate: parsedUser.joiningDate || '',
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading user data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -184,6 +218,29 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleSaveProfile = async () => {
     try {
+      console.log('🔄 [ProfileScreen] Updating profile in Supabase...');
+
+      // 1. Update in Supabase first
+      const { data, error } = await supabase
+        .from('staff')
+        .update({
+          name: editData.name,
+          email: editData.email,
+          contact: editData.contact,
+          joiningDate: editData.joiningDate,
+        })
+        .eq('email', user?.email) // Match by current email
+        .select();
+
+      if (error) {
+        console.error('❌ [ProfileScreen] Supabase update error:', error);
+        Alert.alert('Error', `Failed to update profile: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ [ProfileScreen] Updated in Supabase:', data);
+
+      // 2. Update local storage
       const updatedUser = {
         ...user,
         ...editData,
@@ -191,13 +248,19 @@ const ProfileScreen = ({ navigation }) => {
       
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
+
+      console.log('✅ [ProfileScreen] Updated in local storage');
+
+      // 3. Refetch user data to ensure sync
+      await loadUserData();
+
       setShowEditModal(false);
       setIsEditing(false);
       
-      Alert.alert('Success', 'Profile updated successfully!');
+      Toast.show('✅ Profile updated successfully!', Toast.LONG);
     } catch (error) {
-      console.error('Error saving profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
+      console.error('❌ [ProfileScreen] Error saving profile:', error);
+      Alert.alert('Error', `Failed to update profile: ${error.message}`);
     }
   };
 
@@ -205,8 +268,8 @@ const ProfileScreen = ({ navigation }) => {
     setEditData({
       name: user?.name || '',
       email: user?.email || '',
-      phone: user?.phone || '',
-      company: user?.company || '',
+      contact: user?.contact || '',
+      joiningDate: user?.joiningDate || '',
     });
     setShowEditModal(false);
     setIsEditing(false);
@@ -264,51 +327,68 @@ const ProfileScreen = ({ navigation }) => {
     setIsLoggingOut(false);
   };
 
-  const renderProfileHeader = () => (
-    <View style={styles.profileHeader}>
-      <View style={styles.avatarContainer}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(user?.name || 'Mark Evans').charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        {/* <TouchableOpacity
-          style={styles.editAvatarButton}
-          onPress={handleEditProfile}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="camera" size={16} color="#fff" />
-        </TouchableOpacity> */}
-      </View>
-      
-      <Text style={styles.userName}>{user?.name || 'Mark Evans'}</Text>
-      <Text style={styles.userEmail}>{user?.email || 'mark.evans@example.com'}</Text>
-      
-      {/* <TouchableOpacity
-        style={styles.editProfileButton}
-        onPress={handleEditProfile}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="create-outline" size={20} color="#613EEA" />
-        <Text style={styles.editProfileButtonText}>Edit Profile</Text>
-      </TouchableOpacity> */}
-    </View>
-  );
+  const renderProfileHeader = () => {
+    // Capitalize first letter of each word in name
+    const capitalizedName = user?.name 
+      ? user.name.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ')
+      : 'User';
 
-  const renderProfileInfo = () => (
-    <View style={styles.profileInfoContainer}>
-      <Text style={styles.sectionTitle}>Profile Information</Text>
-      
-      <View style={styles.infoCard}>
-        <View style={styles.infoRow}>
-          <View style={styles.infoIconContainer}>
-            <Ionicons name="person-outline" size={20} color="#613EEA" />
+    return (
+      <View style={styles.profileHeader}>
+        <View style={styles.avatarContainer}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {capitalizedName.charAt(0).toUpperCase()}
+            </Text>
           </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Full Name</Text>
-            <Text style={styles.infoValue}>{user?.name || 'Mark Evans'}</Text>
-          </View>
+          {/* <TouchableOpacity
+            style={styles.editAvatarButton}
+            onPress={handleEditProfile}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="camera" size={16} color="#fff" />
+          </TouchableOpacity> */}
         </View>
+        
+        <Text style={styles.userName}>{capitalizedName}</Text>
+        <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
+      </View>
+    );
+  };
+
+  const renderProfileInfo = () => {
+    // Capitalize first letter of each word in name
+    const capitalizedName = user?.name 
+      ? user.name.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ')
+      : 'User';
+
+    return (
+      <View style={styles.profileInfoContainer}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Profile Information</Text>
+          <TouchableOpacity
+            style={styles.editIconButton}
+            onPress={handleEditProfile}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="pencil" size={20} color="#613EEA" />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="person-outline" size={20} color="#613EEA" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Full Name</Text>
+              <Text style={styles.infoValue}>{capitalizedName}</Text>
+            </View>
+          </View>
 
         <View style={styles.infoRow}>
           <View style={styles.infoIconContainer}>
@@ -316,7 +396,7 @@ const ProfileScreen = ({ navigation }) => {
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{user?.email || 'mark.evans@example.com'}</Text>
+            <Text style={styles.infoValue}>{user?.email || 'user@example.com'}</Text>
           </View>
         </View>
 
@@ -326,22 +406,29 @@ const ProfileScreen = ({ navigation }) => {
           </View>
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>Phone</Text>
-            <Text style={styles.infoValue}>{user?.phone || '+1 (555) 123-4567'}</Text>
+            <Text style={styles.infoValue}>{user?.contact || 'Not Available'}</Text>
           </View>
         </View>
 
         <View style={styles.infoRow}>
           <View style={styles.infoIconContainer}>
-            <Ionicons name="business-outline" size={20} color="#613EEA" />
+            <Ionicons name="calendar-outline" size={20} color="#613EEA" />
           </View>
           <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Company</Text>
-            <Text style={styles.infoValue}>{user?.company || 'Tech Solutions Inc.'}</Text>
+            <Text style={styles.infoLabel}>Joining Date</Text>
+            <Text style={styles.infoValue}>
+              {user?.joiningDate ? new Date(user.joiningDate).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }) : 'Not Available'}
+            </Text>
           </View>
         </View>
       </View>
     </View>
-  );
+    );
+  };
 
   const renderStatsCard = () => (
     <View style={styles.statsContainer}>
@@ -386,91 +473,132 @@ const ProfileScreen = ({ navigation }) => {
     <Modal
       visible={showEditModal}
       transparent={true}
-      animationType="fade"
+      animationType="slide"
       onRequestClose={handleCancelEdit}
     >
       <KeyboardAvoidingView
         style={styles.modalOverlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity
-              onPress={handleCancelEdit}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={handleCancelEdit}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalTitleContainer}>
+                  <Ionicons name="person-circle-outline" size={28} color="#613EEA" />
+                  <Text style={styles.modalTitle}>Edit Profile</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleCancelEdit}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close-circle" size={28} color="#999" />
+                </TouchableOpacity>
+              </View>
 
-          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Full Name</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editData.name}
-                onChangeText={(text) => setEditData({...editData, name: text})}
-                placeholder="Enter your full name"
-                placeholderTextColor="#999"
-              />
+              <ScrollView 
+                style={styles.modalBody} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="person-outline" size={16} color="#613EEA" /> Full Name
+                  </Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="person" size={20} color="#999" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editData.name}
+                      onChangeText={(text) => setEditData({...editData, name: text})}
+                      placeholder="Enter your full name"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="mail-outline" size={16} color="#613EEA" /> Email Address
+                  </Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="mail" size={20} color="#999" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editData.email}
+                      onChangeText={(text) => setEditData({...editData, email: text})}
+                      placeholder="Enter your email"
+                      placeholderTextColor="#999"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="call-outline" size={16} color="#613EEA" /> Phone Number
+                  </Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="call" size={20} color="#999" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      value={editData.contact}
+                      onChangeText={(text) => setEditData({...editData, contact: text})}
+                      placeholder="Enter your phone number"
+                      placeholderTextColor="#999"
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>
+                    <Ionicons name="calendar-outline" size={16} color="#613EEA" /> Joining Date
+                  </Text>
+                  <View style={[styles.inputWrapper, styles.disabledInputWrapper]}>
+                    <Ionicons name="calendar" size={20} color="#999" style={styles.inputIcon} />
+                    <TextInput
+                      style={[styles.textInput, styles.disabledInput]}
+                      value={editData.joiningDate ? new Date(editData.joiningDate).toLocaleDateString() : ''}
+                      editable={false}
+                      placeholder="Joining date"
+                      placeholderTextColor="#999"
+                    />
+                    <Ionicons name="lock-closed" size={16} color="#999" />
+                  </View>
+                  <Text style={styles.inputHelperText}>
+                    <Ionicons name="information-circle-outline" size={14} color="#999" /> This field cannot be edited
+                  </Text>
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleCancelEdit}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle-outline" size={20} color="#666" />
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSaveProfile}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editData.email}
-                onChangeText={(text) => setEditData({...editData, email: text})}
-                placeholder="Enter your email"
-                placeholderTextColor="#999"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Phone</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editData.phone}
-                onChangeText={(text) => setEditData({...editData, phone: text})}
-                placeholder="Enter your phone number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Company</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editData.company}
-                onChangeText={(text) => setEditData({...editData, company: text})}
-                placeholder="Enter your company name"
-                placeholderTextColor="#999"
-              />
-            </View>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleCancelEdit}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={handleSaveProfile}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -546,11 +674,18 @@ const ProfileScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {renderProfileHeader()}
-        {renderProfileInfo()}
-        {renderStatsCard()}
-      </ScrollView>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#613EEA" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {renderProfileHeader()}
+          {renderProfileInfo()}
+          {renderStatsCard()}
+        </ScrollView>
+      )}
 
       {renderEditModal()}
       {renderLogoutModal()}
@@ -656,11 +791,24 @@ const styles = StyleSheet.create({
   profileInfoContainer: {
     marginBottom: spacings.xLarge,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacings.large,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: blackColor,
-    marginBottom: spacings.large,
+    marginVertical:spacings.large
+  },
+  editIconButton: {
+    backgroundColor: '#f3f0ff',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoCard: {
     backgroundColor: whiteColor,
@@ -714,7 +862,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacings.medium,
     width: '31%',
-    marginBottom: spacings.small,
+    marginBottom: spacings.large,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e0e0e0',
@@ -739,86 +887,131 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: whiteColor,
-    borderRadius: 20,
-    width: '90%',
-    maxHeight: '80%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    maxHeight: '100%',
     shadowColor: blackColor,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
-    elevation: 15,
+    elevation: 20,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacings.large,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  modalTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: blackColor,
   },
   closeButton: {
-    padding: spacings.small,
+    padding: 4,
   },
   modalBody: {
-    padding: spacings.large,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
   inputContainer: {
-    marginBottom: spacings.large,
+    marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: blackColor,
-    marginBottom: spacings.small,
+    color: '#333',
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    backgroundColor: '#fafafa',
+    paddingHorizontal: 15,
+  },
+  inputIcon: {
+    marginRight: 10,
   },
   textInput: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 10,
-    padding: spacings.medium,
+    flex: 1,
+    paddingVertical: 14,
     fontSize: 16,
     color: blackColor,
-    backgroundColor: whiteColor,
+  },
+  disabledInputWrapper: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#e8e8e8',
+  },
+  disabledInput: {
+    color: '#999',
+  },
+  inputHelperText: {
+    fontSize: 13,
+    color: '#999',
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   modalFooter: {
     flexDirection: 'row',
-    padding: spacings.large,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingBottom: 30,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
-    marginRight: spacings.small,
-    paddingVertical: spacings.medium,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#f8f8f8',
   },
   cancelButtonText: {
-    color: grayColor,
+    color: '#666',
     fontSize: 16,
     fontWeight: '600',
   },
   saveButton: {
     flex: 1,
-    marginLeft: spacings.small,
-    paddingVertical: spacings.medium,
-    borderRadius: 10,
-    backgroundColor: '#613EEA',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    borderRadius: 12,
+    backgroundColor: '#613EEA',
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   saveButtonText: {
     color: whiteColor,
@@ -939,6 +1132,22 @@ const styles = StyleSheet.create({
     color: grayColor,
     marginTop: 10,
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: grayColor,
+  },
+  inputHelperText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 5,
+    fontStyle: 'italic',
   },
 });
 

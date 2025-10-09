@@ -20,6 +20,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Toast from 'react-native-simple-toast';
+import { supabase } from '../lib/supabaseClient';
 import { addActiveChip, moveChipToInactive, removeInactiveChip } from '../utils/chipManager';
 import CustomButton from '../components/CustomButton';
 import { parkingYards } from '../constants/Constants';
@@ -743,7 +745,28 @@ const YardDetailScreen = ({ navigation, route }) => {
         return;
       }
 
-      // Update yard in AsyncStorage
+      console.log('🔄 Updating yard in Supabase...');
+
+      // 1. Update in Supabase first
+      const { data, error } = await supabase
+        .from('facility')
+        .update({
+          name: editYardName,
+          address: editYardAddress,
+          parkingSlots: newSlots,
+        })
+        .eq('id', yardId)
+        .select();
+
+      if (error) {
+        console.error('❌ Supabase update error:', error);
+        Alert.alert('Error', `Failed to update yard: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ Updated in Supabase:', data);
+
+      // 2. Update in local storage
       const savedYards = await AsyncStorage.getItem('parking_yards');
       if (savedYards) {
         const yards = JSON.parse(savedYards);
@@ -761,13 +784,16 @@ const YardDetailScreen = ({ navigation, route }) => {
         // Recalculate slot info
         const slotData = calculateSlotInfo(vehicles, updatedYard);
         setSlotInfo(slotData);
-        
-        setShowEditYardModal(false);
-        Alert.alert('Success', 'Yard updated successfully!');
+
+        console.log('✅ Updated in local storage');
       }
+        
+      setShowEditYardModal(false);
+      Toast.show('✅ Yard updated successfully!', Toast.LONG);
+
     } catch (error) {
-      console.error('Error updating yard:', error);
-      Alert.alert('Error', 'Failed to update yard');
+      console.error('❌ Error updating yard:', error);
+      Alert.alert('Error', `Failed to update yard: ${error.message}`);
     }
   };
 
@@ -1547,7 +1573,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   formContainer: {
-    marginBottom: 20,
+    // marginBottom: 20,
   },
   inputGroup: {
     marginBottom: 20,

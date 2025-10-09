@@ -153,10 +153,12 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
+import { supabase } from '../lib/supabaseClient';
 import { parkingYards } from '../constants/Constants';
 import useFacilityFetch from '../hooks/useFacilityFetch';
 import { heightPercentageToDP, heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
@@ -213,14 +215,67 @@ const ParkingYardScreen = ({ navigation }) => {
 
   const loadYards = async () => {
     try {
+      console.log('🔄 [ParkingYardScreen] Loading yards from Supabase (real-time)...');
+      
+      // Fetch from Supabase - Primary source
+      const { data: supabaseYards, error } = await supabase
+        .from('facility')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error('❌ [ParkingYardScreen] Supabase fetch error:', error);
+        // Fallback to local storage backup if Supabase fails
+        const savedYards = await AsyncStorage.getItem('parking_yards');
+        if (savedYards) {
+          console.log('⚠️ [ParkingYardScreen] Using local backup data');
+          const parsedYards = JSON.parse(savedYards);
+          setYards(parsedYards);
+          setFilteredYards(parsedYards);
+        } else {
+          setYards([]);
+          setFilteredYards([]);
+        }
+        return;
+      }
+
+      console.log('✅ [ParkingYardScreen] Fetched from Supabase:', supabaseYards.length, 'yards');
+
+      // Map Supabase data to app format
+      const mappedYards = supabaseYards.map(yard => ({
+        id: yard.id.toString(),
+        name: yard.name || 'Unnamed Yard',
+        address: yard.address ? `${yard.address}${yard.city ? ', ' + yard.city : ''}` : 'No Address',
+        slots: yard.parkingSlots ? parseInt(yard.parkingSlots) : 50,
+        source: 'supabase',
+        createdAt: yard.created_at || new Date().toISOString(),
+      }));
+
+      // Use ONLY Supabase data (real-time)
+      setYards(mappedYards);
+      setFilteredYards(mappedYards);
+
+      // Save to local storage as backup only
+      await AsyncStorage.setItem('parking_yards', JSON.stringify(mappedYards));
+
+      console.log('📊 [ParkingYardScreen] Real-time yards:', mappedYards.length);
+      if (mappedYards.length === 0) {
+        console.log('📭 [ParkingYardScreen] No yards found - Show Add Yard option');
+      }
+
+    } catch (error) {
+      console.error('❌ [ParkingYardScreen] Error loading yards:', error);
+      // Fallback to local storage backup
       const savedYards = await AsyncStorage.getItem('parking_yards');
       if (savedYards) {
+        console.log('⚠️ [ParkingYardScreen] Using local backup data (Error occurred)');
         const parsedYards = JSON.parse(savedYards);
         setYards(parsedYards);
         setFilteredYards(parsedYards);
+      } else {
+        setYards([]);
+        setFilteredYards([]);
       }
-    } catch (error) {
-      console.error('Error loading yards:', error);
     }
   };
 
@@ -295,24 +350,64 @@ const ParkingYardScreen = ({ navigation }) => {
       return;
     }
 
-    const newId = Date.now().toString();
+    try {
+      console.log('🔄 [ParkingYardScreen] Adding yard to Supabase...');
 
-    const newYard = {
-      id: newId,
-      name: yardName,
-      address: yardAddress,
-      slots: parseInt(yardSlots),
-      createdAt: new Date().toISOString(),
-    };
+      // Generate unique ID
+      const newId = Date.now();
 
-    const updatedYards = [...yards, newYard];
-    setYards(updatedYards);
-    await saveYards(updatedYards);
+      // Prepare data for Supabase
+      const supabaseYard = {
+        id: newId,
+        name: yardName,
+        address: yardAddress,
+        parkingSlots: parseInt(yardSlots),
+        city: '',
+        lat: '',
+        long: '',
+      };
 
-    clearFormData();
-    setShowAddYardModal(false);
+      // 1. Insert to Supabase first
+      const { data, error } = await supabase
+        .from('facility')
+        .insert([supabaseYard])
+        .select();
 
-    Toast.show('✅ Yard added successfully!', Toast.LONG);
+      if (error) {
+        console.error('❌ [ParkingYardScreen] Supabase insert error:', error);
+        Alert.alert('Error', `Failed to add yard to database: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ [ParkingYardScreen] Added to Supabase:', data);
+
+      // 2. Prepare data for local storage
+      const newYard = {
+        id: newId.toString(),
+        name: yardName,
+        address: yardAddress,
+        slots: parseInt(yardSlots),
+        source: 'supabase',
+        createdAt: new Date().toISOString(),
+      };
+
+      // 3. Update local storage
+      const updatedYards = [...yards, newYard];
+      setYards(updatedYards);
+      setFilteredYards(updatedYards);
+      await saveYards(updatedYards);
+
+      console.log('✅ [ParkingYardScreen] Added to local storage');
+
+      clearFormData();
+      setShowAddYardModal(false);
+
+      Toast.show('✅ Yard added successfully!', Toast.LONG);
+
+    } catch (error) {
+      console.error('❌ [ParkingYardScreen] Error adding yard:', error);
+      Alert.alert('Error', `Failed to add yard: ${error.message}`);
+    }
   };
 
   // Open edit yard modal
@@ -346,21 +441,51 @@ const ParkingYardScreen = ({ navigation }) => {
       return;
     }
 
-    const updatedYards = yards.map(y =>
-      y.id === editingYard.id
-        ? { ...y, name: yardName, address: yardAddress, slots: newSlots, updatedAt: new Date().toISOString() }
-        : y
-    );
+    try {
+      console.log('🔄 [ParkingYardScreen] Updating yard in Supabase...');
 
-    setYards(updatedYards);
-    setFilteredYards(updatedYards);
-    await saveYards(updatedYards);
+      // 1. Update in Supabase first
+      const { data, error } = await supabase
+        .from('facility')
+        .update({
+          name: yardName,
+          address: yardAddress,
+          parkingSlots: newSlots,
+        })
+        .eq('id', editingYard.id)
+        .select();
 
-    clearFormData();
-    setEditingYard(null);
-    setShowAddYardModal(false);
+      if (error) {
+        console.error('❌ [ParkingYardScreen] Supabase update error:', error);
+        Alert.alert('Error', `Failed to update yard: ${error.message}`);
+        return;
+      }
 
-    Toast.show('✅ Yard updated successfully!', Toast.LONG);
+      console.log('✅ [ParkingYardScreen] Updated in Supabase:', data);
+
+      // 2. Update local storage
+      const updatedYards = yards.map(y =>
+        y.id === editingYard.id
+          ? { ...y, name: yardName, address: yardAddress, slots: newSlots, updatedAt: new Date().toISOString() }
+          : y
+      );
+
+      setYards(updatedYards);
+      setFilteredYards(updatedYards);
+      await saveYards(updatedYards);
+
+      console.log('✅ [ParkingYardScreen] Updated in local storage');
+
+      clearFormData();
+      setEditingYard(null);
+      setShowAddYardModal(false);
+
+      Toast.show('✅ Yard updated successfully!', Toast.LONG);
+
+    } catch (error) {
+      console.error('❌ [ParkingYardScreen] Error updating yard:', error);
+      Alert.alert('Error', `Failed to update yard: ${error.message}`);
+    }
   };
 
   // Delete yard
@@ -387,14 +512,40 @@ const ParkingYardScreen = ({ navigation }) => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const updatedYards = yards.filter(y => y.id !== yard.id);
-            setYards(updatedYards);
-            setFilteredYards(updatedYards);
-            await saveYards(updatedYards);
-            
-            await AsyncStorage.removeItem(storageKey);
-            
-            Toast.show('✅ Yard deleted successfully!', Toast.LONG);
+            try {
+              console.log('🔄 [ParkingYardScreen] Deleting yard from Supabase...');
+
+              // 1. Delete from Supabase first
+              const { error } = await supabase
+                .from('facility')
+                .delete()
+                .eq('id', yard.id);
+
+              if (error) {
+                console.error('❌ [ParkingYardScreen] Supabase delete error:', error);
+                Alert.alert('Error', `Failed to delete yard: ${error.message}`);
+                return;
+              }
+
+              console.log('✅ [ParkingYardScreen] Deleted from Supabase');
+
+              // 2. Update local storage
+              const updatedYards = yards.filter(y => y.id !== yard.id);
+              setYards(updatedYards);
+              setFilteredYards(updatedYards);
+              await saveYards(updatedYards);
+              
+              // Remove yard vehicles storage key
+              await AsyncStorage.removeItem(storageKey);
+
+              console.log('✅ [ParkingYardScreen] Deleted from local storage');
+              
+              Toast.show('✅ Yard deleted successfully!', Toast.LONG);
+
+            } catch (error) {
+              console.error('❌ [ParkingYardScreen] Error deleting yard:', error);
+              Alert.alert('Error', `Failed to delete yard: ${error.message}`);
+            }
           }
         }
       ]
@@ -537,8 +688,15 @@ const ParkingYardScreen = ({ navigation }) => {
             <Ionicons name="business-outline" size={80} color="#ccc" />
             <Text style={styles.emptyYardText}>No Parking Yards Yet</Text>
             <Text style={styles.emptyYardSubtext}>
-              Tap the + button above to add your first parking yard
+              Add your first parking yard to get started
             </Text>
+            <TouchableOpacity
+              style={styles.emptyAddButton}
+              onPress={() => setShowAddYardModal(true)}
+            >
+              <Ionicons name="add-circle" size={24} color="#fff" />
+              <Text style={styles.emptyAddButtonText}>Add Parking Yard</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -841,6 +999,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 20,
+    marginBottom: 30,
+  },
+  emptyAddButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#613EEA',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  emptyAddButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Modal Styles
   modalOverlay: {

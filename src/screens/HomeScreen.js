@@ -18,6 +18,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
 import mqtt from 'mqtt/dist/mqtt';
+import { supabase } from '../lib/supabaseClient';
 import { getChipCounts, getCriticalBatteryChips, updateChipBatteryLevel, getActiveChips } from '../utils/chipManager';
 import {
   ACTIVE,
@@ -132,12 +133,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       // Get all active chips and subscribe to their battery topics
       const activeChips = await getActiveChips();
       console.log(`🔋 Found ${activeChips.length} active chips for battery monitoring`);
-      
+
       // Subscribe to battery topic for each active chip
       for (const chip of activeChips) {
         const batteryTopic = `/device_sensor_data/449810146246400/${chip.chipId}/+/vs/3000`;
         console.log(`🔋 Subscribing to battery topic for chip ${chip.chipId}`);
-        
+
         client.subscribe(batteryTopic, (err) => {
           if (err) {
             console.error(`❌ Failed to subscribe to battery topic for ${chip.chipId}:`, err);
@@ -146,7 +147,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           }
         });
       }
-      
+
       // Also subscribe to static chip for testing
       const batteryTopic = `/device_sensor_data/449810146246400/${STATIC_CHIP_ID}/+/vs/3000`;
       client.subscribe(batteryTopic, (err) => {
@@ -161,32 +162,32 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     client.on("message", async (topic, message) => {
       try {
         const payload = JSON.parse(message.toString());
-        
+
         console.log('🔋 HomeScreen: Battery data received');
         console.log('🔋 Topic:', topic);
         console.log('🔋 Battery Value:', payload.value);
-        
+
         // Only process topic 3000 (battery data)
         if (topic.includes('/vs/3000')) {
           const batteryValue = payload.value;
-          
+
           // Extract chip ID from topic
           // Topic format: /device_sensor_data/449810146246400/2CF7F1C07190019F/0/vs/3000
           // Split: ['', 'device_sensor_data', '449810146246400', '2CF7F1C07190019F', '0', 'vs', '3000']
           const topicParts = topic.split('/');
           const chipId = topicParts[3]; // chip ID is at index 3
-          
+
           console.log(`🔋 ✅ Battery level received for chip ${chipId}: ${batteryValue}%`);
-          
+
           // Update battery level in chip manager
           const updated = await updateChipBatteryLevel(chipId, batteryValue);
-          
+
           if (updated) {
             console.log(`🔋 ✅ Battery level updated in chip manager: ${chipId} = ${batteryValue}%`);
             // Reload chip stats to update low battery count
             loadChipStats();
           }
-          
+
           // Update local battery level for UI (for static chip)
           if (chipId === STATIC_CHIP_ID) {
             setBatteryLevel(batteryValue);
@@ -209,7 +210,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   const showBatteryAlert = (batteryLevel) => {
     let message = '';
     let title = 'Battery Status';
-    
+
     if (batteryLevel > 50) {
       message = `🔋 Battery Level: ${batteryLevel}% - Good`;
       title = 'Good Battery';
@@ -220,7 +221,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       message = `🔋 Battery Level: ${batteryLevel}% - Critical`;
       title = 'Critical Battery';
     }
-    
+
     Alert.alert(title, message, [
       { text: 'OK', style: 'default' }
     ]);
@@ -231,10 +232,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     loadYards();
     loadChipStats();
     loadUserData();
-    
+
     // Initialize MQTT for battery monitoring
     initializeMqtt();
-    
+
     // Don't set mock data - wait for real MQTT data
   }, []);
 
@@ -260,12 +261,60 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
   const loadYards = async () => {
     try {
+      console.log('🔄 Loading yards from Supabase (real-time)...');
+      
+      // Fetch from Supabase - Primary source
+      const { data: supabaseYards, error } = await supabase
+        .from('facility')
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error('❌ Supabase fetch error:', error);
+        // Fallback to local storage backup if Supabase fails (network issue)
+        const savedYards = await AsyncStorage.getItem('parking_yards');
+        if (savedYards) {
+          console.log('⚠️ Using local backup data (Supabase unavailable)');
+          setYards(JSON.parse(savedYards));
+        } else {
+          setYards([]); // Show empty state
+        }
+        return;
+      }
+
+      console.log('✅ Fetched from Supabase:', supabaseYards.length, 'yards');
+
+      // Map Supabase data to app format
+      const mappedYards = supabaseYards.map(yard => ({
+        id: yard.id.toString(),
+        name: yard.name || 'Unnamed Yard',
+        address: yard.address ? `${yard.address}${yard.city ? ', ' + yard.city : ''}` : 'No Address',
+        slots: yard.parkingSlots ? parseInt(yard.parkingSlots) : 50,
+        source: 'supabase',
+        createdAt: yard.created_at || new Date().toISOString(),
+      }));
+
+      // Use ONLY Supabase data (real-time)
+      setYards(mappedYards);
+
+      // Save to local storage as backup only
+      await AsyncStorage.setItem('parking_yards', JSON.stringify(mappedYards));
+
+      console.log('📊 Real-time yards from Supabase:', mappedYards.length);
+      if (mappedYards.length === 0) {
+        console.log('📭 No yards found - Show Add Yard option');
+      }
+
+    } catch (error) {
+      console.error('❌ Error loading yards:', error);
+      // Fallback to local storage backup
       const savedYards = await AsyncStorage.getItem('parking_yards');
       if (savedYards) {
+        console.log('⚠️ Using local backup data (Error occurred)');
         setYards(JSON.parse(savedYards));
+      } else {
+        setYards([]); // Show empty state
       }
-    } catch (error) {
-      console.error('Error loading yards:', error);
     }
   };
 
@@ -287,7 +336,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     try {
       // Get chip counts from chip manager
       const { activeCount, inactiveCount } = await getChipCounts();
-      
+
       // Get critical battery chips (0-20%) for count
       const criticalChips = await getCriticalBatteryChips();
       const lowBatteryChips = criticalChips.length;
@@ -298,9 +347,9 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         lowBatteryChips,
       });
 
-      console.log('Chip stats loaded from chip manager:', { 
-        activeChips: activeCount, 
-        inactiveChips: inactiveCount, 
+      console.log('Chip stats loaded from chip manager:', {
+        activeChips: activeCount,
+        inactiveChips: inactiveCount,
         lowBatteryChips: lowBatteryChips,
         criticalChipsDetails: criticalChips.map(c => `${c.chipId}: ${c.batteryLevel}%`)
       });
@@ -368,26 +417,64 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       return;
     }
 
-    // Generate unique ID
-    const newId = Date.now().toString();
+    try {
+      console.log('🔄 Adding yard to Supabase...');
 
-    const newYard = {
-      id: newId,
-      name: yardName,
-      address: yardAddress,
-      slots: parseInt(yardSlots),
-      createdAt: new Date().toISOString(),
-    };
+      // Generate unique ID
+      const newId = Date.now();
 
-    const updatedYards = [...yards, newYard];
-    setYards(updatedYards);
-    await saveYards(updatedYards);
+      // Prepare data for Supabase
+      const supabaseYard = {
+        id: newId,
+        name: yardName,
+        address: yardAddress,
+        parkingSlots: parseInt(yardSlots), // Store slots in 'parkingSlots' field (camelCase)
+        city: '', // Can be empty for now
+        lat: '',
+        long: '',
+      };
 
-    // Reset form and close modal
-    clearFormData();
-    setShowAddYardModal(false);
+      // 1. Insert to Supabase first
+      const { data, error } = await supabase
+        .from('facility')
+        .insert([supabaseYard])
+        .select();
 
-    Toast.show('✅ Yard added successfully!', Toast.LONG);
+      if (error) {
+        console.error('❌ Supabase insert error:', error);
+        Alert.alert('Error', `Failed to add yard to database: ${error.message}`);
+        return;
+      }
+
+      console.log('✅ Added to Supabase:', data);
+
+      // 2. Prepare data for local storage
+      const newYard = {
+        id: newId.toString(),
+        name: yardName,
+        address: yardAddress,
+        slots: parseInt(yardSlots),
+        source: 'supabase',
+        createdAt: new Date().toISOString(),
+      };
+
+      // 3. Update local storage
+      const updatedYards = [...yards, newYard];
+      setYards(updatedYards);
+      await saveYards(updatedYards);
+
+      console.log('✅ Added to local storage');
+
+      // Reset form and close modal
+      clearFormData();
+      setShowAddYardModal(false);
+
+      Toast.show('✅ Yard added successfully!', Toast.LONG);
+
+    } catch (error) {
+      console.error('❌ Error adding yard:', error);
+      Alert.alert('Error', `Failed to add yard: ${error.message}`);
+    }
   };
 
   // Open edit yard modal
@@ -421,21 +508,51 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       return;
     }
 
-    const updatedYards = yards.map(y =>
-      y.id === editingYard.id
-        ? { ...y, name: yardName, address: yardAddress, slots: newSlots, updatedAt: new Date().toISOString() }
-        : y
-    );
+    try {
+      console.log('🔄 Updating yard in Supabase...');
 
-    setYards(updatedYards);
-    await saveYards(updatedYards);
+      // 1. Update in Supabase first
+      const { data, error } = await supabase
+        .from('facility')
+        .update({
+          name: yardName,
+          address: yardAddress,
+          parkingSlots: newSlots,
+        })
+        .eq('id', editingYard.id)
+        .select();
 
-    // Reset form and close modal
-    clearFormData();
-    setEditingYard(null);
-    setShowAddYardModal(false); // Same modal
+      if (error) {
+        console.error('❌ Supabase update error:', error);
+        Alert.alert('Error', `Failed to update yard: ${error.message}`);
+        return;
+      }
 
-    Toast.show('✅ Yard updated successfully!', Toast.LONG);
+      console.log('✅ Updated in Supabase:', data);
+
+      // 2. Update local storage
+      const updatedYards = yards.map(y =>
+        y.id === editingYard.id
+          ? { ...y, name: yardName, address: yardAddress, slots: newSlots, updatedAt: new Date().toISOString() }
+          : y
+      );
+
+      setYards(updatedYards);
+      await saveYards(updatedYards);
+
+      console.log('✅ Updated in local storage');
+
+      // Reset form and close modal
+      clearFormData();
+      setEditingYard(null);
+      setShowAddYardModal(false); // Same modal
+
+      Toast.show('✅ Yard updated successfully!', Toast.LONG);
+
+    } catch (error) {
+      console.error('❌ Error updating yard:', error);
+      Alert.alert('Error', `Failed to update yard: ${error.message}`);
+    }
   };
 
   // Delete yard
@@ -463,14 +580,39 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const updatedYards = yards.filter(y => y.id !== yard.id);
-            setYards(updatedYards);
-            await saveYards(updatedYards);
-            
-            // Remove yard vehicles storage key
-            await AsyncStorage.removeItem(storageKey);
-            
-            Toast.show('✅ Yard deleted successfully!', Toast.LONG);
+            try {
+              console.log('🔄 Deleting yard from Supabase...');
+
+              // 1. Delete from Supabase first
+              const { error } = await supabase
+                .from('facility')
+                .delete()
+                .eq('id', yard.id);
+
+              if (error) {
+                console.error('❌ Supabase delete error:', error);
+                Alert.alert('Error', `Failed to delete yard: ${error.message}`);
+                return;
+              }
+
+              console.log('✅ Deleted from Supabase');
+
+              // 2. Update local storage
+              const updatedYards = yards.filter(y => y.id !== yard.id);
+              setYards(updatedYards);
+              await saveYards(updatedYards);
+
+              // Remove yard vehicles storage key
+              await AsyncStorage.removeItem(storageKey);
+
+              console.log('✅ Deleted from local storage');
+
+              Toast.show('✅ Yard deleted successfully!', Toast.LONG);
+
+            } catch (error) {
+              console.error('❌ Error deleting yard:', error);
+              Alert.alert('Error', `Failed to delete yard: ${error.message}`);
+            }
           }
         }
       ]
@@ -484,16 +626,16 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       const storageKey = `yard_${yardId}_vehicles`;
       const savedVehicles = await AsyncStorage.getItem(storageKey);
       const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
-      
+
       // First check in yards state (dynamic yards), then static parkingYards
       let yard = yards.find(y => y.id === yardId);
       if (!yard) {
         yard = parkingYards.find(y => y.id === yardId);
       }
-      
+
       const totalSlots = parseInt(yard?.slots) || 50; // Default to 50 if not specified
       const availableSlots = Math.max(0, totalSlots - vehicleCount);
-      
+
       return {
         total: totalSlots,
         occupied: vehicleCount,
@@ -550,7 +692,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               )}
             </View>
           </View>
-          
+
           {/* Edit & Delete Buttons - Top Right */}
           <View style={styles.yardCardActions}>
             <TouchableOpacity
@@ -561,7 +703,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               }}>
               <Ionicons name="pencil" size={18} color="#613EEA" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.deleteYardButton}
               onPress={(e) => {
@@ -620,6 +762,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     navigation.navigate('ARNavigationScreen', { target });
   };
 
+  const capitalizedName = user?.name
+    ? user?.name?.split(' ').map(word =>
+      word?.charAt(0).toUpperCase() + word?.slice(1).toLowerCase()
+    ).join(' ')
+    : 'User';
+
   return (
     <View style={[styles.container, { marginBottom: 0 }]}>
       {/* Beautiful Gradient Header */}
@@ -631,13 +779,13 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeText}>Welcome back!</Text>
-            <Text style={styles.userName}>{user?.name || 'Parking Manager'}</Text>
+            <Text style={styles.userName}>{capitalizedName || 'Parking Manager'}</Text>
           </View>
 
           <View style={styles.headerIcons}>
-            <TouchableOpacity onPress={handleOpenAR} style={styles.iconBtn}>
+            {/* <TouchableOpacity onPress={handleOpenAR} style={styles.iconBtn}>
               <Ionicons name="navigate" size={24} color="#fff" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               onPress={() => navigation.navigate('NotificationScreen')}
               style={styles.iconBtn}>
@@ -664,57 +812,6 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         )}
       </View>
 
-      {/* Battery Status Indicator */}
-      {/* <View style={styles.batteryStatusContainer}>
-        <View style={styles.batteryStatusCard}>
-          <Ionicons 
-            name="battery-half" 
-            size={24} 
-            color={batteryLevel !== null ? (batteryLevel > 50 ? '#45C64F' : batteryLevel > 20 ? '#F2893D' : '#F24369') : '#999'} 
-          />
-          <View style={styles.batteryTextContainer}>
-            <Text style={styles.batteryStatusText}>
-              Chip Battery: {batteryLevel !== null ? `${batteryLevel}%` : 'Waiting...'}
-            </Text>
-            <Text style={styles.batteryStatusSubText}>
-              MQTT: {mqttConnected ? '✅ Connected' : '❌ Disconnected'}
-            </Text>
-            <Text style={styles.batteryStatusSubText}>
-              Chip ID: {STATIC_CHIP_ID}
-            </Text>
-          </View>
-        </View>
-      </View> */}
-
-      {/* Top Map and Menu */}
-
-      {/* <TouchableOpacity
-        style={{
-          position: 'absolute',
-          backgroundColor: '#613EEA',
-          top: 100,
-          right: 14,
-          zIndex: 999999,
-          height: 36,
-          width: 36,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          borderRadius: 100,
-        }}
-        onPress={() => navigation.navigate('SearchScreen')}>
-        <Ionicons name="search" size={20} color="#fff" />
-      </TouchableOpacity> */}
-
-      {/* <View style={{height: hp(45)}}>
-          <ParkingMap
-            parkingYards={parkingYards}
-            homeScreen={true}
-            zoomIn={true}
-            home={true}
-          />
-        </View>  */}
-
       <Modal
         visible={isDrawerOpen}
         transparent
@@ -725,6 +822,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         <DrawerMenu
           isOpen={isDrawerOpen}
           onClose={() => setDrawerOpen(false)}
+          user={user}
           navigation={navigation}
           setCheckUser={setCheckUser}
         />
@@ -745,10 +843,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                   <Text style={styles.beautifulCardCount}>{item.count}</Text>
                 </View>
                 <View style={styles.cardRight}>
-                    <Image
-                      source={item?.icon}
-                      style={styles.beautifulCardIcon}
-                    />
+                  <Image
+                    source={item?.icon}
+                    style={styles.beautifulCardIcon}
+                  />
                 </View>
               </View>
               <View style={styles.cardFooter}>
