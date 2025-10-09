@@ -17,7 +17,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../redux/userSlice';
 import AnimatedLottieView from 'lottie-react-native';
-import { clearAllChips } from '../utils/chipManager';
+import { clearAllChips, getChipCounts, getCriticalBatteryChips } from '../utils/chipManager';
 import { spacings, style } from '../constants/Fonts';
 import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
@@ -106,22 +106,13 @@ const ProfileScreen = ({ navigation }) => {
         totalYards = yardKeys.length;
       }
 
-      // Count vehicles and chips
+      // Count vehicles
       let latestUpdateTime = null;
       for (const key of yardKeys) {
         const vehicles = await AsyncStorage.getItem(key);
         if (vehicles) {
           const parsedVehicles = JSON.parse(vehicles);
           totalVehicles += parsedVehicles.length;
-          
-          // Count active and inactive chips
-          const activeVehicles = parsedVehicles.filter(v => v.chipId && v.isActive);
-          const inactiveVehicles = parsedVehicles.filter(v => v.chipId && !v.isActive);
-          activeChips += activeVehicles.length;
-          inactiveChips += inactiveVehicles.length;
-          
-          // Count low battery chips (mock data - in real app this would come from chip data)
-          lowBatteryChips += Math.floor(activeVehicles.length * 0.1); // 10% of active chips
           
           // Find latest update time
           parsedVehicles.forEach(vehicle => {
@@ -134,6 +125,22 @@ const ProfileScreen = ({ navigation }) => {
           });
         }
       }
+
+      // Get chip counts from chipManager (active, inactive)
+      const chipCounts = await getChipCounts();
+      activeChips = chipCounts.activeCount;
+      inactiveChips = chipCounts.inactiveCount;
+
+      // Get critical battery chips (0-20%)
+      const criticalChips = await getCriticalBatteryChips();
+      lowBatteryChips = criticalChips.length;
+
+      console.log('📊 Profile Stats - Chip Counts from ChipManager:', {
+        activeChips,
+        inactiveChips,
+        lowBatteryChips,
+        criticalChipsDetails: criticalChips.map(c => `${c.chipId}: ${c.batteryLevel}%`)
+      });
 
       // Format last activity time
       if (latestUpdateTime) {

@@ -77,6 +77,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   // Dynamic yards state
   const [yards, setYards] = useState([]);
   const [showAddYardModal, setShowAddYardModal] = useState(false);
+  const [editingYard, setEditingYard] = useState(null);
   const [yardName, setYardName] = useState('');
   const [yardSlots, setYardSlots] = useState('');
   const [yardAddress, setYardAddress] = useState('');
@@ -389,6 +390,93 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     Toast.show('✅ Yard added successfully!', Toast.LONG);
   };
 
+  // Open edit yard modal
+  const handleOpenEditYard = (yard) => {
+    setEditingYard(yard);
+    setYardName(yard.name);
+    setYardAddress(yard.address);
+    setYardSlots(yard.slots.toString());
+    setShowAddYardModal(true); // Same modal reuse
+  };
+
+  // Update yard
+  const handleUpdateYard = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    const newSlots = parseInt(yardSlots);
+
+    // Check if reducing slots below current vehicle count
+    const storageKey = `yard_${editingYard.id}_vehicles`;
+    const savedVehicles = await AsyncStorage.getItem(storageKey);
+    const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
+
+    if (newSlots < vehicleCount) {
+      Alert.alert(
+        'Cannot Reduce Slots',
+        `This yard has ${vehicleCount} vehicles. You cannot reduce slots below ${vehicleCount}.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const updatedYards = yards.map(y =>
+      y.id === editingYard.id
+        ? { ...y, name: yardName, address: yardAddress, slots: newSlots, updatedAt: new Date().toISOString() }
+        : y
+    );
+
+    setYards(updatedYards);
+    await saveYards(updatedYards);
+
+    // Reset form and close modal
+    clearFormData();
+    setEditingYard(null);
+    setShowAddYardModal(false); // Same modal
+
+    Toast.show('✅ Yard updated successfully!', Toast.LONG);
+  };
+
+  // Delete yard
+  const handleDeleteYard = async (yard) => {
+    // Check if yard has vehicles
+    const storageKey = `yard_${yard.id}_vehicles`;
+    const savedVehicles = await AsyncStorage.getItem(storageKey);
+    const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
+
+    if (vehicleCount > 0) {
+      Alert.alert(
+        'Cannot Delete Yard',
+        `This yard has ${vehicleCount} vehicles. Please remove all vehicles first.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Delete Yard',
+      `Are you sure you want to delete "${yard.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const updatedYards = yards.filter(y => y.id !== yard.id);
+            setYards(updatedYards);
+            await saveYards(updatedYards);
+            
+            // Remove yard vehicles storage key
+            await AsyncStorage.removeItem(storageKey);
+            
+            Toast.show('✅ Yard deleted successfully!', Toast.LONG);
+          }
+        }
+      ]
+    );
+  };
+
   // Helper function to get slot information for a yard
   const getSlotInfo = async (yardId) => {
     try {
@@ -434,8 +522,9 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     return (
       <TouchableOpacity
         style={[styles.simpleYardCard, isSelected && styles.selectedSimpleCard]}
-        onPress={onPress}>
-        <View style={styles.simpleCardContent}>
+        onPress={onPress}
+        activeOpacity={0.7}>
+        <View style={styles.yardCardHeader}>
           <View style={styles.simpleCardLeft}>
             <View style={styles.simpleIconContainer}>
               <Ionicons name="business" size={24} color="#613EEA" />
@@ -461,8 +550,26 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               )}
             </View>
           </View>
-          <View style={styles.simpleArrowContainer}>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+          
+          {/* Edit & Delete Buttons - Top Right */}
+          <View style={styles.yardCardActions}>
+            <TouchableOpacity
+              style={styles.editYardButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleOpenEditYard(item);
+              }}>
+              <Ionicons name="pencil" size={18} color="#613EEA" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.deleteYardButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteYard(item);
+              }}>
+              <Ionicons name="trash-outline" size={18} color="#FF6B6B" />
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -723,10 +830,13 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               <TouchableWithoutFeedback onPress={() => { }}>
                 <View style={styles.modalContent}>
                   <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Add New Parking Yard</Text>
+                    <Text style={styles.modalTitle}>
+                      {editingYard ? 'Edit Parking Yard' : 'Add New Parking Yard'}
+                    </Text>
                     <TouchableOpacity onPress={() => {
                       Keyboard.dismiss();
                       clearFormData();
+                      setEditingYard(null);
                       setShowAddYardModal(false);
                     }}>
                       <Ionicons name="close" size={28} color="#666" />
@@ -806,11 +916,13 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                       style={styles.submitButton}
                       onPress={() => {
                         Keyboard.dismiss();
-                        handleAddYard();
+                        editingYard ? handleUpdateYard() : handleAddYard();
                       }}
                     >
                       <Ionicons name="checkmark-circle" size={24} color="#fff" />
-                      <Text style={styles.submitButtonText}>Add Yard</Text>
+                      <Text style={styles.submitButtonText}>
+                        {editingYard ? 'Update Yard' : 'Add Yard'}
+                      </Text>
                     </TouchableOpacity>
 
                     {/* Extra space for keyboard */}
@@ -822,6 +934,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
+
     </View>
   );
 }
@@ -1110,14 +1223,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: '#faf9ff',
   },
-  simpleCardContent: {
+  yardCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
   simpleCardLeft: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     flex: 1,
   },
   simpleIconContainer: {
@@ -1164,10 +1277,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
   },
-  simpleArrowContainer: {
-    padding: 4,
+  yardCardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-
+  editYardButton: {
+    backgroundColor: '#f3f0ff',
+    padding: 8,
+    borderRadius: 8,
+  },
+  deleteYardButton: {
+    backgroundColor: '#FFF5F5',
+    padding: 8,
+    borderRadius: 8,
+  },
   selectedText: {
     color: '#613EEA',
   },

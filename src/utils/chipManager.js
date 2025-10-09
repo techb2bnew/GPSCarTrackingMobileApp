@@ -373,3 +373,4 @@ export const getTimeAgo = (timestamp) => {
   if (diffHour < 24) return `${diffHour}h ago`;
   return `${diffDay}d ago`;
 };
+

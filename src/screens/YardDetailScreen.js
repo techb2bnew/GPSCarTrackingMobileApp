@@ -12,6 +12,10 @@ import {
   Modal,
   TextInput,
   Pressable,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -37,6 +41,10 @@ const YardDetailScreen = ({ navigation, route }) => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
   const [slotInfo, setSlotInfo] = useState({ total: 50, occupied: 0, available: 50 });
+  const [showEditYardModal, setShowEditYardModal] = useState(false);
+  const [editYardName, setEditYardName] = useState('');
+  const [editYardAddress, setEditYardAddress] = useState('');
+  const [editYardSlots, setEditYardSlots] = useState('');
   const { yardId, yardName, fromScreen } = route?.params || {};
   const duplicateTimeoutRef = useRef(null);
 
@@ -712,31 +720,91 @@ const YardDetailScreen = ({ navigation, route }) => {
     </ScrollView>
   );
 
+  // Handle edit yard
+  const handleEditYard = () => {
+    setEditYardName(currentYard?.name || '');
+    setEditYardAddress(currentYard?.address || '');
+    setEditYardSlots(currentYard?.slots?.toString() || '50');
+    setShowEditYardModal(true);
+  };
+
+  // Update yard details
+  const handleUpdateYard = async () => {
+    try {
+      const newSlots = parseInt(editYardSlots);
+      
+      // Validate slots against current vehicles
+      if (newSlots < vehicles.length) {
+        Alert.alert(
+          'Cannot Reduce Slots',
+          `This yard has ${vehicles.length} vehicles. You cannot reduce slots below ${vehicles.length}.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Update yard in AsyncStorage
+      const savedYards = await AsyncStorage.getItem('parking_yards');
+      if (savedYards) {
+        const yards = JSON.parse(savedYards);
+        const updatedYards = yards.map(y =>
+          y.id === yardId
+            ? { ...y, name: editYardName, address: editYardAddress, slots: newSlots, updatedAt: new Date().toISOString() }
+            : y
+        );
+        await AsyncStorage.setItem('parking_yards', JSON.stringify(updatedYards));
+        
+        // Update current yard state
+        const updatedYard = updatedYards.find(y => y.id === yardId);
+        setCurrentYard(updatedYard);
+        
+        // Recalculate slot info
+        const slotData = calculateSlotInfo(vehicles, updatedYard);
+        setSlotInfo(slotData);
+        
+        setShowEditYardModal(false);
+        Alert.alert('Success', 'Yard updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating yard:', error);
+      Alert.alert('Error', 'Failed to update yard');
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={[styles.header, flexDirectionRow, alignItemsCenter]}>
-        <TouchableOpacity
-          onPress={handleBackNavigation}
-          style={styles.backButton}>
-          <Ionicons name="arrow-back" size={28} color="#000" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Yard Details</Text>
-          <View style={styles.slotInfoHeader}>
-            {slotInfo.available === 0 ? (
-              <View style={styles.fullYardHeaderContainer}>
-                <Ionicons name="warning" size={16} color="#FF6B6B" />
-                <Text style={styles.fullYardHeaderText}>
-                  Yard is full! ({slotInfo.total}/{slotInfo.total} slots)
+      <View style={[styles.header, flexDirectionRow, alignItemsCenter, justifyContentSpaceBetween]}>
+        <View style={[flexDirectionRow, alignItemsCenter, {flex: 1}]}>
+          <TouchableOpacity
+            onPress={handleBackNavigation}
+            style={styles.backButton}>
+            <Ionicons name="arrow-back" size={28} color="#000" />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Yard Details</Text>
+            <View style={styles.slotInfoHeader}>
+              {slotInfo.available === 0 ? (
+                <View style={styles.fullYardHeaderContainer}>
+                  <Ionicons name="warning" size={16} color="#FF6B6B" />
+                  <Text style={styles.fullYardHeaderText}>
+                    Yard is full! ({slotInfo.total}/{slotInfo.total} slots)
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.slotInfoText}>
+                  {slotInfo.available} available • {slotInfo.total} total slots
                 </Text>
-              </View>
-            ) : (
-              <Text style={styles.slotInfoText}>
-                {slotInfo.available} available • {slotInfo.total} total slots
-              </Text>
-            )}
+              )}
+            </View>
           </View>
         </View>
+        
+        {/* Edit Button */}
+        <TouchableOpacity
+          onPress={handleEditYard}
+          style={styles.headerEditButton}>
+          <Ionicons name="pencil" size={22} color="#613EEA" />
+        </TouchableOpacity>
       </View>
 
       {isLoading ? (
@@ -800,6 +868,97 @@ const YardDetailScreen = ({ navigation, route }) => {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Edit Yard Modal */}
+      <Modal
+        visible={showEditYardModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setShowEditYardModal(false);
+        }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{flex:1}}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Edit Parking Yard</Text>
+                    <TouchableOpacity onPress={() => {
+                      Keyboard.dismiss();
+                      setShowEditYardModal(false);
+                    }}>
+                      <Ionicons name="close" size={28} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView
+                    style={styles.formContainer}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                  >
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Yard Name *</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="e.g., North Parking Yard"
+                        value={editYardName}
+                        onChangeText={setEditYardName}
+                        returnKeyType="next"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Address *</Text>
+                      <TextInput
+                        style={[styles.textInput, {height: 60}]}
+                        placeholder="e.g., 123 Main Street, City"
+                        value={editYardAddress}
+                        onChangeText={setEditYardAddress}
+                        multiline
+                        numberOfLines={2}
+                        returnKeyType="next"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Number of Parking Slots *</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="e.g., 50"
+                        value={editYardSlots}
+                        onChangeText={setEditYardSlots}
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        onSubmitEditing={Keyboard.dismiss}
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.submitButton}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        handleUpdateYard();
+                      }}
+                    >
+                      <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                      <Text style={styles.submitButtonText}>Update Yard</Text>
+                    </TouchableOpacity>
+
+                    {/* Extra space for keyboard */}
+                    <View style={{ height: 20 }} />
+                  </ScrollView>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Duplicate Validation Modal */}
@@ -1380,6 +1539,47 @@ const styles = StyleSheet.create({
     color: grayColor,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  headerEditButton: {
+    backgroundColor: '#f3f0ff',
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  formContainer: {
+    marginBottom: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  submitButton: {
+    backgroundColor: '#613EEA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginTop: 10,
+  },
+  submitButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
   },
 });
 

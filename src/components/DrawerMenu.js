@@ -130,8 +130,8 @@ export default function DrawerMenu({
           { label: 'Profile', icon: 'person', nav: 'ProfileScreen' },
           { label: 'Facility History', icon: 'time', nav: 'ActivityHistoryScreen' },
           { label: 'How it works', icon: 'information-circle' },
-          { label: 'Support', icon: 'help-circle' },
-          { label: 'Settings', icon: 'settings' },
+          // { label: 'Support', icon: 'help-circle' },
+          // { label: 'Settings', icon: 'settings' },
         ].map((item, idx) => (
           // OUTER ROW is a plain View => empty area is NOT clickable
           <View key={idx} style={styles.menuItem}>
