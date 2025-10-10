@@ -4,7 +4,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { widthPercentageToDP } from '../utils';
 import AnimatedLottieView from 'lottie-react-native';
 import BleTesting from '../components/BleTesting';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabaseClient';
 
 export default function ScanScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
@@ -17,32 +17,54 @@ export default function ScanScreen({ navigation, route }) {
   const [yards, setYards] = useState([]);
   const [actualYardName, setActualYardName] = useState('');
 
-  // Fetch yards data - same as HomeScreen
+  // Fetch yards data from Supabase
   const fetchYards = async () => {
     try {
-      const savedYards = await AsyncStorage.getItem('parking_yards');
-      if (savedYards) {
-        setYards(JSON.parse(savedYards));
+      console.log('🔍 Fetching yards from Supabase...');
+
+      const { data, error } = await supabase
+        .from('facility')
+        .select('*');
+
+      if (error) {
+        console.error('❌ Error loading yards from Supabase:', error);
+        return;
       }
+
+      // Transform to match app format
+      const yardsData = data.map(yard => ({
+        id: yard.id,
+        name: yard.name,
+        address: yard.address,
+        slots: yard.parkingSlots || 50
+      }));
+
+      setYards(yardsData);
+      console.log(`✅ Loaded ${yardsData.length} yards from Supabase`);
     } catch (error) {
-      console.error('Error loading yards:', error);
+      console.error('❌ Error loading yards:', error);
     }
   };
 
-  // Get actual yard name from yardId
+  // Get actual yard name from yardId (Supabase)
   const getActualYardName = async (yardId) => {
     try {
-      const savedYards = await AsyncStorage.getItem('parking_yards');
-      console.log('savedYards>>', savedYards);
+      console.log(`🔍 Getting yard name for ID: ${yardId}`);
 
-      if (savedYards) {
-        const yards = JSON.parse(savedYards);
-        const yard = yards.find(y => y.id === yardId);
-        return yard ? yard.name : `Yard ${yardId}`;
+      const { data, error } = await supabase
+        .from('facility')
+        .select('name')
+        .eq('id', yardId)
+        .single();
+
+      if (error || !data) {
+        console.error('❌ Error getting yard name:', error);
+        return `Yard ${yardId}`;
       }
-      return `Yard ${yardId}`;
+
+      return data.name || `Yard ${yardId}`;
     } catch (error) {
-      console.error('Error getting yard name:', error);
+      console.error('❌ Error getting yard name:', error);
       return `Yard ${yardId}`;
     }
   };
@@ -155,16 +177,16 @@ export default function ScanScreen({ navigation, route }) {
               <View style={styles.detailRow}>
                 <Ionicons name="car" size={24} color="#613EEA" />
                 <View style={styles.detailTextContainer}>
-                  <Text style={styles.detailLabel}>Make & Model</Text>
-                  <Text style={styles.detailValue}>{foundVehicle?.make} {foundVehicle?.model}</Text>
+                  <Text style={styles.detailLabel}>Make </Text>
+                  <Text style={styles.detailValue}>{foundVehicle?.make} </Text>
                 </View>
               </View>
 
               <View style={styles.detailRow}>
                 <Ionicons name="calendar" size={24} color="#613EEA" />
                 <View style={styles.detailTextContainer}>
-                  <Text style={styles.detailLabel}>Year</Text>
-                  <Text style={styles.detailValue}>{foundVehicle?.year}</Text>
+                  <Text style={styles.detailLabel}>Model</Text>
+                  <Text style={styles.detailValue}>{foundVehicle?.model}</Text>
                 </View>
               </View>
 
@@ -197,16 +219,36 @@ export default function ScanScreen({ navigation, route }) {
               )}
             </View>
 
-            <Pressable
-              style={styles.closeButton}
-              onPress={() => {
-                setShowDetailModal(false);
-                // Clear the vehicle data so it doesn't show again
-                setFoundVehicle(null);
-                setFoundYardName('');
-              }}>
-              <Text style={styles.closeButtonText}>Close</Text>
-            </Pressable>
+            <View style={styles.modalButtonsRow}>
+              <Pressable
+                style={[styles.modalButton, styles.closeButtonSecondary]}
+                onPress={() => {
+                  setShowDetailModal(false);
+                  // Clear the vehicle data so it doesn't show again
+                  setFoundVehicle(null);
+                  setFoundYardName('');
+                }}>
+                <Text style={styles.closeButtonSecondaryText}>Close</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.modalButton, styles.viewDetailsButton]}
+                onPress={() => {
+                  setShowDetailModal(false);
+                  // Navigate to Vehicle Details Screen
+                  navigation.navigate('VehicleDetailsScreen', {
+                    vehicle: foundVehicle,
+                    yardName: foundYardName,
+                    yardId: foundVehicle?.yardId || foundVehicle?.facilityId,
+                  });
+                  // Clear the vehicle data
+                  setFoundVehicle(null);
+                  setFoundYardName('');
+                }}>
+                <Ionicons name="arrow-forward-circle" size={20} color="#fff" style={{ marginRight: 5 }} />
+                <Text style={styles.viewDetailsButtonText}>View Details</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -439,6 +481,39 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 10,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonSecondary: {
+    backgroundColor: '#F0F0F0',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  closeButtonSecondaryText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  viewDetailsButton: {
+    backgroundColor: '#613EEA',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewDetailsButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
   },
 
   // Not Found Modal Styles

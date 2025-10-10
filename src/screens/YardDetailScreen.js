@@ -17,7 +17,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Removed AsyncStorage import - now using Supabase directly
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-simple-toast';
@@ -47,15 +47,19 @@ const YardDetailScreen = ({ navigation, route }) => {
   const [editYardName, setEditYardName] = useState('');
   const [editYardAddress, setEditYardAddress] = useState('');
   const [editYardSlots, setEditYardSlots] = useState('');
+  const [vehicleSlotNo, setVehicleSlotNo] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
+  const [isCheckingSlot, setIsCheckingSlot] = useState(false);
   const { yardId, yardName, fromScreen } = route?.params || {};
   const duplicateTimeoutRef = useRef(null);
+  const slotCheckTimeoutRef = useRef(null);
 
   // Get yard name - first check dynamic yards, then static yards
   const [currentYard, setCurrentYard] = useState(null);
   const displayYardName = yardName || currentYard?.name || 'Parking Yard';
 
-  // Local storage key for this yard
-  const storageKey = `yard_${yardId}_vehicles`;
+  // Removed storageKey - now using Supabase directly
 
   // Handle back navigation based on source screen
   const handleBackNavigation = () => {
@@ -68,33 +72,46 @@ const YardDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  // Load current yard information
+  // Load current yard information from Supabase
   const loadCurrentYard = async () => {
     try {
-      // First check in AsyncStorage for dynamic yards (user-created yards)
-      const savedYards = await AsyncStorage.getItem('parking_yards');
-      if (savedYards) {
-        const dynamicYards = JSON.parse(savedYards);
-        const foundYard = dynamicYards.find(yard => yard?.id === yardId);
-        if (foundYard) {
-          setCurrentYard(foundYard);
-          return foundYard;
+      console.log(`🔍 Loading yard info for yardId: ${yardId}`);
+
+      // Get yard information from Supabase facility table
+      const { data: facilityData, error } = await supabase
+        .from('facility')
+        .select('*')
+        .eq('id', yardId)
+        .single();
+
+      if (error) {
+        console.error('❌ Error loading facility from Supabase:', error);
+        // Fallback to static data if not found in Supabase
+        const staticYard = parkingYards.find(yard => yard?.id === yardId);
+        if (staticYard) {
+          setCurrentYard(staticYard);
+          return staticYard;
         }
+
+        // If still not found, create a default yard
+        const defaultYard = { id: yardId, name: 'Unknown Yard', slots: 50 };
+        setCurrentYard(defaultYard);
+        return defaultYard;
       }
 
-      // If not found in dynamic yards, check in static parkingYards
-      const staticYard = parkingYards.find(yard => yard?.id === yardId);
-      if (staticYard) {
-        setCurrentYard(staticYard);
-        return staticYard;
-      }
+      // Transform Supabase data to match app format
+      const yardInfo = {
+        id: facilityData.id,
+        name: facilityData.name,
+        address: facilityData.address,
+        slots: facilityData.parkingSlots || 50
+      };
 
-      // If still not found, create a default yard
-      const defaultYard = { id: yardId, name: 'Unknown Yard', slots: 50 };
-      setCurrentYard(defaultYard);
-      return defaultYard;
+      console.log(`✅ Loaded yard from Supabase:`, yardInfo);
+      setCurrentYard(yardInfo);
+      return yardInfo;
     } catch (error) {
-      console.error('Error loading current yard:', error);
+      console.error('❌ Error loading current yard:', error);
       const defaultYard = { id: yardId, name: 'Unknown Yard', slots: 50 };
       setCurrentYard(defaultYard);
       return defaultYard;
@@ -120,49 +137,68 @@ const YardDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  // Load vehicles from local storage
+  // Load vehicles from Supabase for current yard
   const loadVehiclesFromStorage = async () => {
     try {
+      setIsLoading(true);
       // First load the current yard information
       const yardData = await loadCurrentYard();
 
-      const savedVehicles = await AsyncStorage.getItem(storageKey);
-      if (savedVehicles) {
-        const parsedVehicles = JSON.parse(savedVehicles);
-        setVehicles(parsedVehicles);
-        setFilteredVehicles(parsedVehicles);
-        setHasBeenInitialized(true);
+      console.log(`🔍 Loading vehicles for yard: "${displayYardName}"`);
+      console.log(`🔍 Yard ID: ${yardId}`);
+      console.log(`🔍 Current Yard:`, currentYard);
 
-        // Calculate slot information using the loaded yard data
-        const slotData = calculateSlotInfo(parsedVehicles, yardData);
-        setSlotInfo(slotData);
+      // Fetch vehicles from Supabase for this specific facility/yard
+      const { data, error } = await supabase
+        .from('cars')
+        .select('*')
+        .eq('facilityId', displayYardName);
 
-        console.log(`Loaded ${parsedVehicles.length} vehicles from storage for yard ${yardId}`);
-      } else {
-        // If no saved vehicles, initialize with empty array
+      if (error) {
+        console.error('❌ Error loading vehicles from Supabase:', error);
+        Toast.show('Failed to load vehicles', Toast.SHORT);
         setVehicles([]);
         setFilteredVehicles([]);
         setHasBeenInitialized(true);
-
-        // Calculate slot information for empty list using the loaded yard data
-        const slotData = calculateSlotInfo([], yardData);
-        setSlotInfo(slotData);
-
-        console.log('No vehicles found in storage, initialized with empty array');
+        return;
       }
+
+      console.log(`✅ Loaded ${data?.length || 0} vehicles from Supabase for facility "${displayYardName}"`);
+      console.log(`🔍 Raw data from Supabase:`, data);
+
+      // Transform Supabase data to match app format
+      const parsedVehicles = (data || []).map(vehicle => ({
+        id: vehicle.id,
+        vin: vehicle.vin,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year || 'N/A',
+        color: vehicle.color,
+        slotNo: vehicle.slotNo,
+        chipId: vehicle.chip || null,
+        trackerNo: vehicle.trackerNo || null,
+        isActive: vehicle.chip ? true : false,
+        status: vehicle.status || 'Assigned',
+        assignedDate: vehicle.assignedDate
+      }));
+
+      setVehicles(parsedVehicles);
+      setFilteredVehicles(parsedVehicles);
+      setHasBeenInitialized(true);
+
+      // Calculate slot information using the loaded yard data
+      const slotData = calculateSlotInfo(parsedVehicles, yardData);
+      setSlotInfo(slotData);
+
     } catch (error) {
-      console.error('Error loading vehicles from storage:', error);
+      console.error('❌ Error loading vehicles:', error);
+      Toast.show('Failed to load vehicles', Toast.SHORT);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // Save vehicles to local storage
-  const saveVehiclesToStorage = async (vehiclesToSave) => {
-    try {
-      await AsyncStorage.setItem(storageKey, JSON.stringify(vehiclesToSave));
-    } catch (error) {
-      console.error('Error saving vehicles to storage:', error);
-    }
-  };
+  // Removed saveVehiclesToStorage - now using Supabase directly
 
   // Search functionality
   const handleSearch = (query) => {
@@ -218,12 +254,7 @@ const YardDetailScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.existingVehicles, hasBeenInitialized, vehicles.length]);
 
-  // Save vehicles to storage whenever vehicles array changes
-  useEffect(() => {
-    if (vehicles.length > 0) {
-      saveVehiclesToStorage(vehicles);
-    }
-  }, [vehicles]);
+  // Removed save to storage useEffect - now using Supabase directly
 
   // Add new VIN from scanner
   useEffect(() => {
@@ -232,86 +263,176 @@ const YardDetailScreen = ({ navigation, route }) => {
     }
   }, [route?.params?.vinNumber]);
 
-  // Check if VIN already exists in any yard
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (duplicateTimeoutRef.current) {
+        clearTimeout(duplicateTimeoutRef.current);
+      }
+      if (slotCheckTimeoutRef.current) {
+        clearTimeout(slotCheckTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Check if VIN already exists in any facility (case-insensitive)
   const checkVinExists = async (vin) => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
-      
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          const foundVehicle = parsedVehicles.find(v => v.vin === vin);
-          
-          if (foundVehicle) {
-            const foundYardId = key.replace('yard_', '').replace('_vehicles', '');
-            
-            // Get actual yard name from parking_yards
-            const savedYards = await AsyncStorage.getItem('parking_yards');
-            let actualYardName = `Yard ${foundYardId}`; // fallback
-            
-            if (savedYards) {
-              const yards = JSON.parse(savedYards);
-              const yard = yards.find(y => y.id === foundYardId);
-              if (yard) {
-                actualYardName = yard.name;
-              }
-            }
-            
-            return { exists: true, vehicle: foundVehicle, yardName: actualYardName };
-          }
-        }
+      // Check in Supabase using case-insensitive search
+      const { data, error } = await supabase
+        .from('cars')
+        .select('vin, facilityId, make, model')
+        .ilike('vin', vin); // Case-insensitive match
+
+      if (error) {
+        console.error('❌ Error checking VIN:', error);
+        return { exists: false };
       }
+
+      if (data && data.length > 0) {
+        const foundVehicle = data[0];
+
+        // facilityId is already the yard name (string), not ID
+        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+
+        return {
+          exists: true,
+          vehicle: foundVehicle,
+          yardName: yardName
+        };
+      }
+
       return { exists: false };
     } catch (error) {
-      console.error('Error checking VIN existence:', error);
+      console.error('❌ Error checking VIN existence:', error);
       return { exists: false };
     }
   };
 
-  // Check if chip already exists in any yard
+  // Check if chip already exists in any facility (case-insensitive)
   const checkChipExists = async (chipId) => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
-      
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          const foundVehicle = parsedVehicles.find(v => v.chipId === chipId);
-          
-          if (foundVehicle) {
-            const foundYardId = key.replace('yard_', '').replace('_vehicles', '');
-            
-            // Get actual yard name from parking_yards
-            const savedYards = await AsyncStorage.getItem('parking_yards');
-            let actualYardName = `Yard ${foundYardId}`; // fallback
-            
-            if (savedYards) {
-              const yards = JSON.parse(savedYards);
-              const yard = yards.find(y => y.id === foundYardId);
-              if (yard) {
-                actualYardName = yard.name;
-              }
-            }
-            
-            return { exists: true, vehicle: foundVehicle, yardName: actualYardName, yardId: foundYardId };
-          }
-        }
+      // Check in Supabase using case-insensitive search
+      const { data, error } = await supabase
+        .from('cars')
+        .select('chip, vin, facilityId, make, model')
+        .ilike('chip', chipId); // Case-insensitive match
+
+      if (error) {
+        console.error('❌ Error checking Chip:', error);
+        return { exists: false };
       }
+
+      if (data && data.length > 0) {
+        const foundVehicle = data[0];
+
+        // facilityId is already the yard name (string), not ID
+        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+
+        return {
+          exists: true,
+          vehicle: { ...foundVehicle, chipId: foundVehicle.chip },
+          yardName: yardName,
+          yardId: foundVehicle.facilityId,
+          vin: foundVehicle.vin
+        };
+      }
+
       return { exists: false };
     } catch (error) {
-      console.error('Error checking chip existence:', error);
+      console.error('❌ Error checking chip existence:', error);
       return { exists: false };
     }
+  };
+
+  // Check if slot number already exists in the same yard
+  const checkSlotExists = async (slotNo, facilityId) => {
+    try {
+      console.log(`🔍 Checking slot ${slotNo} in facility: ${facilityId}`);
+
+      const { data, error } = await supabase
+        .from('cars')
+        .select('slotNo, vin, facilityId, make, model')
+        .eq('facilityId', facilityId)
+        .eq('slotNo', slotNo.trim());
+
+      if (error) {
+        console.error('❌ Error checking slot:', error);
+        return { exists: false };
+      }
+
+      if (data && data.length > 0) {
+        const foundVehicle = data[0];
+        console.log(`❌ Slot ${slotNo} already occupied by VIN: ${foundVehicle.vin}`);
+
+        return {
+          exists: true,
+          vehicle: foundVehicle,
+          slotNo: foundVehicle.slotNo,
+          vin: foundVehicle.vin
+        };
+      }
+
+      console.log(`✅ Slot ${slotNo} is available`);
+      return { exists: false };
+    } catch (error) {
+      console.error('❌ Error checking slot:', error);
+      return { exists: false };
+    }
+  };
+
+  // Real-time slot validation with debouncing
+  const handleSlotNumberChange = (text) => {
+    setVehicleSlotNo(text);
+
+    // Clear previous timeout
+    if (slotCheckTimeoutRef.current) {
+      clearTimeout(slotCheckTimeoutRef.current);
+    }
+
+    // Clear slot error immediately when user starts typing
+    if (validationErrors.slotNo) {
+      setValidationErrors(prev => ({ ...prev, slotNo: '' }));
+    }
+
+    // If empty, don't check
+    if (!text || text.trim().length === 0) {
+      return;
+    }
+
+    // Set checking state
+    setIsCheckingSlot(true);
+
+    // Debounce the slot check (wait 800ms after user stops typing)
+    slotCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const slotCheck = await checkSlotExists(text.trim(), displayYardName);
+
+        if (slotCheck.exists) {
+          setValidationErrors(prev => ({
+            ...prev,
+            slotNo: `Slot ${text.trim()} is already occupied`
+          }));
+        } else {
+          // Clear slot error if slot is available
+          setValidationErrors(prev => {
+            const newErrors = { ...prev };
+            delete newErrors.slotNo;
+            return newErrors;
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error checking slot in real-time:', error);
+      } finally {
+        setIsCheckingSlot(false);
+      }
+    }, 800);
   };
 
   const fetchVehicleDetails = async vinNumber => {
     try {
       setIsLoading(true);
-      
+
       // First check if VIN already exists in any yard
       const vinCheck = await checkVinExists(vinNumber);
       if (vinCheck.exists) {
@@ -345,10 +466,6 @@ const YardDetailScreen = ({ navigation, route }) => {
           make: getValue('Make'),
           model: getValue('Model'),
           year: getValue('Model Year'),
-          fuelType: getValue('Fuel Type - Primary'),
-          driveType: getValue('Drive Type'),
-          engineCylinders: getValue('Engine Number of Cylinders'),
-          transmissionDesc: getValue('Transmission Style'),
           isActive: false, // Default inactive
           chipId: null, // Will be set when chip is assigned
         };
@@ -375,8 +492,52 @@ const YardDetailScreen = ({ navigation, route }) => {
     });
   };
 
+  // Validation function
+  const validateVehicleData = async () => {
+    const errors = {};
+
+    if (!scannedVinData?.vin || scannedVinData.vin.length < 3) {
+      errors.vin = 'VIN must be at least 3 characters';
+    }
+
+    if (!scannedVinData?.make || scannedVinData.make.length < 2) {
+      errors.make = 'Make must be at least 2 characters';
+    }
+
+    if (!scannedVinData?.model || scannedVinData.model.length < 2) {
+      errors.model = 'Model must be at least 2 characters';
+    }
+
+    if (!vehicleColor || vehicleColor.trim().length < 2) {
+      errors.color = 'Color must be at least 2 characters';
+    }
+
+    if (!vehicleSlotNo || vehicleSlotNo.trim().length < 1) {
+      errors.slotNo = 'Slot number is required';
+    }
+
+    // Check if slot is already occupied
+    if (vehicleSlotNo && vehicleSlotNo.trim().length > 0) {
+      const slotCheck = await checkSlotExists(vehicleSlotNo.trim(), displayYardName);
+      if (slotCheck.exists) {
+        errors.slotNo = `Slot ${vehicleSlotNo} is already occupied by VIN: ${slotCheck.vin}`;
+      }
+    }
+
+    return errors;
+  };
+
   const handleAssignChip = async () => {
     try {
+      // Validate vehicle data first
+      const errors = await validateVehicleData();
+      setValidationErrors(errors);
+
+      if (Object.keys(errors).length > 0) {
+        Toast.show('Please fill all required fields correctly', Toast.LONG);
+        return;
+      }
+
       setIsScanningChip(true);
 
       // Import barcode scanner for chip scanning
@@ -397,19 +558,29 @@ const YardDetailScreen = ({ navigation, route }) => {
         console.log('Scanned chip full text:', fullText);
         console.log('Extracted EUI ID:', chipId);
 
-        // Check if chip already exists in any yard
+        // Check if chip length is valid (at least 2 chars as per API requirement)
+        if (chipId.length < 2) {
+          Toast.show('Invalid chip ID', Toast.LONG);
+          setIsScanningChip(false);
+          return;
+        }
+
+        // Check if chip already exists in any facility
         const chipCheck = await checkChipExists(chipId);
         if (chipCheck.exists) {
           // Clear any existing timeout
           if (duplicateTimeoutRef.current) {
             clearTimeout(duplicateTimeoutRef.current);
           }
-          
+
           // Close VIN modal first
           setShowVinModal(false);
           setScannedVinData(null);
+          setVehicleSlotNo('');
+          setVehicleColor('');
+          setValidationErrors({});
           setIsScanningChip(false);
-          
+
           // Set duplicate info and show modal after delay to ensure VIN modal is fully closed
           setDuplicateInfo({
             type: 'chip',
@@ -418,98 +589,146 @@ const YardDetailScreen = ({ navigation, route }) => {
             vin: chipCheck.vehicle.vin,
             yardId: chipCheck.yardId
           });
-          
+
           duplicateTimeoutRef.current = setTimeout(() => {
             setShowDuplicateModal(true);
           }, 500);
           return;
         }
 
-        // Add vehicle with chip ID
-        const vehicleWithChip = {
-          ...scannedVinData,
-          chipId: chipId,
-          isActive: true,
+        // Prepare vehicle data for Supabase
+        const vehicleData = {
+          id: Date.now(), // Generate unique timestamp-based ID
+          vin: scannedVinData.vin,
+          chip: chipId,
+          slotNo: vehicleSlotNo.trim(),
+          trackerNo: '', // Optional - empty for now
+          facilityId: displayYardName, // Send yard name instead of ID
+          make: scannedVinData.make,
+          model: scannedVinData.model,
+          color: vehicleColor.trim(),
         };
 
-        setVehicles(prevVehicles => {
-          const updatedVehicles = [...prevVehicles, vehicleWithChip];
-          setFilteredVehicles(updatedVehicles);
-          return updatedVehicles;
-        });
+        // Add vehicle to Supabase
+        const { data: insertedData, error: insertError } = await supabase
+          .from('cars')
+          .insert([vehicleData])
+          .select();
 
-        // Update slot information after state update
-        const updatedVehicles = [...vehicles, vehicleWithChip];
-        const slotData = calculateSlotInfo(updatedVehicles);
-        setSlotInfo(slotData);
+        if (insertError) {
+          console.error('❌ Error adding vehicle to Supabase:', insertError);
+          Toast.show(`Failed to add vehicle: ${insertError.message}`, Toast.LONG);
+          setIsScanningChip(false);
+          return;
+        }
+
+        console.log('✅ Vehicle added to Supabase successfully:', insertedData);
 
         // First remove from inactive chips if exists, then add to active
         await removeInactiveChip(chipId);
-        
+
         // Add to active chips array
         await addActiveChip({
           chipId: chipId,
-          vehicleId: vehicleWithChip.id,
-          vin: vehicleWithChip.vin,
-          make: vehicleWithChip.make,
-          model: vehicleWithChip.model,
-          year: vehicleWithChip.year,
+          vehicleId: insertedData[0].id,
+          vin: scannedVinData.vin,
+          make: scannedVinData.make,
+          model: scannedVinData.model,
           yardId: yardId,
           yardName: displayYardName
         });
-        console.log(`✅ Chip ${chipId} added to active chips array (removed from inactive if existed)`);
-        
+        console.log(`✅ Chip ${chipId} added to active chips array`);
+
+        // Reload vehicles from Supabase
+        await loadVehiclesFromStorage();
+
         setShowVinModal(false);
         setScannedVinData(null);
+        setVehicleSlotNo('');
+        setVehicleColor('');
+        setValidationErrors({});
 
-        console.log('Success', `Chip ${chipId} assigned successfully!`);
-        
-        // Navigate back to HomeScreen after successful vehicle addition with chip
+        Toast.show('✅ Vehicle added successfully with chip!', Toast.LONG);
+
+        // Navigate back to HomeScreen after successful vehicle addition
         setTimeout(() => {
           navigation.navigate('HomeScreen');
         }, 1000);
       } else {
-        console.log('Error', 'Chip scanning cancelled or failed');
+        Toast.show('Chip scanning cancelled', Toast.SHORT);
       }
     } catch (error) {
-      console.error('Error scanning chip:', error);
-      console.log('Error', 'Failed to scan chip. Please try again.');
+      console.error('❌ Error in handleAssignChip:', error);
+      Toast.show('Failed to add vehicle. Please try again.', Toast.LONG);
     } finally {
       setIsScanningChip(false);
     }
   };
 
-  const handleCancelVin = () => {
+  const handleCancelVin = async () => {
     // Add vehicle without chip when user cancels
-    if (scannedVinData) {
-      const vehicleWithoutChip = {
-        ...scannedVinData,
-        chipId: null,
-        isActive: false,
+    try {
+      if (!scannedVinData) return;
+
+      // Validate vehicle data first
+      const errors = await validateVehicleData();
+      setValidationErrors(errors);
+
+      if (Object.keys(errors).length > 0) {
+        Toast.show('Please fill all required fields correctly', Toast.LONG);
+        return;
+      }
+
+      setIsLoading(true);
+
+      // Prepare vehicle data for Supabase (without chip)
+      const vehicleData = {
+        id: Date.now(), // Generate unique timestamp-based ID
+        vin: scannedVinData.vin,
+        chip: null, // No chip assigned yet
+        slotNo: vehicleSlotNo.trim(),
+        trackerNo: '', // Optional - empty for now
+        facilityId: displayYardName, // Send yard name instead of ID
+        make: scannedVinData.make,
+        model: scannedVinData.model,
+        color: vehicleColor.trim(),
       };
 
-      console.log('Adding vehicle without chip:', vehicleWithoutChip);
-      setVehicles(prevVehicles => {
-        const updatedVehicles = [...prevVehicles, vehicleWithoutChip];
-        setFilteredVehicles(updatedVehicles);
+      // Add vehicle to Supabase
+      const { data: insertedData, error: insertError } = await supabase
+        .from('cars')
+        .insert([vehicleData])
+        .select();
 
-        // Update slot information
-        const slotData = calculateSlotInfo(updatedVehicles);
-        setSlotInfo(slotData);
+      if (insertError) {
+        console.error('❌ Error adding vehicle to Supabase:', insertError);
+        Toast.show(`Failed to add vehicle: ${insertError.message}`, Toast.LONG);
+        setIsLoading(false);
+        return;
+      }
 
-        console.log('Updated vehicles list:', updatedVehicles.length);
-        return updatedVehicles;
-      });
+      console.log('✅ Vehicle added to Supabase successfully (without chip):', insertedData);
+
+      // Reload vehicles from Supabase
+      await loadVehiclesFromStorage();
 
       setShowVinModal(false);
       setScannedVinData(null);
+      setVehicleSlotNo('');
+      setVehicleColor('');
+      setValidationErrors({});
+      setIsLoading(false);
 
-      console.log('Vehicle Added', 'Vehicle added successfully without chip. You can assign chip later.');
-      
-      // Navigate back to HomeScreen after successful vehicle addition without chip
+      Toast.show('✅ Vehicle added successfully! You can assign chip later.', Toast.LONG);
+
+      // Navigate back to HomeScreen after successful vehicle addition
       setTimeout(() => {
         navigation.navigate('HomeScreen');
       }, 1000);
+    } catch (error) {
+      console.error('❌ Error in handleCancelVin:', error);
+      Toast.show('Failed to add vehicle. Please try again.', Toast.LONG);
+      setIsLoading(false);
     }
   };
 
@@ -533,7 +752,13 @@ const YardDetailScreen = ({ navigation, route }) => {
         console.log('Scanned chip full text:', fullText);
         console.log('Extracted EUI ID:', chipId);
 
-        // Check if chip already exists in any yard
+        // Check if chip length is valid (at least 2 chars as per API requirement)
+        if (chipId.length < 2) {
+          Toast.show('Invalid chip ID', Toast.LONG);
+          return;
+        }
+
+        // Check if chip already exists in any facility
         const chipCheck = await checkChipExists(chipId);
         if (chipCheck.exists) {
           setDuplicateInfo({
@@ -548,43 +773,52 @@ const YardDetailScreen = ({ navigation, route }) => {
 
         // Find the vehicle being updated
         const vehicleToUpdate = vehicles.find(v => v.id === vehicleId);
-        
-        // Update the specific vehicle with chip ID
-        setVehicles(prevVehicles => {
-          const updatedVehicles = prevVehicles.map(vehicle =>
-            vehicle.id === vehicleId
-              ? { ...vehicle, chipId: chipId, isActive: true }
-              : vehicle
-          );
-          setFilteredVehicles(updatedVehicles);
-          return updatedVehicles;
-        });
 
-        // Add to active chips array
-        if (vehicleToUpdate) {
-          // First remove from inactive chips if exists, then add to active
-          await removeInactiveChip(chipId);
-          
-          await addActiveChip({
-            chipId: chipId,
-            vehicleId: vehicleToUpdate.id,
-            vin: vehicleToUpdate.vin,
-            make: vehicleToUpdate.make,
-            model: vehicleToUpdate.model,
-            year: vehicleToUpdate.year,
-            yardId: yardId,
-            yardName: displayYardName
-          });
-          console.log(`✅ Chip ${chipId} added to active chips array from existing vehicle (removed from inactive if existed)`);
+        if (!vehicleToUpdate) {
+          Toast.show('Vehicle not found', Toast.SHORT);
+          return;
         }
 
-        console.log('Success', `Chip ${chipId} assigned successfully!`);
+        // Update vehicle in Supabase
+        const { data: updatedData, error: updateError } = await supabase
+          .from('cars')
+          .update({ chip: chipId })
+          .eq('id', vehicleId)
+          .select();
+
+        if (updateError) {
+          console.error('❌ Error updating vehicle in Supabase:', updateError);
+          Toast.show(`Failed to assign chip: ${updateError.message}`, Toast.LONG);
+          return;
+        }
+
+        console.log('✅ Vehicle updated in Supabase with chip:', updatedData);
+
+        // First remove from inactive chips if exists, then add to active
+        await removeInactiveChip(chipId);
+
+        // Add to active chips array
+        await addActiveChip({
+          chipId: chipId,
+          vehicleId: vehicleToUpdate.id,
+          vin: vehicleToUpdate.vin,
+          make: vehicleToUpdate.make,
+          model: vehicleToUpdate.model,
+          yardId: yardId,
+          yardName: displayYardName
+        });
+        console.log(`✅ Chip ${chipId} added to active chips array from existing vehicle`);
+
+        // Reload vehicles from Supabase
+        await loadVehiclesFromStorage();
+
+        Toast.show(`✅ Chip ${chipId} assigned successfully!`, Toast.LONG);
       } else {
-        console.log('Info', 'Chip scanning cancelled');
+        Toast.show('Chip scanning cancelled', Toast.SHORT);
       }
     } catch (error) {
-      console.error('Error scanning chip:', error);
-      console.log('Error', 'Failed to scan chip. Please try again.');
+      console.error('❌ Error in handleAssignId:', error);
+      Toast.show('Failed to assign chip. Please try again.', Toast.LONG);
     }
   };
 
@@ -601,7 +835,7 @@ const YardDetailScreen = ({ navigation, route }) => {
       <View style={[flexDirectionRow, alignItemsCenter, justifyContentSpaceBetween]}>
         <View style={styles.vehicleTitleContainer}>
           <Text style={styles.vinNumber}>{item?.vin}</Text>
-          <Text style={styles.vehicleSpecs}>{item?.year} • {item?.make} {item?.model}</Text>
+          <Text style={styles.vehicleSpecs}>{item?.model?.charAt(0).toUpperCase() + item?.model?.slice(1)} • {item?.make?.charAt(0).toUpperCase() + item?.make?.slice(1)} </Text>
         </View>
 
 
@@ -734,7 +968,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   const handleUpdateYard = async () => {
     try {
       const newSlots = parseInt(editYardSlots);
-      
+
       // Validate slots against current vehicles
       if (newSlots < vehicles.length) {
         Alert.alert(
@@ -766,28 +1000,21 @@ const YardDetailScreen = ({ navigation, route }) => {
 
       console.log('✅ Updated in Supabase:', data);
 
-      // 2. Update in local storage
-      const savedYards = await AsyncStorage.getItem('parking_yards');
-      if (savedYards) {
-        const yards = JSON.parse(savedYards);
-        const updatedYards = yards.map(y =>
-          y.id === yardId
-            ? { ...y, name: editYardName, address: editYardAddress, slots: newSlots, updatedAt: new Date().toISOString() }
-            : y
-        );
-        await AsyncStorage.setItem('parking_yards', JSON.stringify(updatedYards));
-        
-        // Update current yard state
-        const updatedYard = updatedYards.find(y => y.id === yardId);
-        setCurrentYard(updatedYard);
-        
-        // Recalculate slot info
-        const slotData = calculateSlotInfo(vehicles, updatedYard);
-        setSlotInfo(slotData);
+      // Update current yard state with new data
+      const updatedYard = {
+        id: yardId,
+        name: editYardName,
+        address: editYardAddress,
+        slots: newSlots
+      };
+      setCurrentYard(updatedYard);
 
-        console.log('✅ Updated in local storage');
-      }
-        
+      // Recalculate slot info
+      const slotData = calculateSlotInfo(vehicles, updatedYard);
+      setSlotInfo(slotData);
+
+      console.log('✅ Updated yard state');
+
       setShowEditYardModal(false);
       Toast.show('✅ Yard updated successfully!', Toast.LONG);
 
@@ -800,7 +1027,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       <View style={[styles.header, flexDirectionRow, alignItemsCenter, justifyContentSpaceBetween]}>
-        <View style={[flexDirectionRow, alignItemsCenter, {flex: 1}]}>
+        <View style={[flexDirectionRow, alignItemsCenter, { flex: 1 }]}>
           <TouchableOpacity
             onPress={handleBackNavigation}
             style={styles.backButton}>
@@ -824,7 +1051,7 @@ const YardDetailScreen = ({ navigation, route }) => {
             </View>
           </View>
         </View>
-        
+
         {/* Edit Button */}
         <TouchableOpacity
           onPress={handleEditYard}
@@ -847,53 +1074,136 @@ const YardDetailScreen = ({ navigation, route }) => {
         visible={showVinModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowVinModal(false)}
+        onRequestClose={() => {
+          setShowVinModal(false);
+          setVehicleSlotNo('');
+          setVehicleColor('');
+          setValidationErrors({});
+        }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Vehicle Details</Text>
-              <TouchableOpacity onPress={() => setShowVinModal(false)} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback onPress={() => { }}>
+                <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Vehicle Details</Text>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setShowVinModal(false);
+                        setVehicleSlotNo('');
+                        setVehicleColor('');
+                        setValidationErrors({});
+                      }}
+                      style={styles.closeButton}
+                    >
+                      <Ionicons name="close" size={24} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+
+                  <ScrollView
+                    style={styles.vinDetailsContainer}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    <Text style={styles.vinLabel}>VIN Number:</Text>
+                    <Text style={styles.vinValue}>{scannedVinData?.vin}</Text>
+
+                    <Text style={styles.vinLabel}>Make:</Text>
+                    <Text style={styles.vinValue}>{scannedVinData?.make}</Text>
+                    {validationErrors.make && (
+                      <Text style={styles.errorText}>{validationErrors.make}</Text>
+                    )}
+
+                    <Text style={styles.vinLabel}>Model:</Text>
+                    <Text style={styles.vinValue}>{scannedVinData?.model}</Text>
+                    {validationErrors.model && (
+                      <Text style={styles.errorText}>{validationErrors.model}</Text>
+                    )}
+
+                    <Text style={styles.vinLabel}>Year:</Text>
+                    <Text style={styles.vinValue}>{scannedVinData?.year}</Text>
+
+                    <Text style={styles.vinLabel}>Color: *</Text>
+                    <TextInput
+                      style={[
+                        styles.vinInput,
+                        validationErrors.color && styles.inputError
+                      ]}
+                      placeholder="Enter vehicle color (e.g., Red, Blue)"
+                      placeholderTextColor="#999"
+                      value={vehicleColor}
+                      onChangeText={(text) => {
+                        setVehicleColor(text);
+                        if (validationErrors.color) {
+                          setValidationErrors(prev => ({ ...prev, color: undefined }));
+                        }
+                      }}
+                      returnKeyType="next"
+                    />
+                    {validationErrors.color && (
+                      <Text style={styles.errorText}>{validationErrors.color}</Text>
+                    )}
+
+                    <Text style={styles.vinLabel}>Slot Number: *</Text>
+                    <View>
+                      <TextInput
+                        style={[
+                          styles.vinInput,
+                          validationErrors.slotNo && styles.inputError
+                        ]}
+                        placeholder="Enter slot number (e.g., A1, B12)"
+                        placeholderTextColor="#999"
+                        value={vehicleSlotNo}
+                        onChangeText={handleSlotNumberChange}
+                        returnKeyType="done"
+                        autoCapitalize="characters"
+                      />
+                      {isCheckingSlot && (
+                        <View style={styles.checkingIndicator}>
+                          <ActivityIndicator size="small" color="#007AFF" />
+                          <Text style={styles.checkingText}>Checking availability...</Text>
+                        </View>
+                      )}
+                    </View>
+                    {validationErrors.slotNo && (
+                      <Text style={styles.errorText}>{validationErrors.slotNo}</Text>
+                    )}
+                    {!validationErrors.slotNo && !isCheckingSlot && vehicleSlotNo.trim().length > 0 && (
+                      <Text style={styles.successText}>✓ Slot is available</Text>
+                    )}
+
+                    <View style={{ height: 20 }} />
+                  </ScrollView>
+
+                  <View style={styles.modalButtons}>
+                    <TouchableOpacity
+                      style={styles.cancelButton}
+                      onPress={handleCancelVin}
+                    >
+                      <Text style={styles.cancelButtonText}>Skip Chip</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.assignChipButton, isScanningChip && styles.disabledButton]}
+                      onPress={handleAssignChip}
+                      disabled={isScanningChip}
+                    >
+                      {isScanningChip ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <Text style={styles.assignChipButtonText}>Assign Chip</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
             </View>
-
-            <View style={styles.vinDetailsContainer}>
-              <Text style={styles.vinLabel}>VIN Number:</Text>
-              <Text style={styles.vinValue}>{scannedVinData?.vin}</Text>
-
-              <Text style={styles.vinLabel}>Make:</Text>
-              <Text style={styles.vinValue}>{scannedVinData?.make}</Text>
-
-              <Text style={styles.vinLabel}>Model:</Text>
-              <Text style={styles.vinValue}>{scannedVinData?.model}</Text>
-
-              <Text style={styles.vinLabel}>Year:</Text>
-              <Text style={styles.vinValue}>{scannedVinData?.year}</Text>
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancelVin}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.assignChipButton, isScanningChip && styles.disabledButton]}
-                onPress={handleAssignChip}
-                disabled={isScanningChip}
-              >
-                {isScanningChip ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.assignChipButtonText}>Assign Chip</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Edit Yard Modal */}
@@ -908,12 +1218,18 @@ const YardDetailScreen = ({ navigation, route }) => {
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{flex:1}}
+          style={{ flex: 1 }}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.modalOverlay}>
-              <TouchableWithoutFeedback onPress={() => {}}>
+            <Pressable style={styles.modalOverlay} onPress={() => { setShowEditYardModal(false); }}>
+              <TouchableWithoutFeedback onPress={() => {
+                Keyboard.dismiss();
+                setShowEditYardModal(false);
+              }}>
                 <View style={styles.modalContent}>
+                  {/* Drag Handle */}
+                  <View style={styles.modalHandle} />
+
                   <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>Edit Parking Yard</Text>
                     <TouchableOpacity onPress={() => {
@@ -943,7 +1259,7 @@ const YardDetailScreen = ({ navigation, route }) => {
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Address *</Text>
                       <TextInput
-                        style={[styles.textInput, {height: 60}]}
+                        style={[styles.textInput, { height: 60 }]}
                         placeholder="e.g., 123 Main Street, City"
                         value={editYardAddress}
                         onChangeText={setEditYardAddress}
@@ -982,7 +1298,7 @@ const YardDetailScreen = ({ navigation, route }) => {
                   </ScrollView>
                 </View>
               </TouchableWithoutFeedback>
-            </View>
+            </Pressable>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
@@ -1009,20 +1325,20 @@ const YardDetailScreen = ({ navigation, route }) => {
             {/* Content */}
             <View style={styles.duplicateInfoContainer}>
               <Text style={styles.duplicateMainMessage}>
-                {duplicateInfo?.type === 'vin' 
-                  ? 'This VIN is already added in' 
+                {duplicateInfo?.type === 'vin'
+                  ? 'This VIN is already added in'
                   : 'This chip is already assigned to a vehicle in'
                 }
               </Text>
-              
+
               {/* Yard Name - Bold Text */}
               <Text style={styles.duplicateYardText}>{duplicateInfo?.yardName}</Text>
-              
+
               {/* VIN Number - Bold Text */}
               <Text style={styles.duplicateVinText}>
                 VIN: {duplicateInfo?.type === 'vin' ? duplicateInfo?.value : duplicateInfo?.vin}
               </Text>
-              
+
               {/* Chip ID - Only for chip duplicates */}
               {duplicateInfo?.type === 'chip' && (
                 <Text style={styles.duplicateChipText}>
@@ -1068,23 +1384,34 @@ const YardDetailScreen = ({ navigation, route }) => {
                     style={styles.duplicateActionButton}
                     onPress={async () => {
                       try {
-                        // Unassign the duplicate chip from the vehicle it belongs to
-                        const foundYardId = duplicateInfo?.yardId;
-                        const storageKey = `yard_${foundYardId}_vehicles`;
-                        const saved = await AsyncStorage.getItem(storageKey);
-                        if (saved) {
-                          const list = JSON.parse(saved);
-                          const updated = list.map(v => v.chipId === duplicateInfo?.value ? { ...v, chipId: null, isActive: false } : v);
-                          await AsyncStorage.setItem(storageKey, JSON.stringify(updated));
-                          
-                          // Move chip to inactive array in chip manager
-                          await moveChipToInactive(duplicateInfo?.value);
-                          console.log(`✅ Chip ${duplicateInfo?.value} moved to inactive chips from YardDetailScreen duplicate modal`);
+                        // Unassign the duplicate chip from the vehicle it belongs to in Supabase
+                        const chipIdToUnassign = duplicateInfo?.value;
+
+                        // Update vehicle in Supabase to remove chip
+                        const { error: updateError } = await supabase
+                          .from('cars')
+                          .update({ chip: null })
+                          .eq('chip', chipIdToUnassign);
+
+                        if (updateError) {
+                          console.error('❌ Error unassigning chip:', updateError);
+                          Toast.show('Failed to unassign chip', Toast.SHORT);
+                          return;
                         }
-                        loadVehiclesFromStorage();
+
+                        console.log(`✅ Chip ${chipIdToUnassign} unassigned in Supabase`);
+
+                        // Move chip to inactive array in chip manager
+                        await moveChipToInactive(chipIdToUnassign);
+                        console.log(`✅ Chip ${chipIdToUnassign} moved to inactive chips`);
+
+                        // Reload vehicles
+                        await loadVehiclesFromStorage();
                         setShowDuplicateModal(false);
+                        Toast.show('✅ Chip unassigned successfully', Toast.SHORT);
                       } catch (e) {
-                        console.log('Error unassigning chip:', e);
+                        console.error('❌ Error unassigning chip:', e);
+                        Toast.show('Failed to unassign chip', Toast.SHORT);
                       }
                     }}
                     activeOpacity={0.8}
@@ -1302,20 +1629,29 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 20,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     padding: 20,
-    width: '90%',
-    maxHeight: '80%',
+    paddingTop: 12,
+    width: '100%',
+    maxHeight: '85%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: -5 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 10,
+  },
+  modalHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#DDD',
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 16,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1352,6 +1688,51 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderLeftWidth: 4,
     borderLeftColor: '#613EEA',
+  },
+  vinInput: {
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 5,
+  },
+  inputError: {
+    borderColor: '#FF6B6B',
+    borderWidth: 2,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    marginTop: 2,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  successText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginTop: 2,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  checkingIndicator: {
+    position: 'absolute',
+    right: 10,
+    top: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+  },
+  checkingText: {
+    fontSize: 11,
+    color: '#007AFF',
+    marginLeft: 5,
+    fontWeight: '600',
   },
   modalButtons: {
     flexDirection: 'row',
@@ -1499,14 +1880,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    justifyContent:"center",
+    justifyContent: "center",
     marginHorizontal: 5,
   },
   duplicateActionButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
-    textAlign:"center"
+    textAlign: "center"
   },
   // Chip ID Styles
   chipIdTag: {
@@ -1570,7 +1951,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f0ff',
     padding: 10,
     borderRadius: 8,
-    marginRight: 16,
   },
   formContainer: {
     // marginBottom: 20,

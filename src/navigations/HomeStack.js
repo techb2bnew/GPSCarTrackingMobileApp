@@ -16,6 +16,7 @@ import YardDetailScreen from '../screens/YardDetailScreen';
 import ScannerScreen from '../screens/ScannerScreen';
 import VehicleDetailsScreen from '../screens/VehicleDetailsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import HowItWorksScreen from '../screens/HowItWorksScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -43,6 +44,7 @@ export default function HomeStack({setCheckUser}) {
       <Stack.Screen name="ScannerScreen" component={ScannerScreen} />
       <Stack.Screen name="VehicleDetailsScreen" component={VehicleDetailsScreen} />
       <Stack.Screen name="ProfileScreen" component={ProfileScreen} />
+      <Stack.Screen name="HowItWorksScreen" component={HowItWorksScreen} />
       <Stack.Screen
         name="NotificationScreen"
         component={NotificationScreen}

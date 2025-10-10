@@ -137,7 +137,7 @@ export default function DrawerMenu({
         {[
           { label: 'Profile', icon: 'person', nav: 'ProfileScreen' },
           { label: 'Facility History', icon: 'time', nav: 'ActivityHistoryScreen' },
-          { label: 'How it works', icon: 'information-circle' },
+          { label: 'How it works', icon: 'information-circle', nav: 'HowItWorksScreen' },
           // { label: 'Support', icon: 'help-circle' },
           // { label: 'Settings', icon: 'settings' },
         ].map((item, idx) => (

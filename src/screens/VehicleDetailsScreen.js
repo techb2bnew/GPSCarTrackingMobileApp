@@ -24,6 +24,8 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils'
 import { BaseStyle } from '../constants/Style';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addActiveChip, moveChipToInactive, moveChipToActive, removeInactiveChip } from '../utils/chipManager';
+import { supabase } from '../lib/supabaseClient';
+import Toast from 'react-native-simple-toast';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -69,7 +71,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
-    return vehicle?.chipId ; // Fallback to default chip ID
+    return vehicle?.chipId; // Fallback to default chip ID
   };
 
   // Save chip location to AsyncStorage
@@ -81,7 +83,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         timestamp,
         lastUpdated: new Date(timestamp).toLocaleTimeString()
       };
-      
+
       await AsyncStorage.setItem(`chip_${chipId}`, JSON.stringify(chipData));
       console.log(`Saved location for chip ${chipId}:`, chipData);
     } catch (error) {
@@ -108,53 +110,59 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const getTimeAgo = (timestamp) => {
     const now = Date.now();
     const diffMs = now - timestamp;
-    
+
     const diffSec = Math.floor(diffMs / 1000);
     const diffMin = Math.floor(diffSec / 60);
     const diffHour = Math.floor(diffMin / 60);
     const diffDay = Math.floor(diffHour / 24);
-    
+
     if (diffSec < 60) return `${diffSec}s ago`;
     if (diffMin < 60) return `${diffMin}m ago`;
     if (diffHour < 24) return `${diffHour}h ago`;
     return `${diffDay}d ago`;
   };
 
-  // Check if chip already exists in any yard
+  // Check if chip already exists in Supabase (case-insensitive)
   const checkChipExists = async (chipId) => {
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      console.log(`🔍 Checking chip ${chipId} in Supabase...`);
 
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          const foundVehicle = parsedVehicles.find(v => v.chipId === chipId);
+      // Check in Supabase using case-insensitive search
+      const { data, error } = await supabase
+        .from('cars')
+        .select('id, chip, vin, facilityId, make, model')
+        .ilike('chip', chipId)
+        .not('chip', 'is', null); // Only get vehicles that have a chip assigned
 
-          if (foundVehicle) {
-            const foundYardId = key.replace('yard_', '').replace('_vehicles', '');
-
-            // Get actual yard name from parking_yards
-            const savedYards = await AsyncStorage.getItem('parking_yards');
-            let actualYardName = `Yard ${foundYardId}`; // fallback
-
-            if (savedYards) {
-              const yards = JSON.parse(savedYards);
-              const yard = yards.find(y => y.id === foundYardId);
-              if (yard) {
-                actualYardName = yard.name;
-              }
-            }
-
-            return { exists: true, vehicle: foundVehicle, yardName: actualYardName };
-          }
-        }
+      if (error) {
+        console.error('❌ Error checking chip in Supabase:', error);
+        return { exists: false };
       }
+
+      if (data && data.length > 0) {
+        const foundVehicle = data[0];
+        console.log(`❌ Chip ${chipId} already exists in facility: ${foundVehicle.facilityId}`);
+
+        // facilityId is the yard name (string)
+        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+
+        return {
+          exists: true,
+          vehicle: {
+            id: foundVehicle.id,
+            vin: foundVehicle.vin,
+            chipId: foundVehicle.chip,
+            make: foundVehicle.make,
+            model: foundVehicle.model
+          },
+          yardName: yardName
+        };
+      }
+
+      console.log(`✅ Chip ${chipId} is available`);
       return { exists: false };
     } catch (error) {
-      console.error('Error checking chip existence:', error);
+      console.error('❌ Error checking chip exists:', error);
       return { exists: false };
     }
   };
@@ -164,7 +172,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const initializeMqtt = () => {
     try {
       console.log('Initializing MQTT for chip ID:', getChipId());
-      
+
       const client = mqtt.connect(MQTT_CONFIG.host, {
         username: MQTT_CONFIG.username,
         password: MQTT_CONFIG.password,
@@ -183,11 +191,11 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         // Subscribe to specific chip ID topics (like mosquitto_sub command)
         const latitudeTopic = `/device_sensor_data/449810146246400/${targetChipId}/+/vs/4198`;
         const longitudeTopic = `/device_sensor_data/449810146246400/${targetChipId}/+/vs/4197`;
-        
+
         console.log("Subscribing to topics:");
         console.log("Latitude topic:", latitudeTopic);
         console.log("Longitude topic:", longitudeTopic);
-        
+
         client.subscribe(latitudeTopic, (err) => {
           if (err) {
             console.error('MQTT Subscribe error (latitude):', err);
@@ -195,7 +203,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             console.log(`✅ Subscribed to latitude topic: ${latitudeTopic}`);
           }
         });
-        
+
         client.subscribe(longitudeTopic, (err) => {
           if (err) {
             console.error('MQTT Subscribe error (longitude):', err);
@@ -208,10 +216,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       client.on("message", async (topic, message) => {
         try {
           const payload = JSON.parse(message.toString());
-          
+
           console.log('MQTT message received on topic:', topic);
           console.log('Message payload:', payload);
-          
+
           // Since we're subscribed to specific chip ID topics, all messages are for our target chip
           if (topic.includes("4197")) {
             latestLon = payload.value;   // longitude
@@ -230,10 +238,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             if (!isNaN(latitude) && !isNaN(longitude)) {
               const timestamp = Date.now();
               const nextCoords = { latitude, longitude };
-              
+
               // Save to AsyncStorage with chip ID and timestamp
               await saveChipLocation(targetChipId, latitude, longitude, timestamp);
-              
+
               // Update saved location state
               setSavedLocation({
                 latitude,
@@ -241,12 +249,12 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                 timestamp,
                 lastUpdated: new Date(timestamp).toLocaleTimeString()
               });
-              
+
               // Set both chip location and car location to same coordinates
               setChipLocation(nextCoords);
               setCarLocation(nextCoords);
               setMqttDataReceived(true);
-              
+
               // Update last update time
               setLastUpdateTime(new Date().toLocaleTimeString());
 
@@ -262,7 +270,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                 const region = calculateMapRegion(currentLocation, nextCoords);
                 mapRef.current.animateToRegion(region, 1000);
               }
-              
+
               // Reset coordinates for next update
               latestLat = null;
               latestLon = null;
@@ -320,6 +328,27 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       setLocationPermission(true);
       return true;
     }
+  };
+
+  // Calculate bearing (angle) from current location to car location
+  const calculateBearing = (start, end) => {
+    if (!start || !end) return 0;
+
+    const startLat = start.latitude * Math.PI / 180;
+    const startLng = start.longitude * Math.PI / 180;
+    const endLat = end.latitude * Math.PI / 180;
+    const endLng = end.longitude * Math.PI / 180;
+
+    const dLng = endLng - startLng;
+
+    const y = Math.sin(dLng) * Math.cos(endLat);
+    const x = Math.cos(startLat) * Math.sin(endLat) -
+      Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
+
+    const bearing = Math.atan2(y, x);
+    const bearingDegrees = (bearing * 180 / Math.PI + 360) % 360;
+
+    return bearingDegrees;
   };
 
   // Calculate distance between two points using Haversine formula
@@ -430,7 +459,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     const initializeLocation = async () => {
       const chipId = getChipId();
-      
+
       // Only proceed if chip is assigned
       if (chipId) {
         // Load saved location first
@@ -485,7 +514,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         const updatedTime = getTimeAgo(savedLocation.timestamp);
         setTimeAgo(updatedTime);
       }, 60000); // 1 minute = 60000ms
-      
+
       return () => clearInterval(interval);
     }
   }, [savedLocation]);
@@ -503,77 +532,70 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   }, [currentLocation, carLocation, isLoading]);
 
-  // Update vehicle with chip ID in AsyncStorage
+  // Update vehicle with chip ID in Supabase
   const updateVehicleWithChip = async (chipId) => {
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      console.log(`🔄 Updating vehicle ${vehicle.vin} with chip: ${chipId || 'null (unassign)'}`);
 
-      // Get the yard ID from route params or vehicle data
-      const currentYardId = yardId || vehicle?.parkingYard || 1;
-      const storageKey = `yard_${currentYardId}_vehicles`;
+      // Update vehicle in Supabase
+      const { data, error } = await supabase
+        .from('cars')
+        .update({
+          chip: chipId // chipId can be a string or null
+        })
+        .eq('vin', vehicle.vin)
+        .select();
 
-      // Get existing vehicles from storage
-      const savedVehicles = await AsyncStorage.getItem(storageKey);
-      if (savedVehicles) {
-        const vehicles = JSON.parse(savedVehicles);
-
-        // Find and update the vehicle
-        const updatedVehicles = vehicles.map(v => {
-          if (v.id === vehicle.id || v.vin === vehicle.vin) {
-            return {
-              ...v,
-              chipId: chipId,
-              isActive: chipId ? true : false, // Set active only if chipId is provided
-              lastUpdated: new Date().toISOString()
-            };
-          }
-          return v;
-        });
-
-        // Save updated vehicles back to storage
-        await AsyncStorage.setItem(storageKey, JSON.stringify(updatedVehicles));
-
-        // Update the local vehicle state to reflect the change
-        const updatedVehicle = {
-          ...vehicle,
-          chipId: chipId,
-          isActive: chipId ? true : false,
-          lastUpdated: new Date().toISOString()
-        };
-
-        // Update the vehicle state so the UI reflects the change immediately
-        // This will cause the component to re-render and show the assigned chip
-        setVehicle(updatedVehicle);
-
-        // Manage chip arrays
-        if (chipId) {
-          // First remove from inactive chips if exists, then add to active
-          await removeInactiveChip(chipId);
-          
-          // Add to active chips array
-          await addActiveChip({
-            chipId: chipId,
-            vehicleId: vehicle.id,
-            vin: vehicle.vin,
-            make: vehicle.make,
-            model: vehicle.model,
-            year: vehicle.year,
-            yardId: currentYardId,
-            yardName: yardName || 'Unknown Yard'
-          });
-          console.log(`✅ Chip ${chipId} assigned and added to active chips (removed from inactive if existed)`);
-        } else {
-          // Move to inactive chips array (when unassigning)
-          if (vehicle.chipId) {
-            await moveChipToInactive(vehicle.chipId);
-            console.log(`✅ Chip ${vehicle.chipId} unassigned and moved to inactive chips`);
-          }
-        }
-
-        console.log(chipId ? `Vehicle updated with chip: ${chipId}` : 'Chip unassigned from vehicle');
+      if (error) {
+        console.error('❌ Error updating vehicle in Supabase:', error);
+        Toast.show(`Failed to ${chipId ? 'assign' : 'unassign'} chip: ${error.message}`, Toast.LONG);
+        return;
       }
+
+      console.log(`✅ Vehicle updated in Supabase:`, data);
+
+      // Update the local vehicle state to reflect the change
+      const updatedVehicle = {
+        ...vehicle,
+        chipId: chipId,
+        chip: chipId, // Keep both for compatibility
+        isActive: chipId ? true : false,
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Update the vehicle state so the UI reflects the change immediately
+      setVehicle(updatedVehicle);
+
+      // Manage chip arrays
+      if (chipId) {
+        // First remove from inactive chips if exists, then add to active
+        await removeInactiveChip(chipId);
+
+        // Add to active chips array
+        await addActiveChip({
+          chipId: chipId,
+          vehicleId: vehicle.id,
+          vin: vehicle.vin,
+          make: vehicle.make,
+          model: vehicle.model,
+          yardId: yardName || yardId, // facilityId is yard name
+          yardName: yardName || 'Unknown Yard'
+        });
+        console.log(`✅ Chip ${chipId} assigned and added to active chips`);
+        Toast.show('✅ Chip assigned successfully!', Toast.LONG);
+      } else {
+        // Move to inactive chips array (when unassigning)
+        if (vehicle.chipId || vehicle.chip) {
+          const oldChipId = vehicle.chipId || vehicle.chip;
+          await moveChipToInactive(oldChipId);
+          console.log(`✅ Chip ${oldChipId} unassigned and moved to inactive chips`);
+        }
+        Toast.show('✅ Chip unassigned successfully!', Toast.LONG);
+      }
+
     } catch (error) {
-      console.error('Error updating vehicle with chip:', error);
+      console.error('❌ Error updating vehicle with chip:', error);
+      Toast.show(`Failed to ${chipId ? 'assign' : 'unassign'} chip`, Toast.SHORT);
     }
   };
 
@@ -678,42 +700,37 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Unassign chip from a specific vehicle
+  // Unassign chip from a specific vehicle in Supabase
   const unassignChipFromVehicle = async (chipId, vehicleId) => {
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      console.log(`🔄 Unassigning chip ${chipId} from vehicle ID ${vehicleId}`);
 
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          const foundVehicleIndex = parsedVehicles.findIndex(v => v.id === vehicleId && v.chipId === chipId);
+      // Update vehicle in Supabase to remove chip
+      const { data, error } = await supabase
+        .from('cars')
+        .update({
+          chip: null // Remove chip assignment
+        })
+        .eq('id', vehicleId)
+        .select();
 
-          if (foundVehicleIndex !== -1) {
-            // Update the vehicle to remove chip assignment
-            parsedVehicles[foundVehicleIndex] = {
-              ...parsedVehicles[foundVehicleIndex],
-              chipId: null,
-              isActive: false,
-              lastUpdated: new Date().toISOString()
-            };
-
-            // Save updated vehicles back to storage
-            await AsyncStorage.setItem(key, JSON.stringify(parsedVehicles));
-            
-            // Move chip to inactive array in chip manager
-            await moveChipToInactive(chipId);
-            console.log(`✅ Chip ${chipId} unassigned from vehicle ${vehicleId} and moved to inactive chips`);
-            
-            return true;
-          }
-        }
+      if (error) {
+        console.error('❌ Error unassigning chip in Supabase:', error);
+        Toast.show(`Failed to unassign chip: ${error.message}`, Toast.LONG);
+        return false;
       }
-      return false;
+
+      console.log(`✅ Chip ${chipId} unassigned from vehicle in Supabase:`, data);
+
+      // Move chip to inactive array in chip manager
+      await moveChipToInactive(chipId);
+      console.log(`✅ Chip ${chipId} moved to inactive chips`);
+
+      Toast.show('✅ Chip unassigned successfully!', Toast.LONG);
+      return true;
     } catch (error) {
-      console.error('Error unassigning chip from vehicle:', error);
+      console.error('❌ Error unassigning chip from vehicle:', error);
+      Toast.show('Failed to unassign chip', Toast.SHORT);
       return false;
     }
   };
@@ -726,13 +743,14 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.noChipText}>📍 Please assign a chip to track vehicle location</Text>
         </View>
       )}
-      
+
       <MapView
         ref={mapRef}
         style={styles.map}
         mapType="standard"
         showsUserLocation={true}
         showsMyLocationButton={true}
+        rotateEnabled={true}
         initialRegion={{
           latitude: currentLocation?.latitude || 30.713452,
           longitude: currentLocation?.longitude || 76.691131,
@@ -746,9 +764,30 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             coordinate={currentLocation}
             title="Your Location"
             description="Current position"
+            anchor={{ x: 0.5, y: 0.5 }}
           >
-            <View style={styles.currentLocationMarker}>
-              <Ionicons name="person" size={20} color="#fff" />
+            <View style={styles.currentLocationContainer}>
+              {/* Direction Arrow - Only show when car location is available */}
+              {carLocation && getChipId() && (
+                <View
+                  style={[
+                    styles.directionArrowContainer,
+                    {
+                      transform: [{ rotate: `${calculateBearing(currentLocation, carLocation)}deg` }]
+                    }
+                  ]}
+                >
+                  {/* Arrow Head (Triangle) */}
+                  <View style={styles.arrowHead} />
+                  {/* Arrow Body (Rectangle) */}
+                  <View style={styles.arrowBody} />
+                </View>
+              )}
+
+              {/* Current Location Marker */}
+              <View style={styles.currentLocationMarker}>
+                <Ionicons name="person" size={20} color="#fff" />
+              </View>
             </View>
           </Marker>
         )}
@@ -773,7 +812,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                   </Text> */}
                 </View>
               )}
-              
+
               {/* Car Icon */}
               <View style={styles.carLocationMarker}>
                 <Ionicons name="car" size={20} color="#fff" />
@@ -814,13 +853,13 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Make & Model:</Text>
-          <Text style={styles.infoValue}>{vehicle?.make} {vehicle?.model}</Text>
+          <Text style={styles.infoLabel}>Make :</Text>
+          <Text style={styles.infoValue}>{vehicle?.make} </Text>
         </View>
 
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Year:</Text>
-          <Text style={styles.infoValue}>{vehicle?.year || 'N/A'}</Text>
+          <Text style={styles.infoLabel}>Model:</Text>
+          <Text style={styles.infoValue}>{vehicle?.model || 'N/A'}</Text>
         </View>
 
         <View style={styles.infoRow}>
@@ -1089,6 +1128,10 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  currentLocationContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   currentLocationMarker: {
     backgroundColor: '#007AFF',
     width: 30,
@@ -1098,6 +1141,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
+  },
+  directionArrowContainer: {
+    position: 'absolute',
+    top: -30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arrowHead: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderBottomWidth: 18,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#FF6B6B',
+  },
+  arrowBody: {
+    width: 6,
+    height: 22,
+    backgroundColor: '#FF6B6B',
+    marginTop: -2,
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.6,
+    shadowRadius: 4,
+    elevation: 5,
   },
   chipLocationMarker: {
     backgroundColor: '#FF9500',

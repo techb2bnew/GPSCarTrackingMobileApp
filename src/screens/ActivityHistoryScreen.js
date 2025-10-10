@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   Dimensions,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {NOTIFICATION} from '../assests/images';
+import { supabase } from '../lib/supabaseClient';
+import { useFocusEffect } from '@react-navigation/native';
 
 const {width} = Dimensions.get('window');
 
@@ -80,12 +83,73 @@ const dummyData = [
 
 const ActivityHistoryScreen = ({navigation}) => {
   const [filter, setFilter] = useState('all');
+  const [activityData, setActivityData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load activity data from Supabase
+  const loadActivityData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 Loading activity history from Supabase...');
+
+      // Get all vehicles with their history (recently added/updated)
+      const { data: vehicles, error } = await supabase
+        .from('cars')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ Error loading activity:', error);
+        setActivityData([]);
+        return;
+      }
+
+      // Transform to activity format
+      const activities = vehicles.map((vehicle, index) => ({
+        id: vehicle.id,
+        vin: vehicle.vin,
+        make: vehicle.make,
+        model: vehicle.model,
+        slotNo: vehicle.slotNo,
+        facility: vehicle.facilityId,
+        chip: vehicle.chip,
+        color: vehicle.color,
+        date: new Date(vehicle.id).toISOString().split('T')[0], // Using ID timestamp as date
+        time: new Date(vehicle.id).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        action: vehicle.chip ? 'Chip Assigned' : 'Vehicle Added',
+      }));
+
+      console.log(`✅ Loaded ${activities.length} activities`);
+      setActivityData(activities);
+    } catch (error) {
+      console.error('❌ Error loading activity:', error);
+      setActivityData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount
+  useEffect(() => {
+    loadActivityData();
+  }, []);
+
+  // Refresh on screen focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadActivityData();
+    }, [])
+  );
 
   const getFilteredData = () => {
-    if (filter === 'all') return dummyData;
+    if (filter === 'all') return activityData;
     const days = parseInt(filter);
     const today = new Date();
-    const filtered = dummyData.filter(item => {
+    const filtered = activityData.filter(item => {
       const itemDate = new Date(item.date);
       const diffTime = Math.abs(today - itemDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -97,8 +161,9 @@ const ActivityHistoryScreen = ({navigation}) => {
   const renderItem = ({item}) => (
     <View style={styles.card}>
       <View style={styles.vinRow}>
-        <View>
+        <View style={{flex: 1}}>
           <Text style={styles.vinNumber}>{item.vin}</Text>
+          <Text style={styles.vehicleInfo}>{item.make} {item.model}</Text>
           <Text style={styles.dateText}>{item.date}</Text>
         </View>
         <View
@@ -106,49 +171,41 @@ const ActivityHistoryScreen = ({navigation}) => {
             display: 'flex',
             flexDirection: 'column',
             gap: 5,
-            backgroundColor: '#DFFFE1', // light green background
+            backgroundColor: item.chip ? '#DFFFE1' : '#FFF4E6',
             borderRadius: 10,
-            paddingVertical: 6,
+            paddingVertical: 8,
             paddingHorizontal: 14,
           }}>
-          {item.fromFacility && item.toFacility && (
+          <View style={styles.movementInfo}>
+            <Text style={styles.facilityText}>
+              📍 {item.facility}
+            </Text>
+          </View>
+          {item.slotNo && (
             <View style={styles.movementInfo}>
-              <Text style={styles.movementText}>
-                Facility {item.fromFacility}
-                <Text style={[styles.arrow, {fontSize: 16}]}> → </Text>
-                Facility {item.toFacility}
-              </Text>
-            </View>
-          )}
-          {item.fromSlot && item.toSlot && (
-            <View style={styles.movementInfo}>
-              <Text
-                style={[
-                  styles.movementText,
-                  {color: '#000', fontWeight: '400'},
-                ]}>
-                Slot {item.fromSlot}
-                <Text
-                  style={[
-                    styles.arrow,
-                    {fontSize: 16, color: '#000', fontWeight: '400'},
-                  ]}>
-                  {' '}
-                  →{' '}
-                </Text>
-                Slot {item.toSlot}
+              <Text style={[styles.movementText, {color: '#000', fontWeight: '600'}]}>
+                Slot: {item.slotNo}
               </Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* <Text style={styles.dateText}>{item.date}</Text> */}
       <View style={styles.divider} />
-      <Text style={styles.activityText}>Car moved at {item.time}</Text>
-      <Text style={styles.slotText}>
-        Current slot: {item.toSlot ?? item.slot}
-      </Text>
+      <View style={styles.activityRow}>
+        <Text style={styles.activityText}>
+          {item.action} at {item.time}
+        </Text>
+        {item.chip && (
+          <View style={styles.chipBadge}>
+            <Ionicons name="radio-outline" size={14} color="#4CAF50" />
+            <Text style={styles.chipText}>Chip Active</Text>
+          </View>
+        )}
+      </View>
+      {item.color && (
+        <Text style={styles.colorText}>Color: {item.color}</Text>
+      )}
     </View>
   );
   return (
@@ -192,12 +249,27 @@ const ActivityHistoryScreen = ({navigation}) => {
         ))}
       </View>
 
-      <FlatList
-        data={getFilteredData()}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={renderItem}
-        contentContainerStyle={{padding: 16}}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#613EEA" />
+          <Text style={styles.loadingText}>Loading activities...</Text>
+        </View>
+      ) : getFilteredData().length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="document-text-outline" size={80} color="#CCC" />
+          <Text style={styles.emptyText}>No activity found</Text>
+          <Text style={styles.emptySubText}>Activities will appear here when vehicles are added or updated</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={getFilteredData()}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          contentContainerStyle={{padding: 16}}
+          refreshing={loading}
+          onRefresh={loadActivityData}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -272,6 +344,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#555',
     marginTop: 4,
+  },
+  vehicleInfo: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  facilityText: {
+    fontSize: 13,
+    color: '#000',
+    fontWeight: '600',
+  },
+  activityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  chipBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  chipText: {
+    fontSize: 11,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  colorText: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 6,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    marginTop: 16,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#BBB',
+    marginTop: 8,
+    textAlign: 'center',
   },
   vinRow: {
     flexDirection: 'row',

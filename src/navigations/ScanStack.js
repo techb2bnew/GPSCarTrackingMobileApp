@@ -7,6 +7,7 @@ import NotificationScreen from '../screens/NotificationScreen';
 import ValidIDScreen from '../screens/ValidIDScreen';
 import EditConnection from '../screens/EditConnection';
 import YardDetailScreen from '../screens/YardDetailScreen';
+import VehicleDetailsScreen from '../screens/VehicleDetailsScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -16,6 +17,7 @@ export default function ScanStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}  initialRouteName="ScanScreen">
       <Stack.Screen name="ScanScreen" component={ScanScreen} />
       <Stack.Screen name="ScannerScreen" component={ScannerScreen} />
+      <Stack.Screen name="VehicleDetailsScreen" component={VehicleDetailsScreen} />
         <Stack.Screen name="ParkingHistory" component={ParkingHistory} />
         <Stack.Screen name="EditConnection" component={EditConnection} />
 

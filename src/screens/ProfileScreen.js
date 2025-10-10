@@ -71,18 +71,18 @@ const ProfileScreen = ({ navigation }) => {
       setLoading(true);
       // Get user data from AsyncStorage first
       const userData = await AsyncStorage.getItem('user');
-      
+
       if (userData) {
         const parsedUser = JSON.parse(userData);
-        
+
         // Fetch latest user data from Supabase
         const { data, error } = await supabase
           .from('staff')
           .select('*')
           .eq('email', parsedUser.email)
           .single();
-        console.log("data",data);
-        
+        console.log("data", data);
+
         if (data && !error) {
           // Update with Supabase data
           console.log('User data from Supabase:', data);
@@ -118,10 +118,10 @@ const ProfileScreen = ({ navigation }) => {
     try {
       // Get all keys from AsyncStorage
       const keys = await AsyncStorage.getAllKeys();
-      
+
       // Filter yard keys
       const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
-      
+
       let totalYards = 0;
       let totalVehicles = 0;
       let activeChips = 0;
@@ -147,7 +147,7 @@ const ProfileScreen = ({ navigation }) => {
         if (vehicles) {
           const parsedVehicles = JSON.parse(vehicles);
           totalVehicles += parsedVehicles.length;
-          
+
           // Find latest update time
           parsedVehicles.forEach(vehicle => {
             if (vehicle.lastUpdated) {
@@ -180,7 +180,7 @@ const ProfileScreen = ({ navigation }) => {
       if (latestUpdateTime) {
         const now = new Date();
         const diffInMinutes = Math.floor((now - latestUpdateTime) / (1000 * 60));
-        
+
         if (diffInMinutes < 60) {
           lastActivity = `${diffInMinutes}m ago`;
         } else if (diffInMinutes < 1440) {
@@ -245,7 +245,7 @@ const ProfileScreen = ({ navigation }) => {
         ...user,
         ...editData,
       };
-      
+
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
 
@@ -256,7 +256,7 @@ const ProfileScreen = ({ navigation }) => {
 
       setShowEditModal(false);
       setIsEditing(false);
-      
+
       Toast.show('✅ Profile updated successfully!', Toast.LONG);
     } catch (error) {
       console.error('❌ [ProfileScreen] Error saving profile:', error);
@@ -279,15 +279,15 @@ const ProfileScreen = ({ navigation }) => {
     setIsLoggingOut(true);
     try {
       // Clear all AsyncStorage data
-      
+
       // 1. Clear all chip data (active & inactive)
       await clearAllChips();
       console.log('✅ Cleared all chip data');
-      
+
       // 2. Clear all parking yards
       await AsyncStorage.removeItem('parking_yards');
       console.log('✅ Cleared parking yards');
-      
+
       // 3. Clear all yard vehicles
       const keys = await AsyncStorage.getAllKeys();
       const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
@@ -295,24 +295,24 @@ const ProfileScreen = ({ navigation }) => {
         await AsyncStorage.removeItem(key);
       }
       console.log(`✅ Cleared ${yardKeys.length} yard vehicle data`);
-      
+
       // 4. Clear all chip locations
       const chipLocationKeys = keys.filter(key => key.startsWith('chip_'));
       for (const key of chipLocationKeys) {
         await AsyncStorage.removeItem(key);
       }
       console.log(`✅ Cleared ${chipLocationKeys.length} chip locations`);
-      
+
       // 5. Clear user data from Redux
       dispatch(clearUser());
       console.log('✅ User data cleared from Redux');
-      
+
       // 6. Clear user data from AsyncStorage
       await AsyncStorage.removeItem('user');
       console.log('✅ User data cleared from AsyncStorage');
-      
+
       console.log('🎉 All data cleared successfully on logout from ProfileScreen');
-      
+
       // Navigate to login screen
       navigation.navigate('LoginScreen');
     } catch (error) {
@@ -329,41 +329,64 @@ const ProfileScreen = ({ navigation }) => {
 
   const renderProfileHeader = () => {
     // Capitalize first letter of each word in name
-    const capitalizedName = user?.name 
-      ? user.name.split(' ').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-        ).join(' ')
+    const capitalizedName = user?.name
+      ? user.name.split(' ').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ')
       : 'User';
 
+    // Format joining date
+    const joiningDate = user?.joiningDate
+      ? new Date(user.joiningDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      : 'Recently';
+
     return (
-      <View style={styles.profileHeader}>
-        <View style={styles.avatarContainer}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {capitalizedName.charAt(0).toUpperCase()}
-            </Text>
+      <View style={styles.profileHeaderCard}>
+        {/* Gradient Background */}
+        <View style={styles.profileHeaderGradient}>
+          <View style={styles.profileHeader}>
+            {/* Avatar on Left */}
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatarOuter}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {capitalizedName.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Info on Right */}
+            <View style={styles.profileInfoRight}>
+              <View style={styles.nameRow}>
+                <Text style={styles.userName}>{capitalizedName}</Text>
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+                </View>
+              </View>
+              <View style={styles.emailRow}>
+                <Ionicons name="mail-outline" size={16} color="#888" />
+                <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
+              </View>
+              <View style={styles.memberSinceRow}>
+                <View style={styles.memberSinceContainer}>
+                  <Ionicons name="calendar" size={13} color="#613EEA" />
+                  <Text style={styles.memberSinceText}>Joined {joiningDate}</Text>
+                </View>
+              </View>
+            </View>
           </View>
-          {/* <TouchableOpacity
-            style={styles.editAvatarButton}
-            onPress={handleEditProfile}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="camera" size={16} color="#fff" />
-          </TouchableOpacity> */}
         </View>
-        
-        <Text style={styles.userName}>{capitalizedName}</Text>
-        <Text style={styles.userEmail}>{user?.email || 'user@example.com'}</Text>
       </View>
     );
   };
 
   const renderProfileInfo = () => {
     // Capitalize first letter of each word in name
-    const capitalizedName = user?.name 
-      ? user.name.split(' ').map(word => 
-          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-        ).join(' ')
+    const capitalizedName = user?.name
+      ? user.name.split(' ').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ')
       : 'User';
 
     return (
@@ -378,7 +401,7 @@ const ProfileScreen = ({ navigation }) => {
             <Ionicons name="pencil" size={20} color="#613EEA" />
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
@@ -390,79 +413,78 @@ const ProfileScreen = ({ navigation }) => {
             </View>
           </View>
 
-        <View style={styles.infoRow}>
-          <View style={styles.infoIconContainer}>
-            <Ionicons name="mail-outline" size={20} color="#613EEA" />
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="mail-outline" size={20} color="#613EEA" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Email</Text>
+              <Text style={styles.infoValue}>{user?.email || 'user@example.com'}</Text>
+            </View>
           </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{user?.email || 'user@example.com'}</Text>
-          </View>
-        </View>
 
-        <View style={styles.infoRow}>
-          <View style={styles.infoIconContainer}>
-            <Ionicons name="call-outline" size={20} color="#613EEA" />
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="call-outline" size={20} color="#613EEA" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Phone</Text>
+              <Text style={styles.infoValue}>{user?.contact || 'Not Available'}</Text>
+            </View>
           </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Phone</Text>
-            <Text style={styles.infoValue}>{user?.contact || 'Not Available'}</Text>
-          </View>
-        </View>
 
-        <View style={styles.infoRow}>
-          <View style={styles.infoIconContainer}>
-            <Ionicons name="calendar-outline" size={20} color="#613EEA" />
-          </View>
-          <View style={styles.infoContent}>
-            <Text style={styles.infoLabel}>Joining Date</Text>
-            <Text style={styles.infoValue}>
-              {user?.joiningDate ? new Date(user.joiningDate).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }) : 'Not Available'}
-            </Text>
+          <View style={styles.infoRow}>
+            <View style={styles.infoIconContainer}>
+              <Ionicons name="calendar-outline" size={20} color="#613EEA" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={styles.infoLabel}>Joining Date</Text>
+              <Text style={styles.infoValue}>
+                {user?.joiningDate ? new Date(user.joiningDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }) : 'Not Available'}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
-    </View>
     );
   };
 
   const renderStatsCard = () => (
     <View style={styles.statsContainer}>
       <Text style={styles.sectionTitle}>Activity Stats</Text>
-      
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
+
+      {/* Top Row - 3 Cards */}
+      <View style={styles.statsRowTop}>
+        <View style={styles.statCardSmall}>
           <Text style={styles.statNumber}>{stats.totalVehicles}</Text>
-          <Text style={styles.statLabel}>Total Vehicles</Text>
+          <Text style={styles.statLabelSmall}>Total Vehicles</Text>
         </View>
-        
-        <View style={styles.statCard}>
+
+        <View style={styles.statCardSmall}>
           <Text style={styles.statNumber}>{stats.totalYards}</Text>
-          <Text style={styles.statLabel}>Parking Yards</Text>
+          <Text style={styles.statLabelSmall}>Parking Yards</Text>
         </View>
-        
-        <View style={styles.statCard}>
+
+        <View style={styles.statCardSmall}>
           <Text style={[styles.statNumber, { color: greenColor }]}>{stats.activeChips}</Text>
-          <Text style={styles.statLabel}>Active Chips</Text>
+          <Text style={styles.statLabelSmall}>Active Chips</Text>
         </View>
-        
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#FF6B6B' }]}>{stats.inactiveChips}</Text>
-          <Text style={styles.statLabel}>Inactive Chips</Text>
+      </View>
+
+      {/* Bottom Row - 2 Large Cards */}
+      <View style={styles.statsRowBottom}>
+        <View style={styles.statCardLarge}>
+          <Text style={[styles.statNumberLarge, { color: '#FF6B6B' }]}>{stats.inactiveChips}</Text>
+          <Text style={styles.statLabelLarge}>Inactive Chips</Text>
         </View>
-        
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#FF9500' }]}>{stats.lowBatteryChips}</Text>
-          <Text style={styles.statLabel}>Low Battery</Text>
-        </View>
-        
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#613EEA' }]}>{stats.lastActivity}</Text>
-          <Text style={styles.statLabel}>Last Activity</Text>
+
+        <View style={styles.statCardLarge}>
+          <Text style={[styles.statNumberLarge, { color: '#FF9500' }]}>{stats.lowBatteryChips}</Text>
+          <Text style={styles.statLabelLarge}>Low Battery</Text>
         </View>
       </View>
     </View>
@@ -480,9 +502,9 @@ const ProfileScreen = ({ navigation }) => {
         style={styles.modalOverlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={handleCancelEdit}
         >
           <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
@@ -500,8 +522,8 @@ const ProfileScreen = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
 
-              <ScrollView 
-                style={styles.modalBody} 
+              <ScrollView
+                style={styles.modalBody}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
               >
@@ -514,7 +536,7 @@ const ProfileScreen = ({ navigation }) => {
                     <TextInput
                       style={styles.textInput}
                       value={editData.name}
-                      onChangeText={(text) => setEditData({...editData, name: text})}
+                      onChangeText={(text) => setEditData({ ...editData, name: text })}
                       placeholder="Enter your full name"
                       placeholderTextColor="#999"
                     />
@@ -528,14 +550,16 @@ const ProfileScreen = ({ navigation }) => {
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail" size={20} color="#999" style={styles.inputIcon} />
                     <TextInput
-                      style={styles.textInput}
+                      style={[styles.textInput, styles.disabledInput]}
                       value={editData.email}
-                      onChangeText={(text) => setEditData({...editData, email: text})}
+                      onChangeText={(text) => setEditData({ ...editData, email: text })}
                       placeholder="Enter your email"
                       placeholderTextColor="#999"
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      editable={false}
                     />
+                    <Ionicons name="lock-closed" size={16} color="#999" />
                   </View>
                 </View>
 
@@ -548,7 +572,7 @@ const ProfileScreen = ({ navigation }) => {
                     <TextInput
                       style={styles.textInput}
                       value={editData.contact}
-                      onChangeText={(text) => setEditData({...editData, contact: text})}
+                      onChangeText={(text) => setEditData({ ...editData, contact: text })}
                       placeholder="Enter your phone number"
                       placeholderTextColor="#999"
                       keyboardType="phone-pad"
@@ -571,9 +595,6 @@ const ProfileScreen = ({ navigation }) => {
                     />
                     <Ionicons name="lock-closed" size={16} color="#999" />
                   </View>
-                  <Text style={styles.inputHelperText}>
-                    <Ionicons name="information-circle-outline" size={14} color="#999" /> This field cannot be edited
-                  </Text>
                 </View>
               </ScrollView>
 
@@ -586,7 +607,7 @@ const ProfileScreen = ({ navigation }) => {
                   <Ionicons name="close-circle-outline" size={20} color="#666" />
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.saveButton}
                   onPress={handleSaveProfile}
@@ -636,7 +657,7 @@ const ProfileScreen = ({ navigation }) => {
                 >
                   <Text style={styles.logoutCancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={styles.logoutConfirmBtn}
                   onPress={handleLogout}
@@ -663,7 +684,7 @@ const ProfileScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={28} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        
+
         {/* Logout Button */}
         <TouchableOpacity
           onPress={handleOpenLogoutModal}
@@ -720,33 +741,124 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF5F5',
     borderWidth: 1,
     borderColor: '#FFE5E5',
-    alignItems:"center",
-    justifyContent:"center"
+    alignItems: "center",
+    justifyContent: "center"
   },
   content: {
     flex: 1,
     paddingHorizontal: spacings.large,
   },
+  profileHeaderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    marginVertical: spacings.large,
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+    overflow: 'hidden',
+  },
+  profileHeaderGradient: {
+    background: 'linear-gradient(135deg, #F8F9FF 0%, #FFFFFF 100%)',
+    backgroundColor: '#F8F9FF',
+  },
   profileHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacings.xLarge,
+    padding: 20,
   },
   avatarContainer: {
+    marginRight: 16,
     position: 'relative',
-    marginBottom: spacings.large,
+  },
+  avatarOuter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#613EEA',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#FFFFFF',
+    letterSpacing: 2,
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#4CAF50',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  profileInfoRight: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#1A1A1A',
+    marginRight: 8,
+    letterSpacing: 0.5,
+  },
+  verifiedBadge: {
+    marginLeft: 0,
+  },
+  emailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  userEmail: {
+    fontSize: 15,
+    color: '#666666',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  memberSinceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberSinceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0EBFF',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E0D4FF',
+  },
+  memberSinceText: {
+    fontSize: 12,
+    color: '#613EEA',
+    marginLeft: 6,
+    fontWeight: '700',
   },
   editAvatarButton: {
     position: 'absolute',
@@ -760,17 +872,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: whiteColor,
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: blackColor,
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: 16,
-    color: grayColor,
-    marginBottom: spacings.large,
   },
   editProfileButton: {
     flexDirection: 'row',
@@ -801,7 +902,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: blackColor,
-    marginVertical:spacings.large
+    marginVertical: spacings.large
   },
   editIconButton: {
     backgroundColor: '#f3f0ff',
@@ -852,6 +953,70 @@ const styles = StyleSheet.create({
   statsContainer: {
     marginBottom: spacings.xLarge,
   },
+  statsRowTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  statsRowBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statCardSmall: {
+    backgroundColor: whiteColor,
+    borderRadius: 12,
+    padding: 12,
+    width: '31.5%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statCardLarge: {
+    backgroundColor: whiteColor,
+    borderRadius: 12,
+    padding: 18,
+    width: '48.5%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#613EEA',
+    marginBottom: 4,
+  },
+  statNumberLarge: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#613EEA',
+    marginBottom: 6,
+  },
+  statLabelSmall: {
+    fontSize: 10,
+    color: grayColor,
+    textAlign: 'center',
+    lineHeight: 12,
+    fontWeight: '600',
+  },
+  statLabelLarge: {
+    fontSize: 12,
+    color: grayColor,
+    textAlign: 'center',
+    lineHeight: 14,
+    fontWeight: '600',
+  },
+  // Old styles (can remove if not used)
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -871,12 +1036,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#613EEA',
-    marginBottom: 4,
   },
   statLabel: {
     fontSize: 10,

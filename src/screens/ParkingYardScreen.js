@@ -154,6 +154,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
+  Pressable,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -164,6 +165,7 @@ import useFacilityFetch from '../hooks/useFacilityFetch';
 import { heightPercentageToDP, heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
 import { redColor, whiteColor, blackColor, grayColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
+import { useFocusEffect } from '@react-navigation/native';
 
 const ParkingYardScreen = ({ navigation }) => {
   const [selectedYard, setSelectedYard] = useState(null);
@@ -188,22 +190,40 @@ const ParkingYardScreen = ({ navigation }) => {
   // Helper function to get slot information for a yard
   const getSlotInfo = async (yardId) => {
     try {
-      const storageKey = `yard_${yardId}_vehicles`;
-      const savedVehicles = await AsyncStorage.getItem(storageKey);
-      const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
+      console.log(`🔍 Getting slot info for yard ID: ${yardId}`);
       
-      // Find the yard to get total slots
-      const yard = yards.find(y => y.id === yardId) || parkingYards.find(y => y.id === yardId);
-      const totalSlots = parseInt(yard?.slots) || 50; // Default to 50 if not specified
+      // Get yard info from yards state (dynamic yards from Supabase)
+      let yard = yards.find(y => y.id === yardId);
+      if (!yard) {
+        yard = parkingYards.find(y => y.id === yardId);
+      }
+
+      const yardName = yard?.name || 'Unknown Yard';
+      const totalSlots = parseInt(yard?.slots) || 50;
+
+      // Get vehicle count from Supabase for this yard
+      const { data: vehicles, error } = await supabase
+        .from('cars')
+        .select('id', { count: 'exact' })
+        .eq('facilityId', yardName);
+
+      if (error) {
+        console.error('❌ Error fetching vehicle count:', error);
+        return { total: totalSlots, occupied: 0, available: totalSlots };
+      }
+
+      const vehicleCount = vehicles?.length || 0;
       const availableSlots = Math.max(0, totalSlots - vehicleCount);
-      
+
+      console.log(`✅ Slot info for ${yardName}: ${vehicleCount}/${totalSlots} (${availableSlots} available)`);
+
       return {
         total: totalSlots,
         occupied: vehicleCount,
         available: availableSlots
       };
     } catch (error) {
-      console.error('Error calculating slot info:', error);
+      console.error('❌ Error calculating slot info:', error);
       return { total: 50, occupied: 0, available: 50 };
     }
   };
@@ -554,21 +574,29 @@ const ParkingYardScreen = ({ navigation }) => {
 
   // Yard Card Component with dynamic slot info
   const YardCard = ({ item, isSelected, onPress }) => {
-    const [slotInfo, setSlotInfo] = useState({ total: item?.slots || 50, occupied: 0, available: item?.slots || 50 });
+    const [slotInfo, setSlotInfo] = useState({ total: item?.slots, occupied: 0, available: item?.slots });
+
+    const loadSlotInfo = async () => {
+      const info = await getSlotInfo(item.id);
+      setSlotInfo(info);
+    };
 
     useEffect(() => {
-      const loadSlotInfo = async () => {
-        const info = await getSlotInfo(item.id);
-        setSlotInfo(info);
-      };
       loadSlotInfo();
     }, [item.id]);
+
+    // Refresh slot info when screen comes into focus
+    useFocusEffect(
+      React.useCallback(() => {
+        loadSlotInfo();
+      }, [item.id])
+    );
 
     const displayName = item?.name?.charAt(0).toUpperCase() + item?.name?.slice(1);
 
     return (
       <TouchableOpacity
-        style={[styles.simpleYardCard, isSelected && styles.selectedSimpleCard]}
+        style={[styles.simpleYardCard]}
         onPress={onPress}
         activeOpacity={0.7}>
         <View style={styles.yardCardHeader}>
@@ -577,10 +605,10 @@ const ParkingYardScreen = ({ navigation }) => {
               <Ionicons name="business" size={24} color="#613EEA" />
             </View>
             <View style={styles.simpleTextContainer}>
-              <Text style={[styles.simpleYardName, isSelected && styles.selectedText]}>
+              <Text style={[styles.simpleYardName]}>
                 {displayName}
               </Text>
-              <Text style={[styles.simpleYardAddress, isSelected && styles.selectedText]}>
+              <Text style={[styles.simpleYardAddress]}>
                 {item?.address}
               </Text>
               {slotInfo.available === 0 ? (
@@ -725,7 +753,7 @@ const ParkingYardScreen = ({ navigation }) => {
           style={styles.modalOverlay}
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.modalOverlay}>
+            <Pressable style={styles.modalOverlay} onPress={() => { setShowAddYardModal(false); clearFormData(); setEditingYard(null); }}>
               <TouchableWithoutFeedback onPress={() => { }}>
                 <View style={styles.modalContent}>
                   <View style={styles.modalHeader}>
@@ -828,7 +856,7 @@ const ParkingYardScreen = ({ navigation }) => {
                   </ScrollView>
                 </View>
               </TouchableWithoutFeedback>
-            </View>
+            </Pressable>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>

@@ -9,9 +9,9 @@ import {
   EnumResultStatus,
 } from 'dynamsoft-capture-vision-react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import AnimatedLottieView from 'lottie-react-native';
 import { widthPercentageToDP as wp } from '../utils';
+import { supabase } from '../lib/supabaseClient';
 
 const LICENSE = 't0105HAEAADcNHV64OJlipcqCx3exOR+gSUqL7YqPqsz7SETM98L2Lvx6wS622L8kpqIvn+Jy7Y7dR1SpS4fQIOlJgnXwUlXbAF3cfFzzoBne6J2Tas81yMvxzdMpCv+dSl9nXy279wYdTDrk;t0109HAEAAJRt4MPEuaQhDlCa6yhda0j07Z/FYbFCd65Ty9mXDgoozD8MgTXwcxZlT+cz8Keo0zcHr2z3xne26lirx+S2TPkgLgCnAYbYvK+paIY7esaO4fu5Bfl3PHN1isx7p/zpHJvJbPQNKuw68w=='
 const ScannerScreen = ({ navigation, route }) => {
@@ -21,83 +21,107 @@ const ScannerScreen = ({ navigation, route }) => {
   
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  // Find vehicle in all yards by VIN
+  // Find vehicle in all yards by VIN (Supabase)
   const findVehicleByVin = async (vin) => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      console.log(`🔍 Searching for VIN: ${vin} in Supabase...`);
       
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          const foundVehicle = parsedVehicles.find(v => v.vin === vin);
-            console.log('foundVehicle>>', foundVehicle);
-            
-            if (foundVehicle) {
-            const yardId = key.replace('yard_', '').replace('_vehicles', '');
-            
-            // Get actual yard name from parking_yards
-            const savedYards = await AsyncStorage.getItem('parking_yards');
-            let actualYardName = `Yard ${yardId}`; // fallback
-            
-            if (savedYards) {
-              const yards = JSON.parse(savedYards);
-              const yard = yards.find(y => y.id === yardId);
-              if (yard) {
-                actualYardName = yard.name;
-              }
-            }
-            
-            // Add yardId to the vehicle object
-            const vehicleWithYardId = { ...foundVehicle, yardId };
-            return { vehicle: vehicleWithYardId, yardId, yardName: actualYardName };
-          }
-        }
+      // Search in Supabase using case-insensitive search
+      const { data, error } = await supabase
+        .from('cars')
+        .select('*')
+        .ilike('vin', vin);
+
+      if (error) {
+        console.error('❌ Error searching VIN in Supabase:', error);
+        return null;
       }
+
+      if (data && data.length > 0) {
+        const foundVehicle = data[0];
+        console.log('✅ Found vehicle in Supabase:', foundVehicle);
+        
+        // facilityId is the yard name (string)
+        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+
+        // Transform to match app format
+        const vehicleWithYardId = {
+          id: foundVehicle.id,
+          vin: foundVehicle.vin,
+          chipId: foundVehicle.chip,
+          chip: foundVehicle.chip,
+          make: foundVehicle.make,
+          model: foundVehicle.model,
+          color: foundVehicle.color,
+          slotNo: foundVehicle.slotNo,
+          facilityId: foundVehicle.facilityId,
+          isActive: foundVehicle.chip ? true : false,
+        };
+
+        return { 
+          vehicle: vehicleWithYardId, 
+          yardId: foundVehicle.facilityId, // Using yard name as ID for now
+          yardName: yardName 
+        };
+      }
+
+      console.log('❌ VIN not found in Supabase');
       return null;
     } catch (error) {
-      console.error('Error finding vehicle:', error);
+      console.error('❌ Error finding vehicle by VIN:', error);
       return null;
     }
   };
 
-  // Find vehicle in all yards by Chip ID
+  // Find vehicle in all yards by Chip ID (Supabase)
   const findVehicleByChipId = async (chipId) => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      console.log(`🔍 Searching for Chip: ${chipId} in Supabase...`);
       
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          const foundVehicle = parsedVehicles.find(v => v.chipId === chipId);
-          
-          if (foundVehicle) {
-            const yardId = key.replace('yard_', '').replace('_vehicles', '');
-            
-            // Get actual yard name from parking_yards
-            const savedYards = await AsyncStorage.getItem('parking_yards');
-            let actualYardName = `Yard ${yardId}`; // fallback
-            
-            if (savedYards) {
-              const yards = JSON.parse(savedYards);
-              const yard = yards.find(y => y.id === yardId);
-              if (yard) {
-                actualYardName = yard.name;
-              }
-            }
-            
-            // Add yardId to the vehicle object
-            const vehicleWithYardId = { ...foundVehicle, yardId };
-            return { vehicle: vehicleWithYardId, yardId, yardName: actualYardName };
-          }
-        }
+      // Search in Supabase using case-insensitive search
+      const { data, error } = await supabase
+        .from('cars')
+        .select('*')
+        .ilike('chip', chipId)
+        .not('chip', 'is', null);
+
+      if (error) {
+        console.error('❌ Error searching Chip in Supabase:', error);
+        return null;
       }
+
+      if (data && data.length > 0) {
+        const foundVehicle = data[0];
+        console.log('✅ Found vehicle with chip in Supabase:', foundVehicle);
+        
+        // facilityId is the yard name (string)
+        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+
+        // Transform to match app format
+        const vehicleWithYardId = {
+          id: foundVehicle.id,
+          vin: foundVehicle.vin,
+          chipId: foundVehicle.chip,
+          chip: foundVehicle.chip,
+          make: foundVehicle.make,
+          model: foundVehicle.model,
+          color: foundVehicle.color,
+          slotNo: foundVehicle.slotNo,
+          facilityId: foundVehicle.facilityId,
+          isActive: true, // Has chip, so active
+        };
+
+        return { 
+          vehicle: vehicleWithYardId, 
+          yardId: foundVehicle.facilityId, // Using yard name as ID for now
+          yardName: yardName 
+        };
+      }
+
+      console.log('❌ Chip not found in Supabase');
       return null;
     } catch (error) {
-      console.error('Error finding vehicle by chip:', error);
+      console.error('❌ Error finding vehicle by chip:', error);
       return null;
     }
   };

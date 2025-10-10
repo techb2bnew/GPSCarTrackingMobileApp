@@ -9,55 +9,53 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons'; // vector-icons
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import {heightPercentageToDP} from '../utils';
+import { supabase } from '../lib/supabaseClient';
 
 const SearchScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
   const [filteredData, setFilteredData] = useState([]);
   const [allVehicles, setAllVehicles] = useState([]);
 
-  // Load all vehicles from AsyncStorage
+  // Load all vehicles from Supabase
   const loadAllVehicles = async () => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
+      console.log('🔍 Loading all vehicles from Supabase for search...');
       
-      // Get all yards data for name lookup
-      const savedYards = await AsyncStorage.getItem('parking_yards');
-      let yardsData = [];
-      if (savedYards) {
-        yardsData = JSON.parse(savedYards);
+      // Get all vehicles from Supabase
+      const { data: vehicles, error } = await supabase
+        .from('cars')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error loading vehicles from Supabase:', error);
+        setAllVehicles([]);
+        return;
       }
-      
-      let allVehiclesData = [];
-      
-      for (const key of yardKeys) {
-        const vehicles = await AsyncStorage.getItem(key);
-        if (vehicles) {
-          const parsedVehicles = JSON.parse(vehicles);
-          // Extract yard ID from key (yard_1_vehicles -> 1)
-          const yardId = key.replace('yard_', '').replace('_vehicles', '');
-          
-          // Find actual yard name
-          const yard = yardsData.find(y => y.id === yardId);
-          const actualYardName = yard ? yard.name : `Yard ${yardId}`;
-          
-          // Add yard information to each vehicle
-          const vehiclesWithYard = parsedVehicles.map(vehicle => ({
-            ...vehicle,
-            yardId: yardId,
-            parkingYard: actualYardName // Use actual yard name
-          }));
-          
-          allVehiclesData = [...allVehiclesData, ...vehiclesWithYard];
-        }
-      }
-      
+
+      // Transform to match app format
+      const allVehiclesData = vehicles.map(vehicle => ({
+        id: vehicle.id,
+        vin: vehicle.vin,
+        make: vehicle.make,
+        model: vehicle.model,
+        color: vehicle.color,
+        slotNo: vehicle.slotNo,
+        chipId: vehicle.chip,
+        chip: vehicle.chip,
+        facilityId: vehicle.facilityId,
+        parkingYard: vehicle.facilityId, // facilityId is the yard name
+        yardId: vehicle.facilityId,
+        isActive: vehicle.chip ? true : false,
+      }));
+
+      console.log(`✅ Loaded ${allVehiclesData.length} vehicles from Supabase`);
       setAllVehicles(allVehiclesData);
     } catch (error) {
-      console.error('Error loading vehicles from storage:', error);
+      console.error('❌ Error loading vehicles from Supabase:', error);
+      setAllVehicles([]);
     }
   };
 
@@ -100,22 +98,34 @@ const SearchScreen = ({navigation}) => {
     <TouchableOpacity
       style={styles.card}
       onPress={() =>
-        navigation.navigate('YardDetailScreen', {
-          yardId: item.yardId,
+        navigation.navigate('VehicleDetailsScreen', {
+          vehicle: item,
           yardName: item.parkingYard,
-          selectedVin: item
+          yardId: item.yardId
         })
       }>
-      <Text style={styles.vin}>{item.vin}</Text>
+      <View style={styles.cardHeader}>
+        <Text style={styles.vin}>{item.vin}</Text>
+        {item.isActive && (
+          <View style={styles.activeBadge}>
+            <Text style={styles.activeBadgeText}>Active</Text>
+          </View>
+        )}
+      </View>
       <Text style={styles.vehicleInfo}>
-        {item.year} - {item.make} {item.model}
+        {item.make} {item.model}
       </Text>
-      <Text style={styles.yardInfo}>Parking Yard: {item.parkingYard}</Text>
-      {item.chipId && (
-        <Text style={styles.chipInfo}>Chip ID: {item.chipId}</Text>
+      {item.color && (
+        <Text style={styles.colorInfo}>Color: {item.color}</Text>
       )}
-      {item.isActive && (
-        <Text style={styles.statusInfo}>Status: Active</Text>
+      <View style={styles.cardFooter}>
+        <Text style={styles.yardInfo}>📍 {item.parkingYard}</Text>
+        {item.slotNo && (
+          <Text style={styles.slotInfo}>Slot: {item.slotNo}</Text>
+        )}
+      </View>
+      {item.chipId && (
+        <Text style={styles.chipInfo}>🔗 Chip: {item.chipId}</Text>
       )}
     </TouchableOpacity>
   );
@@ -205,34 +215,72 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   card: {
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f9f9f9',
-    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   vin: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 4,
+    fontWeight: '700',
+    fontSize: 17,
     color: '#333',
   },
+  activeBadge: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   vehicleInfo: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
-    marginBottom: 2,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  colorInfo: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 8,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   yardInfo: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
+    fontSize: 13,
+    color: '#613EEA',
+    fontWeight: '600',
+  },
+  slotInfo: {
+    fontSize: 13,
+    color: '#FF6B35',
+    fontWeight: '600',
   },
   chipInfo: {
     fontSize: 12,
     color: '#28a745',
     fontWeight: '600',
-    marginBottom: 2,
+    marginTop: 4,
   },
   statusInfo: {
     fontSize: 12,
