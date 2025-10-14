@@ -768,7 +768,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           >
             <View style={styles.currentLocationContainer}>
               {/* Direction Arrow - Only show when car location is available */}
-              {carLocation && getChipId() && (
+              {/* {carLocation && getChipId() && (
                 <View
                   style={[
                     styles.directionArrowContainer,
@@ -777,12 +777,12 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                     }
                   ]}
                 >
-                  {/* Arrow Head (Triangle) */}
+                  Arrow Head (Triangle)
                   <View style={styles.arrowHead} />
-                  {/* Arrow Body (Rectangle) */}
+                  Arrow Body (Rectangle)
                   <View style={styles.arrowBody} />
                 </View>
-              )}
+              )} */}
 
               {/* Current Location Marker */}
               <View style={styles.currentLocationMarker}>

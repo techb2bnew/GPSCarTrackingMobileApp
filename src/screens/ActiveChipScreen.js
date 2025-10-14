@@ -18,6 +18,7 @@ import { heightPercentageToDP } from '../utils';
 import { vinList } from '../constants/Constants';
 import { useFocusEffect } from '@react-navigation/native';
 import { getActiveChips, getInactiveChips, moveChipToActive, getBatteryStatus, getTimeAgo } from '../utils/chipManager';
+import { supabase } from '../lib/supabaseClient';
 
 
 const ActiveChipScreen = ({ navigation, route }) => {
@@ -26,7 +27,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
   const [filteredData, setFilteredData] = useState([]);
   const [allChips, setAllChips] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Reassignment modal states
   const [showReassignModal, setShowReassignModal] = useState(false);
   const [selectedChip, setSelectedChip] = useState(null);
@@ -36,39 +37,112 @@ const ActiveChipScreen = ({ navigation, route }) => {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [reassignStep, setReassignStep] = useState(1); // 1: Select Yard, 2: Select Vehicle
 
-  // Load chip data from chip manager
+  // Load chip data from Supabase database
   const loadChipData = async () => {
     try {
       setIsLoading(true);
+      console.log(`🔄 Loading ${type} chips from Supabase...`);
+
+      // Get all cars from Supabase
+      const { data: carsData, error: carsError } = await supabase
+        .from('cars')
+        .select('*');
+
+      if (carsError) {
+        console.error('❌ Error fetching cars from Supabase:', carsError);
+        return;
+      }
+
+      console.log('✅ Fetched cars from Supabase:', carsData.length);
+      console.log('🔍 Sample car data:', carsData[0]);
+      console.log('🔍 All car fields:', carsData[0] ? Object.keys(carsData[0]) : 'No data');
+
       let chipsData = [];
-      
+
       if (type === 'active') {
-        chipsData = await getActiveChips();
+        // Active chips = cars with assigned chip (chip field has value)
+        chipsData = carsData.filter(car => {
+          const chip = car.chip;
+          return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
+        }).map(car => ({
+          chipId: car.chip,
+          vin: car.vin,
+          vehicleId: car.id || car.vin,
+          make: car.make || 'N/A',
+          model: car.model || 'N/A',
+          year: car.year || 'N/A',
+          yardId: car.facilityId || 'Unknown',
+          yardName: car.facilityId || 'Unknown',
+          facility: car.facilityId || 'Unknown',
+          slotNo: car.slotNo || car.slot || '',
+          batteryLevel: null,
+          assignedAt: new Date().toISOString(),
+        }));
+
+        console.log(`✅ Active chips (assigned): ${chipsData.length}`);
+
       } else if (type === 'inactive') {
-        chipsData = await getInactiveChips();
+        // Inactive chips = cars without assigned chip (chip field is NULL)
+        chipsData = carsData.filter(car => {
+          const chip = car.chip;
+          return !chip || chip === null || chip === 'NULL' || chip.toString().trim() === '' || chip.toString().trim() === 'null';
+        }).map(car => ({
+          chipId: null,
+          vin: car.vin,
+          vehicleId: car.id || car.vin,
+          make: car.make || 'N/A',
+          model: car.model || 'N/A',
+          year: car.year || 'N/A',
+          yardId: car.facilityId || 'Unknown',
+          yardName: car.facilityId || 'Unknown',
+          facility: car.facilityId || 'Unknown',
+          slotNo: car.slotNo || car.slot || '',
+          unassignedAt: new Date().toISOString(),
+        }));
+
+        console.log(`✅ Inactive chips (unassigned): ${chipsData.length}`);
+
       } else if (type === 'lowBattery') {
         // For low battery page, get ALL active chips and sort by battery level
-        chipsData = await getActiveChips();
-        
+        const activeCars = carsData.filter(car => {
+          const chip = car.chip;
+          return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
+        });
+
+        chipsData = activeCars.map(car => ({
+          chipId: car.chip,
+          vin: car.vin,
+          vehicleId: car.id || car.vin,
+          make: car.make || 'N/A',
+          model: car.model || 'N/A',
+          year: car.year || 'N/A',
+          yardId: car.facilityId || 'Unknown',
+          yardName: car.facilityId || 'Unknown',
+          facility: car.facilityId || 'Unknown',
+          slotNo: car.slotNo || car.slot || '',
+          batteryLevel: null,
+          assignedAt: new Date().toISOString(),
+        }));
+
         // Sort chips by battery level (lowest first)
-        // Critical (0-20%) at top, then Medium (20-60%), then Good (60-100%)
         chipsData.sort((a, b) => {
           const batteryA = a.batteryLevel !== null && a.batteryLevel !== undefined ? a.batteryLevel : 999;
           const batteryB = b.batteryLevel !== null && b.batteryLevel !== undefined ? b.batteryLevel : 999;
-          return batteryA - batteryB; // Ascending order (lowest battery first)
+          return batteryA - batteryB;
         });
-        
+
         console.log(`🔋 Loaded ${chipsData.length} active chips sorted by battery level`);
         const criticalCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel <= 20).length;
         const mediumCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel > 20 && c.batteryLevel <= 60).length;
         const goodCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel > 60).length;
         console.log(`🔋 Battery distribution: Critical=${criticalCount}, Medium=${mediumCount}, Good=${goodCount}`);
       }
-      
+
       setAllChips(chipsData);
-      console.log(`Loaded ${type} chips:`, chipsData.length);
+      console.log(`✅ Loaded ${type} chips from Supabase:`, chipsData.length);
+
     } catch (error) {
-      console.error('Error loading chip data:', error);
+      console.error('❌ Error loading chip data from Supabase:', error);
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +151,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
   // Load data on component mount and when screen comes into focus
   useEffect(() => {
     loadChipData();
-    
+
     // Auto-refresh every 10 seconds for battery updates
     const refreshInterval = setInterval(() => {
       if (type === 'lowBattery') {
@@ -85,7 +159,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         loadChipData();
       }
     }, 10000); // 10 seconds
-    
+
     return () => clearInterval(refreshInterval);
   }, [type]);
 
@@ -143,21 +217,43 @@ const ActiveChipScreen = ({ navigation, route }) => {
     }
   };
 
-  // Load vehicles from a yard
+  // Load vehicles from a yard - Fetch from Supabase
   const loadYardVehicles = async (yardId) => {
     try {
-      const storageKey = `yard_${yardId}_vehicles`;
-      const savedVehicles = await AsyncStorage.getItem(storageKey);
-      if (savedVehicles) {
-        const vehicles = JSON.parse(savedVehicles);
-        // Filter out vehicles that already have chips or are not active
-        const availableVehicles = vehicles.filter(v => !v.chipId);
-        setYardVehicles(availableVehicles);
-      } else {
+      console.log('🔄 Loading vehicles for yard:', yardId);
+
+      // Get cars from Supabase that belong to this yard and don't have chips assigned
+      const { data: carsData, error: carsError } = await supabase
+        .from('cars')
+        .select('*')
+        .eq('facilityId', yardId)
+        .is('chip', null);
+
+      if (carsError) {
+        console.error('❌ Error fetching yard vehicles:', carsError);
         setYardVehicles([]);
+        return;
       }
+
+      console.log('✅ Fetched vehicles for yard:', carsData.length);
+
+      // Map to the expected vehicle format
+      const availableVehicles = carsData.map(car => ({
+        id: car.id,
+        vin: car.vin,
+        make: car.make || 'N/A',
+        model: car.model || 'N/A',
+        year: car.year || 'N/A',
+        color: car.color || 'N/A',
+        slotNo: car.slotNo || '',
+        chipId: null, // No chip assigned
+        isActive: false
+      }));
+
+      setYardVehicles(availableVehicles);
+
     } catch (error) {
-      console.error('Error loading yard vehicles:', error);
+      console.error('❌ Error loading yard vehicles:', error);
       setYardVehicles([]);
     }
   };
@@ -170,50 +266,39 @@ const ActiveChipScreen = ({ navigation, route }) => {
     }
 
     try {
-      // Update vehicle with chip
-      const storageKey = `yard_${selectedYard.id}_vehicles`;
-      const savedVehicles = await AsyncStorage.getItem(storageKey);
-      
-      if (savedVehicles) {
-        const vehicles = JSON.parse(savedVehicles);
-        const updatedVehicles = vehicles.map(v => {
-          if (v.id === selectedVehicle.id) {
-            return {
-              ...v,
-              chipId: selectedChip.chipId,
-              isActive: true,
-              lastUpdated: new Date().toISOString()
-            };
-          }
-          return v;
-        });
-        
-        await AsyncStorage.setItem(storageKey, JSON.stringify(updatedVehicles));
-        
-        // Move chip from inactive to active
-        await moveChipToActive(selectedChip.chipId, {
-          vehicleId: selectedVehicle.id,
-          vin: selectedVehicle.vin,
-          make: selectedVehicle.make,
-          model: selectedVehicle.model,
-          year: selectedVehicle.year,
-          yardId: selectedYard.id,
-          yardName: selectedYard.name
-        });
-        
-       console.log('Success', 'Chip reassigned successfully!');
-        setShowReassignModal(false);
-        setReassignStep(1);
-        setSelectedChip(null);
-        setSelectedYard(null);
-        setSelectedVehicle(null);
-        
-        // Reload chip data
-        loadChipData();
+      console.log('🔄 Assigning chip to vehicle...', {
+        chipId: selectedChip.chipId,
+        vehicleId: selectedVehicle.id,
+        yardId: selectedYard.id
+      });
+
+      // Update the car record in Supabase with the assigned chip
+      const { error: updateError } = await supabase
+        .from('cars')
+        .update({
+          chip: selectedChip.chipId,
+          facilityId: selectedYard.id,
+          slotNo: selectedVehicle.slotNo || selectedVehicle.id
+        })
+        .eq('id', selectedVehicle.id);
+
+      if (updateError) {
+        console.error('❌ Error updating car with chip:', updateError);
+        return;
       }
+
+      console.log('✅ Chip assigned successfully to vehicle in Supabase!');
+      setShowReassignModal(false);
+      setReassignStep(1);
+      setSelectedChip(null);
+      setSelectedYard(null);
+      setSelectedVehicle(null);
+
+      // Reload data to reflect changes
+      loadChipData();
+
     } catch (error) {
-      console.error('Error reassigning chip:', error);
-      // Alert.alert('Error', 'Failed to reassign chip');
+      console.error('❌ Error assigning chip:', error);
     }
   };
 
@@ -221,22 +306,33 @@ const ActiveChipScreen = ({ navigation, route }) => {
     // Determine if this is an active or inactive chip
     const isInactive = type === 'inactive';
     const isLowBattery = type === 'lowBattery';
-    
-    // Get display data based on chip type
-    const displayVin = isInactive ? (item.lastVin || 'N/A') : (item.vin || 'N/A');
-    const displayYear = isInactive ? (item.lastYear || 'N/A') : (item.year || 'N/A');
-    const displayMake = isInactive ? (item.lastMake || 'N/A') : (item.make || 'N/A');
-    const displayModel = isInactive ? (item.lastModel || 'N/A') : (item.model || 'N/A');
-    const displayYardName = isInactive ? (item.lastYardName || 'N/A') : (item.yardName || 'N/A');
-    
+
+    // Debug log for inactive chips
+    if (isInactive && index < 2) {
+      console.log(`🔍 Inactive chip ${index}:`, {
+        vin: item.vin,
+        make: item.make,
+        model: item.model,
+        year: item.year,
+        yardName: item.yardName,
+        facility: item.facility
+      });
+    }
+
+    // Get display data - use same fields for both active and inactive
+    const displayVin = item.vin || 'N/A';
+    const displayMake = item.make || 'N/A';
+    const displayModel = item.model || 'N/A';
+    const displayYardName = item.yardName || 'N/A';
+
     // Get battery status
     const batteryStatus = getBatteryStatus(item.batteryLevel);
-    
+
     // Check if we need to show section header (for lowBattery type)
-    const showSectionHeader = isLowBattery && index === 0 || 
-      (isLowBattery && index > 0 && 
-       getBatteryStatus(filteredData[index - 1].batteryLevel).status !== batteryStatus.status);
-    
+    const showSectionHeader = isLowBattery && index === 0 ||
+      (isLowBattery && index > 0 &&
+        getBatteryStatus(filteredData[index - 1].batteryLevel).status !== batteryStatus.status);
+
     return (
       <View>
         {/* Section Header for Battery Status */}
@@ -244,134 +340,153 @@ const ActiveChipScreen = ({ navigation, route }) => {
           <View style={styles.sectionHeader}>
             <View style={[styles.sectionIndicator, { backgroundColor: batteryStatus.color }]} />
             <Text style={styles.sectionTitle}>
-              {batteryStatus.status === 'critical' 
+              {batteryStatus.status === 'critical'
                 ? '❌ Critical Battery (0-20%)'
                 : batteryStatus.status === 'medium'
-                ? '⚠️ Medium Battery (20-60%)'
-                : batteryStatus.status === 'good'
-                ? '✅ Good Battery (60-100%)'
-                : '❓ Unknown Battery'}
+                  ? '⚠️ Medium Battery (20-60%)'
+                  : batteryStatus.status === 'good'
+                    ? '✅ Good Battery (60-100%)'
+                    : '❓ Unknown Battery'}
             </Text>
           </View>
         )}
-        
+
         <View style={styles.card}>
-        <TouchableOpacity 
-          style={{ flex: 1 }} 
-          onPress={() => {
-            if (!isInactive && item.vehicleId) {
-              // Navigate to vehicle details for active chips
-              navigation.navigate('VehicleDetailsScreen', { 
-                vehicle: {
-                  id: item.vehicleId,
-                  vin: item.vin,
-                  make: item.make,
-                  model: item.model,
-                  year: item.year,
-                  chipId: item.chipId,
-                  isActive: true
-                },
-                yardName: item.yardName,
-                yardId: item.yardId 
-              }); 
-            }
-          }}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.vin}>{displayVin}</Text>
-            <Text style={styles.subText}>
-              {displayYear} • {displayMake} {displayModel}
-            </Text>
-            <Text style={styles.chipText}>Chip: {item.chipId}</Text>
-            <Text style={styles.yardText}>
-              {isInactive ? 'Last Yard: ' : 'Yard: '}{displayYardName}
-            </Text>
-            
-            {/* Battery Level Display for Low Battery Page */}
-            {isLowBattery && item.batteryLevel !== null && item.batteryLevel !== undefined && (
-              <View style={styles.batteryInfoContainer}>
-                <View style={styles.batteryContainer}>
-                  <Icon 
-                    name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'medium' ? 'alert-circle' : 'checkmark-circle'} 
-                    size={16} 
-                    color={batteryStatus.color} 
-                  />
-                  <Text style={[styles.batteryText, { color: batteryStatus.color }]}>
-                    Battery: {item.batteryLevel}% ({batteryStatus.label})
-                  </Text>
-                </View>
-                {item.lastBatteryUpdate && (
-                  <View style={styles.lastUpdateContainer}>
-                    <Icon name="time-outline" size={12} color="#999" />
-                    <Text style={styles.lastUpdateText}>
-                      Updated {getTimeAgo(item.lastBatteryUpdate)}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            onPress={() => {
+              if (item?.vehicleId) {
+                // Navigate to vehicle details for active chips
+                navigation.navigate('VehicleDetailsScreen', {
+                  vehicle: {
+                    id: item?.vehicleId,
+                    vin: item?.vin,
+                    make: item?.make,
+                    model: item?.model,
+                    year: item?.year,
+                    chipId: item?.chipId,
+                    isActive: true
+                  },
+                  yardName: item?.yardName,
+                  yardId: item?.yardId
+                });
+              }
+            }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.vin}>{displayVin}</Text>
+              <Text style={styles.subText}>
+                {displayMake} •  {displayModel}
+              </Text>
+              <Text style={styles.chipText}>
+                {isInactive ? 'Chip: Not Assigned' : `Chip: ${item.chipId}`}
+              </Text>
+              <Text style={styles.yardText}>
+                {isInactive ? 'Current Yard: ' : 'Yard: '}{displayYardName}
+              </Text>
+
+              {/* Battery Level Display for Low Battery Page */}
+              {isLowBattery && item.batteryLevel !== null && item.batteryLevel !== undefined && (
+                <View style={styles.batteryInfoContainer}>
+                  <View style={styles.batteryContainer}>
+                    <Icon
+                      name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'medium' ? 'alert-circle' : 'checkmark-circle'}
+                      size={16}
+                      color={batteryStatus.color}
+                    />
+                    <Text style={[styles.batteryText, { color: batteryStatus.color }]}>
+                      Battery: {item.batteryLevel}% ({batteryStatus.label})
                     </Text>
                   </View>
-                )}
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-        
-        {/* Status Tag or Reassign Button */}
-        {isInactive ? (
-          <TouchableOpacity
-            style={styles.reassignButton}
-            onPress={async () => {
-              setSelectedChip(item);
-              await loadYards();
-              setShowReassignModal(true);
-              setReassignStep(1);
-            }}>
-            <Icon name="link" size={16} color="#fff" />
-            <Text style={styles.reassignButtonText}>Assign Vehicle</Text>
+                  {item.lastBatteryUpdate && (
+                    <View style={styles.lastUpdateContainer}>
+                      <Icon name="time-outline" size={12} color="#999" />
+                      <Text style={styles.lastUpdateText}>
+                        Updated {getTimeAgo(item.lastBatteryUpdate)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
-        ) : isLowBattery ? (
-          <View
-            style={[
-              styles.batteryStatusBadge,
-              {
-                backgroundColor: batteryStatus.status === 'critical' 
-                  ? 'rgba(242, 67, 105, 0.2)'
-                  : batteryStatus.status === 'medium'
-                  ? 'rgba(242, 137, 61, 0.2)'
-                  : 'rgba(69, 198, 79, 0.2)',
-              },
-            ]}>
-            <Icon 
-              name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'medium' ? 'alert-circle' : 'checkmark-circle'} 
-              size={14} 
-              color={batteryStatus.color} 
-            />
-            <Text
+
+          {/* Status Tag or Reassign Button */}
+          {isInactive ? (
+            <View
               style={[
-                styles.activeText,
+                styles.activeTag,
                 {
-                  color: batteryStatus.color,
-                  marginLeft: 4,
+                  backgroundColor: 'rgba(0, 128, 0, 0.2)',
                 },
               ]}>
-              {batteryStatus.label}
-            </Text>
-          </View>
-        ) : (
-          <View
-            style={[
-              styles.activeTag,
-              {
-                backgroundColor: 'rgba(0, 128, 0, 0.2)',
-              },
-            ]}>
-            <Text
+              <Text
+                style={[
+                  styles.activeText,
+                  {
+                    color: 'green',
+                  },
+                ]}>
+                In-Active
+              </Text>
+            </View>
+            // <TouchableOpacity
+            //   style={styles.reassignButton}
+            //   onPress={async () => {
+            //     setSelectedChip(item);
+            //     await loadYards();
+            //     setShowReassignModal(true);
+            //     setReassignStep(1);
+            //   }}>
+            //   <Icon name="link" size={16} color="#fff" />
+            //   <Text style={styles.reassignButtonText}>Assign Vehicle</Text>
+            // </TouchableOpacity>
+          ) : isLowBattery ? (
+            <View
               style={[
-                styles.activeText,
+                styles.batteryStatusBadge,
                 {
-                  color: 'green',
+                  backgroundColor: batteryStatus.status === 'critical'
+                    ? 'rgba(242, 67, 105, 0.2)'
+                    : batteryStatus.status === 'medium'
+                      ? 'rgba(242, 137, 61, 0.2)'
+                      : 'rgba(69, 198, 79, 0.2)',
                 },
               ]}>
-              Active
-            </Text>
-          </View>
-        )}
+              <Icon
+                name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'medium' ? 'alert-circle' : 'checkmark-circle'}
+                size={14}
+                color={batteryStatus.color}
+              />
+              <Text
+                style={[
+                  styles.activeText,
+                  {
+                    color: batteryStatus.color,
+                    marginLeft: 4,
+                  },
+                ]}>
+                {batteryStatus.label}
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.activeTag,
+                {
+                  backgroundColor: 'rgba(0, 128, 0, 0.2)',
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.activeText,
+                  {
+                    color: 'green',
+                  },
+                ]}>
+                Active
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -393,10 +508,10 @@ const ActiveChipScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           <Text style={styles.title}>{getHeading()}</Text>
         </View>
-        
+
         {/* Refresh Button for Battery Page */}
         {type === 'lowBattery' && (
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => {
               console.log('🔄 Manual refresh battery data');
               loadChipData();
@@ -436,11 +551,11 @@ const ActiveChipScreen = ({ navigation, route }) => {
               <Icon name="battery-charging-outline" size={80} color="#ccc" />
               <Text style={styles.noData}>No {type} chips found</Text>
               <Text style={styles.noDataSubtext}>
-                {type === 'active' 
+                {type === 'active'
                   ? 'No vehicles with active chips'
                   : type === 'inactive'
-                  ? 'No vehicles with inactive chips'
-                  : 'No active chips available for battery monitoring'
+                    ? 'No vehicles with inactive chips'
+                    : 'No active chips available for battery monitoring'
                 }
               </Text>
             </View>

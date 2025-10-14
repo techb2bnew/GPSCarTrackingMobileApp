@@ -611,7 +611,7 @@ const ParkingYardScreen = ({ navigation }) => {
               <Text style={[styles.simpleYardAddress]}>
                 {item?.address}
               </Text>
-              {slotInfo.available === 0 ? (
+              {/* {slotInfo.available === 0 ? (
                 <View style={styles.fullYardContainer}>
                   <Ionicons name="warning" size={16} color="#FF6B6B" />
                   <Text style={styles.fullYardText}>
@@ -622,7 +622,7 @@ const ParkingYardScreen = ({ navigation }) => {
                 <Text style={styles.simpleSlotText}>
                   {slotInfo.available} available • {slotInfo.total} total slots
                 </Text>
-              )}
+              )} */}
             </View>
           </View>
           

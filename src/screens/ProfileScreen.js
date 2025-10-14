@@ -453,42 +453,105 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
-  const renderStatsCard = () => (
-    <View style={styles.statsContainer}>
-      <Text style={styles.sectionTitle}>Activity Stats</Text>
+  // ============================================
+  // STATS SECTION - COMMENTED FOR NOW
+  // Uncomment if user_id columns added to database
+  // ============================================
+  // const renderStatsCard = () => (
+  //   <View style={styles.statsContainer}>
+  //     <Text style={styles.sectionTitle}>Activity Stats</Text>
+  //
+  //     {/* Top Row - 3 Cards */}
+  //     <View style={styles.statsRowTop}>
+  //       <View style={styles.statCardSmall}>
+  //         <Text style={styles.statNumber}>{stats.totalVehicles}</Text>
+  //         <Text style={styles.statLabelSmall}>Total Vehicles</Text>
+  //       </View>
+  //
+  //       <View style={styles.statCardSmall}>
+  //         <Text style={styles.statNumber}>{stats.totalYards}</Text>
+  //         <Text style={styles.statLabelSmall}>Parking Yards</Text>
+  //       </View>
+  //
+  //       <View style={styles.statCardSmall}>
+  //         <Text style={[styles.statNumber, { color: greenColor }]}>{stats.activeChips}</Text>
+  //         <Text style={styles.statLabelSmall}>Active Chips</Text>
+  //       </View>
+  //     </View>
+  //
+  //     {/* Bottom Row - 2 Large Cards */}
+  //     <View style={styles.statsRowBottom}>
+  //       <View style={styles.statCardLarge}>
+  //         <Text style={[styles.statNumberLarge, { color: '#FF6B6B' }]}>{stats.inactiveChips}</Text>
+  //         <Text style={styles.statLabelLarge}>Inactive Chips</Text>
+  //       </View>
+  //
+  //       <View style={styles.statCardLarge}>
+  //         <Text style={[styles.statNumberLarge, { color: '#FF9500' }]}>{stats.lowBatteryChips}</Text>
+  //         <Text style={styles.statLabelLarge}>Low Battery</Text>
+  //       </View>
+  //     </View>
+  //   </View>
+  // );
 
-      {/* Top Row - 3 Cards */}
-      <View style={styles.statsRowTop}>
-        <View style={styles.statCardSmall}>
-          <Text style={styles.statNumber}>{stats.totalVehicles}</Text>
-          <Text style={styles.statLabelSmall}>Total Vehicles</Text>
-        </View>
+  // ============================================
+  // QUICK ACTIONS SECTION
+  // ============================================
+  const renderQuickActions = () => {
+    const quickActions = [
+      {
+        id: 1,
+        icon: 'time-outline',
+        label: 'Facility History',
+        screen: 'ActivityHistoryScreen',
+        color: '#613EEA',
+        bgColor: '#F3F0FF',
+      },
+      {
+        id: 2,
+        icon: 'information-circle',
+        label: 'How It Works',
+        screen: 'HowItWorksScreen',
+        color: '#2196F3',
+        bgColor: '#E3F2FD',
+      },
+      {
+        id: 3,
+        icon: 'alert-circle',
+        label: 'Report Issue',
+        screen: 'ReportIssueScreen',
+        color: '#FF6B6B',
+        bgColor: '#FFF5F5',
+      },
+    ];
 
-        <View style={styles.statCardSmall}>
-          <Text style={styles.statNumber}>{stats.totalYards}</Text>
-          <Text style={styles.statLabelSmall}>Parking Yards</Text>
-        </View>
+    const handleActionPress = (action) => {
+      if (action.screen) {
+        navigation.navigate(action.screen);
+      }
+    };
 
-        <View style={styles.statCardSmall}>
-          <Text style={[styles.statNumber, { color: greenColor }]}>{stats.activeChips}</Text>
-          <Text style={styles.statLabelSmall}>Active Chips</Text>
+    return (
+      <View style={styles.quickActionsContainer}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.quickActionsGrid}>
+          {quickActions.map((action) => (
+            <TouchableOpacity
+              key={action.id}
+              style={styles.quickActionCard}
+              onPress={() => handleActionPress(action)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIconContainer, { backgroundColor: action.bgColor }]}>
+                <Ionicons name={action.icon} size={28} color={action.color} />
+              </View>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
-
-      {/* Bottom Row - 2 Large Cards */}
-      <View style={styles.statsRowBottom}>
-        <View style={styles.statCardLarge}>
-          <Text style={[styles.statNumberLarge, { color: '#FF6B6B' }]}>{stats.inactiveChips}</Text>
-          <Text style={styles.statLabelLarge}>Inactive Chips</Text>
-        </View>
-
-        <View style={styles.statCardLarge}>
-          <Text style={[styles.statNumberLarge, { color: '#FF9500' }]}>{stats.lowBatteryChips}</Text>
-          <Text style={styles.statLabelLarge}>Low Battery</Text>
-        </View>
-      </View>
-    </View>
-  );
+    );
+  };
 
 
   const renderEditModal = () => (
@@ -704,7 +767,8 @@ const ProfileScreen = ({ navigation }) => {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {renderProfileHeader()}
           {renderProfileInfo()}
-          {renderStatsCard()}
+          {/* {renderStatsCard()} */}
+          {renderQuickActions()}
         </ScrollView>
       )}
 
@@ -1307,6 +1371,45 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 5,
     fontStyle: 'italic',
+  },
+  // Quick Actions Styles
+  quickActionsContainer: {
+    marginBottom: spacings.xLarge,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickActionCard: {
+    backgroundColor: whiteColor,
+    borderRadius: 16,
+    padding: spacings.large,
+    width: '48%',
+    marginBottom: spacings.large,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  quickActionIconContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacings.medium,
+  },
+  quickActionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: blackColor,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
 

@@ -45,7 +45,7 @@ import ParkingYardScreen from './ParkingYardScreen';
 import { blackColor, blackOpacity5, darkgrayColor, grayColor, redColor, whiteColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
 
-// Dynamic card data function
+// Dynamic card data function - Keep original 3 cards, just update terminology
 const getCardData = (chipStats) => [
   {
     id: 1,
@@ -230,6 +230,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
   // Load yards, chip stats, and user data from AsyncStorage
   useEffect(() => {
+    console.log('🚀 HomeScreen: Initializing data loading...');
     loadYards();
     loadChipStats();
     loadUserData();
@@ -332,30 +333,52 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }
   };
 
-  // Load chip stats from AsyncStorage using chip manager
+  // Load chip stats from Supabase database
   const loadChipStats = async () => {
     try {
-      // Get chip counts from chip manager
-      const { activeCount, inactiveCount } = await getChipCounts();
+      console.log('🔄 Loading chip stats from Supabase...');
 
-      // Get critical battery chips (0-20%) for count
-      const criticalChips = await getCriticalBatteryChips();
-      const lowBatteryChips = criticalChips.length;
+      // Get all cars from Supabase to count assigned/unassigned trackers
+      const { data: carsData, error: carsError } = await supabase
+        .from('cars')
+        .select('*');
+
+      if (carsError) {
+        console.error('❌ Error fetching cars from Supabase:', carsError);
+        return;
+      }
+
+      console.log('✅ Fetched cars from Supabase:', carsData.length);
+      console.log('🔍 Sample car data:', carsData[0]); // Debug: Check first car structure
+
+      // Count assigned trackers (cars with chip) - these are Active Chips
+      const assignedTrackers = carsData.filter(car => {
+        const chip = car.chip;
+        return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
+      });
+      
+      // Count unassigned trackers (cars without chip or NULL chip) - these are In-Active Chips
+      const unassignedTrackers = carsData.filter(car => {
+        const chip = car.chip;
+        return !chip || chip === null || chip === 'NULL' || chip.toString().trim() === '' || chip.toString().trim() === 'null';
+      });
+      
+      console.log('🔍 Assigned cars sample:', assignedTrackers.slice(0, 2));
+      console.log('🔍 Unassigned cars sample:', unassignedTrackers.slice(0, 2));
+
+      // For now, we'll use a placeholder for low battery chips
+      // This can be enhanced later with actual battery data from MQTT
+      const lowBatteryChips = 0; // Will be updated when battery data is available
 
       setChipStats({
-        activeChips: activeCount,
-        inactiveChips: inactiveCount,
+        activeChips: assignedTrackers.length,
+        inactiveChips: unassignedTrackers.length,
         lowBatteryChips,
       });
 
-      console.log('Chip stats loaded from chip manager:', {
-        activeChips: activeCount,
-        inactiveChips: inactiveCount,
-        lowBatteryChips: lowBatteryChips,
-        criticalChipsDetails: criticalChips.map(c => `${c.chipId}: ${c.batteryLevel}%`)
-      });
+    
     } catch (error) {
-      console.error('Error loading chip stats:', error);
+      console.error('❌ Error loading chip stats:', error);
     }
   };
 
@@ -700,7 +723,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               <Text style={[styles.simpleYardAddress]}>
                 {item?.address}
               </Text>
-              {slotInfo.available === 0 ? (
+              {/* {slotInfo.available === 0 ? (
                 <View style={styles.fullYardContainer}>
                   <Ionicons name="warning" size={16} color="#FF6B6B" />
                   <Text style={styles.fullYardText}>
@@ -711,7 +734,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                 <Text style={styles.simpleSlotText}>
                   {slotInfo.available} available • {slotInfo.total} total slots
                 </Text>
-              )}
+              )} */}
             </View>
           </View>
 

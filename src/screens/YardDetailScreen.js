@@ -1310,7 +1310,7 @@ const YardDetailScreen = ({ navigation, route }) => {
         animationType="fade"
         onRequestClose={() => setShowDuplicateModal(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.centeredModalOverlay}>
           <View style={styles.duplicateModalContent}>
             {/* Header with Icon */}
             <View style={styles.duplicateModalHeader}>
@@ -1630,6 +1630,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  centeredModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: '#fff',
