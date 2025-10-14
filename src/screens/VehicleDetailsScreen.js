@@ -602,16 +602,17 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Handle unassign chip
   const handleUnassignChip = async () => {
     try {
+      const chipId = vehicle?.chipId || vehicle?.chip;
       Alert.alert(
         'Unassign Chip',
-        'Are you sure you want to unassign this chip? The vehicle will become inactive.',
+        `Are you sure you want to unassign this chip?\n\nChip ID: ${chipId}\n\nThe vehicle will become inactive.`,
         [
           {
-            text: 'Cancel',
+            text: 'No',
             style: 'cancel',
           },
           {
-            text: 'Unassign',
+            text: 'Yes',
             style: 'destructive',
             onPress: async () => {
               await updateVehicleWithChip(null);
@@ -668,16 +669,17 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Handle unassigning chip from duplicate vehicle
   const handleUnassignFromDuplicate = async () => {
     try {
+      const chipId = duplicateInfo?.value;
       Alert.alert(
         'Unassign Chip',
-        'Are you sure you want to unassign this chip from the vehicle in ' + duplicateInfo?.yardName + '?',
+        `Are you sure you want to unassign this chip?\n\nChip ID: ${chipId}\nVIN: ${duplicateInfo?.vin}\nYard: ${duplicateInfo?.yardName}\n\nThe vehicle will become inactive.`,
         [
           {
-            text: 'Cancel',
+            text: 'No',
             style: 'cancel',
           },
           {
-            text: 'Unassign',
+            text: 'Yes',
             style: 'destructive',
             onPress: async () => {
               const success = await unassignChipFromVehicle(duplicateInfo?.value, duplicateInfo?.vehicleId);
@@ -895,39 +897,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-      <View style={styles.locationInfoCard}>
+     {getChipId() && <View style={styles.locationInfoCard}>
         <Text style={styles.cardTitle}>Location Information</Text>
-
-        {/* <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Current Location:</Text>
-          <Text style={styles.infoValue}>
-            {currentLocation ? 
-              `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}` : 
-              'Getting location...'
-            }
-          </Text>
-        </View> */}
-
-        {/* <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Chip Location:</Text>
-          <Text style={styles.infoValue}>
-            {chipLocation ? 
-              `${chipLocation.latitude.toFixed(6)}, ${chipLocation.longitude.toFixed(6)}` : 
-              'Not available'
-            }
-          </Text>
-        </View> */}
-
-        {/* <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Vehicle Location:</Text>
-          <Text style={styles.infoValue}>
-            {carLocation ? 
-              `${carLocation.latitude.toFixed(6)}, ${carLocation.longitude.toFixed(6)}` : 
-              'Not available'
-            }
-          </Text>
-        </View> */}
-
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Distance to Vehicle:</Text>
           <Text style={styles.infoValue}>
@@ -937,26 +908,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             }
           </Text>
         </View>
-        {/* <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Data Source:</Text>
-          <View style={styles.statusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: mqttDataReceived ? greenColor : '#ff9500' }]} />
-            <Text style={[styles.statusText, { color: mqttDataReceived ? greenColor : '#ff9500' }]}>
-              {mqttDataReceived ? 'Live GPS Data' : 'Static Data'}
-            </Text>
-          </View>
-        </View> */}
-
-        {/* <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>MQTT Status:</Text>
-          <View style={styles.statusContainer}>
-            <View style={[styles.statusDot, { backgroundColor: mqttConnected ? greenColor : '#ff6b6b' }]} />
-            <Text style={[styles.statusText, { color: mqttConnected ? greenColor : '#ff6b6b' }]}>
-              {mqttConnected ? 'Connected' : 'Disconnected'}
-            </Text>
-          </View>
-        </View> */}
-      </View>
+      </View>}
 
       {/* Chip Assignment/Unassignment Buttons */}
       {!vehicle?.chipId ? (

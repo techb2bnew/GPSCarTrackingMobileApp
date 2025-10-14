@@ -19,6 +19,7 @@ import { vinList } from '../constants/Constants';
 import { useFocusEffect } from '@react-navigation/native';
 import { getActiveChips, getInactiveChips, moveChipToActive, getBatteryStatus, getTimeAgo } from '../utils/chipManager';
 import { supabase } from '../lib/supabaseClient';
+import mqtt from 'mqtt/dist/mqtt';
 
 
 const ActiveChipScreen = ({ navigation, route }) => {
@@ -36,6 +37,147 @@ const ActiveChipScreen = ({ navigation, route }) => {
   const [yardVehicles, setYardVehicles] = useState([]);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [reassignStep, setReassignStep] = useState(1); // 1: Select Yard, 2: Select Vehicle
+
+  // MQTT states for battery monitoring
+  const [mqttClient, setMqttClient] = useState(null);
+  const [mqttConnected, setMqttConnected] = useState(false);
+  const [batteryData, setBatteryData] = useState({}); // { chipId: { level: 90, timestamp: Date } }
+
+  // MQTT Configuration
+  const MQTT_CONFIG = {
+    host: "ws://sensecap-openstream.seeed.cc:8083/mqtt",
+    username: "org-449810146246400",
+    password: "9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3",
+    clientId: "org-449810146246400-lowbattery-" + Math.random().toString(16).substr(2, 8),
+    protocolVersion: 4,
+  };
+
+  // Save battery data to local storage (for multiple chips)
+  const saveBatteryDataToStorage = async (chipId, batteryLevel, timestamp) => {
+    try {
+      const key = `battery_data_${chipId}`;
+      const data = {
+        chipId,
+        batteryLevel,
+        timestamp: timestamp || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      await AsyncStorage.setItem(key, JSON.stringify(data));
+      console.log(`💾 Saved battery data for chip ${chipId}: ${batteryLevel}%`);
+    } catch (error) {
+      console.error('Error saving battery data:', error);
+    }
+  };
+
+  // Load battery data from local storage
+  const loadBatteryDataFromStorage = async (chipIds) => {
+    try {
+      const batteryMap = {};
+      for (const chipId of chipIds) {
+        const key = `battery_data_${chipId}`;
+        const data = await AsyncStorage.getItem(key);
+        if (data) {
+          const parsed = JSON.parse(data);
+          batteryMap[chipId] = {
+            level: parsed.batteryLevel,
+            timestamp: parsed.timestamp
+          };
+        }
+      }
+      console.log(`📂 Loaded battery data for ${Object.keys(batteryMap).length} chips from storage`);
+      return batteryMap;
+    } catch (error) {
+      console.error('Error loading battery data:', error);
+      return {};
+    }
+  };
+
+  // Initialize MQTT for battery monitoring
+  const initializeMqtt = async (activeChips) => {
+    if (!activeChips || activeChips.length === 0) {
+      console.log('⚠️ No active chips to monitor');
+      return;
+    }
+
+    console.log('🔄 Initializing MQTT for battery monitoring...');
+    
+    const client = mqtt.connect(MQTT_CONFIG.host, {
+      username: MQTT_CONFIG.username,
+      password: MQTT_CONFIG.password,
+      clientId: MQTT_CONFIG.clientId,
+      protocolVersion: MQTT_CONFIG.protocolVersion,
+    });
+
+    client.on("connect", () => {
+      console.log("✅ Connected to MQTT for battery monitoring");
+      setMqttConnected(true);
+
+      // Subscribe to battery topic for each active chip
+      activeChips.forEach(chip => {
+        const batteryTopic = `/device_sensor_data/449810146246400/${chip.chipId}/+/vs/3000`;
+        console.log(`🔋 Subscribing to battery topic: ${batteryTopic}`);
+
+        client.subscribe(batteryTopic, (err) => {
+          if (err) {
+            console.error(`❌ Failed to subscribe to ${batteryTopic}:`, err);
+          } else {
+            console.log(`✅ Subscribed to battery topic: ${chip.chipId}`);
+          }
+        });
+      });
+    });
+
+    client.on("message", async (topic, message) => {
+      try {
+        const payload = JSON.parse(message.toString());
+        
+        // Extract chip ID from topic: /device_sensor_data/449810146246400/2CF7F1C07190019F/0/vs/3000
+        const topicParts = topic.split('/');
+        const chipId = topicParts[3];
+        const batteryLevel = payload.value;
+        const timestamp = payload.timestamp ? new Date(payload.timestamp).toISOString() : new Date().toISOString();
+
+        console.log(`🔋 Battery data received for chip ${chipId}: ${batteryLevel}% at ${timestamp}`);
+
+        // Update batteryData state
+        setBatteryData(prev => ({
+          ...prev,
+          [chipId]: {
+            level: batteryLevel,
+            timestamp: timestamp
+          }
+        }));
+
+        // Update allChips state directly for instant UI update
+        setAllChips(prevChips => {
+          return prevChips.map(chip => {
+            if (chip.chipId === chipId) {
+              console.log(`✅ Updating UI for chip ${chipId} with battery ${batteryLevel}%`);
+              return {
+                ...chip,
+                batteryLevel: batteryLevel,
+                lastBatteryUpdate: timestamp
+              };
+            }
+            return chip;
+          });
+        });
+
+        // Save to local storage
+        await saveBatteryDataToStorage(chipId, batteryLevel, timestamp);
+
+      } catch (error) {
+        console.error('🔋 ❌ Error parsing MQTT message:', error);
+      }
+    });
+
+    client.on("error", (error) => {
+      console.error("❌ MQTT Error:", error);
+      setMqttConnected(false);
+    });
+
+    setMqttClient(client);
+  };
 
   // Load chip data from Supabase database
   const loadChipData = async () => {
@@ -121,10 +263,36 @@ const ActiveChipScreen = ({ navigation, route }) => {
           facility: car.facilityId || 'Unknown',
           slotNo: car.slotNo || car.slot || '',
           batteryLevel: null,
+          lastBatteryUpdate: null,
           assignedAt: new Date().toISOString(),
         }));
 
-        // Sort chips by battery level (lowest first)
+        // Load battery data from local storage and MQTT state
+        const chipIds = chipsData.map(c => c.chipId);
+        const storedBatteryData = await loadBatteryDataFromStorage(chipIds);
+
+        // Merge battery data with chips
+        chipsData = chipsData.map(chip => {
+          // First check batteryData state (real-time MQTT)
+          const mqttBattery = batteryData[chip.chipId];
+          // Then check stored data
+          const storedBattery = storedBatteryData[chip.chipId];
+
+          // Use MQTT data if available, otherwise use stored data
+          const batteryInfo = mqttBattery || storedBattery;
+
+          if (batteryInfo) {
+            return {
+              ...chip,
+              batteryLevel: batteryInfo.level,
+              lastBatteryUpdate: batteryInfo.timestamp
+            };
+          }
+
+          return chip;
+        });
+
+        // Sort chips by battery level (lowest first, nulls last)
         chipsData.sort((a, b) => {
           const batteryA = a.batteryLevel !== null && a.batteryLevel !== undefined ? a.batteryLevel : 999;
           const batteryB = b.batteryLevel !== null && b.batteryLevel !== undefined ? b.batteryLevel : 999;
@@ -133,9 +301,16 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
         console.log(`🔋 Loaded ${chipsData.length} active chips sorted by battery level`);
         const criticalCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel <= 20).length;
-        const mediumCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel > 20 && c.batteryLevel <= 60).length;
+        const normalCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel > 20 && c.batteryLevel <= 60).length;
         const goodCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel > 60).length;
-        console.log(`🔋 Battery distribution: Critical=${criticalCount}, Medium=${mediumCount}, Good=${goodCount}`);
+        const unknownCount = chipsData.filter(c => c.batteryLevel === null || c.batteryLevel === undefined).length;
+        console.log(`🔋 Battery distribution: Critical=${criticalCount}, Normal=${normalCount}, Good=${goodCount}, Unknown=${unknownCount}`);
+        
+        // Initialize MQTT if not already connected
+        if (!mqttClient && type === 'lowBattery') {
+          console.log('🔄 Starting MQTT connection for battery monitoring...');
+          initializeMqtt(chipsData);
+        }
       }
 
       setAllChips(chipsData);
@@ -152,16 +327,26 @@ const ActiveChipScreen = ({ navigation, route }) => {
   useEffect(() => {
     loadChipData();
 
-    // Auto-refresh every 10 seconds for battery updates
+    // Auto-refresh every 30 seconds for battery updates (not too frequent to avoid re-renders)
     const refreshInterval = setInterval(() => {
       if (type === 'lowBattery') {
         console.log('🔄 Auto-refreshing battery data...');
         loadChipData();
       }
-    }, 10000); // 10 seconds
+    }, 30000); // 30 seconds
 
-    return () => clearInterval(refreshInterval);
-  }, [type]);
+    return () => {
+      clearInterval(refreshInterval);
+      
+      // Cleanup MQTT connection when leaving screen
+      if (mqttClient) {
+        console.log('🔌 Disconnecting MQTT from ActiveChipScreen...');
+        mqttClient.end();
+        setMqttClient(null);
+        setMqttConnected(false);
+      }
+    };
+  }, [type, mqttClient]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -342,8 +527,8 @@ const ActiveChipScreen = ({ navigation, route }) => {
             <Text style={styles.sectionTitle}>
               {batteryStatus.status === 'critical'
                 ? '❌ Critical Battery (0-20%)'
-                : batteryStatus.status === 'medium'
-                  ? '⚠️ Medium Battery (20-60%)'
+                : batteryStatus.status === 'normal'
+                  ? '⚠️ Normal Battery (20-60%)'
                   : batteryStatus.status === 'good'
                     ? '✅ Good Battery (60-100%)'
                     : '❓ Unknown Battery'}
@@ -397,14 +582,6 @@ const ActiveChipScreen = ({ navigation, route }) => {
                       Battery: {item.batteryLevel}% ({batteryStatus.label})
                     </Text>
                   </View>
-                  {item.lastBatteryUpdate && (
-                    <View style={styles.lastUpdateContainer}>
-                      <Icon name="time-outline" size={12} color="#999" />
-                      <Text style={styles.lastUpdateText}>
-                        Updated {getTimeAgo(item.lastBatteryUpdate)}
-                      </Text>
-                    </View>
-                  )}
                 </View>
               )}
             </View>
@@ -447,13 +624,13 @@ const ActiveChipScreen = ({ navigation, route }) => {
                 {
                   backgroundColor: batteryStatus.status === 'critical'
                     ? 'rgba(242, 67, 105, 0.2)'
-                    : batteryStatus.status === 'medium'
+                    : batteryStatus.status === 'normal'
                       ? 'rgba(242, 137, 61, 0.2)'
                       : 'rgba(69, 198, 79, 0.2)',
                 },
               ]}>
               <Icon
-                name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'medium' ? 'alert-circle' : 'checkmark-circle'}
+                name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'normal' ? 'alert-circle' : 'checkmark-circle'}
                 size={14}
                 color={batteryStatus.color}
               />
@@ -511,14 +688,14 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
         {/* Refresh Button for Battery Page */}
         {type === 'lowBattery' && (
-          <TouchableOpacity
-            onPress={() => {
-              console.log('🔄 Manual refresh battery data');
-              loadChipData();
-            }}
-            style={styles.refreshButton}>
-            <Icon name="refresh" size={24} color="#613EEA" />
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                console.log('🔄 Manual refresh battery data');
+                loadChipData();
+              }}
+              style={styles.refreshButton}>
+              <Icon name="refresh" size={24} color="#613EEA" />
+            </TouchableOpacity>
         )}
       </View>
       {/* Search bar */}
@@ -865,6 +1042,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f0ff',
     borderRadius: 8,
     marginLeft: 8,
+  },
+  mqttStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  mqttStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  mqttStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
   },
   reassignButton: {
     backgroundColor: '#613EEA',

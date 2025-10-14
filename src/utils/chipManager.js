@@ -318,7 +318,7 @@ export const getCriticalBatteryChips = async () => {
 /**
  * Get battery status for a chip
  * @param {number} batteryLevel - Battery level (0-100)
- * @returns {Object} { status: 'critical'|'medium'|'good', color: string }
+ * @returns {Object} { status: 'critical'|'normal'|'good', color: string }
  */
 export const getBatteryStatus = (batteryLevel) => {
   if (batteryLevel === null || batteryLevel === undefined) {
@@ -328,7 +328,7 @@ export const getBatteryStatus = (batteryLevel) => {
   if (batteryLevel <= 20) {
     return { status: 'critical', color: '#F24369', label: 'Critical' };
   } else if (batteryLevel <= 60) {
-    return { status: 'medium', color: '#F2893D', label: 'Medium' };
+    return { status: 'normal', color: '#F2893D', label: 'Normal' };
   } else {
     return { status: 'good', color: '#45C64F', label: 'Good' };
   }

@@ -322,7 +322,7 @@ export default function MainTabNavigator({setCheckUser}) {
           },
         })}
       />
-      <Tab.Screen
+      {/* <Tab.Screen
         name="History"
         component={HistoryStack}
         listeners={({navigation}) => ({
@@ -338,7 +338,7 @@ export default function MainTabNavigator({setCheckUser}) {
             );
           },
         })}
-      />
+      /> */}
       <Tab.Screen name="Facility" component={ParkingYardStack} />
       {/* <Tab.Screen name="Search" component={VinListStack} /> */}
     </Tab.Navigator>

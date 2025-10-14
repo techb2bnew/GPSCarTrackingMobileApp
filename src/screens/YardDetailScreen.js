@@ -508,15 +508,17 @@ const YardDetailScreen = ({ navigation, route }) => {
       errors.model = 'Model must be at least 2 characters';
     }
 
-    if (!vehicleColor || vehicleColor.trim().length < 2) {
-      errors.color = 'Color must be at least 2 characters';
-    }
+    // Color is now optional - only validate if provided
+    // if (!vehicleColor || vehicleColor.trim().length < 2) {
+    //   errors.color = 'Color must be at least 2 characters';
+    // }
 
-    if (!vehicleSlotNo || vehicleSlotNo.trim().length < 1) {
-      errors.slotNo = 'Slot number is required';
-    }
+    // Slot number is now optional - only validate if provided
+    // if (!vehicleSlotNo || vehicleSlotNo.trim().length < 1) {
+    //   errors.slotNo = 'Slot number is required';
+    // }
 
-    // Check if slot is already occupied
+    // Check if slot is already occupied (only if slot is provided)
     if (vehicleSlotNo && vehicleSlotNo.trim().length > 0) {
       const slotCheck = await checkSlotExists(vehicleSlotNo.trim(), displayYardName);
       if (slotCheck.exists) {
@@ -601,12 +603,12 @@ const YardDetailScreen = ({ navigation, route }) => {
           id: Date.now(), // Generate unique timestamp-based ID
           vin: scannedVinData.vin,
           chip: chipId,
-          slotNo: vehicleSlotNo.trim(),
+          slotNo: vehicleSlotNo.trim() || null, // Optional - can be null
           trackerNo: '', // Optional - empty for now
           facilityId: displayYardName, // Send yard name instead of ID
           make: scannedVinData.make,
           model: scannedVinData.model,
-          color: vehicleColor.trim(),
+          color: vehicleColor.trim() || null, // Optional - can be null
         };
 
         // Add vehicle to Supabase
@@ -686,12 +688,12 @@ const YardDetailScreen = ({ navigation, route }) => {
         id: Date.now(), // Generate unique timestamp-based ID
         vin: scannedVinData.vin,
         chip: null, // No chip assigned yet
-        slotNo: vehicleSlotNo.trim(),
+        slotNo: vehicleSlotNo.trim() || null, // Optional - can be null
         trackerNo: '', // Optional - empty for now
         facilityId: displayYardName, // Send yard name instead of ID
         make: scannedVinData.make,
         model: scannedVinData.model,
-        color: vehicleColor.trim(),
+        color: vehicleColor.trim() || null, // Optional - can be null
       };
 
       // Add vehicle to Supabase
@@ -1127,13 +1129,13 @@ const YardDetailScreen = ({ navigation, route }) => {
                     <Text style={styles.vinLabel}>Year:</Text>
                     <Text style={styles.vinValue}>{scannedVinData?.year}</Text>
 
-                    <Text style={styles.vinLabel}>Color: *</Text>
+                    <Text style={styles.vinLabel}>Color:</Text>
                     <TextInput
                       style={[
                         styles.vinInput,
                         validationErrors.color && styles.inputError
                       ]}
-                      placeholder="Enter vehicle color (e.g., Red, Blue)"
+                      placeholder="Enter vehicle color (e.g., Red, Blue) - Optional"
                       placeholderTextColor="#999"
                       value={vehicleColor}
                       onChangeText={(text) => {
@@ -1148,14 +1150,14 @@ const YardDetailScreen = ({ navigation, route }) => {
                       <Text style={styles.errorText}>{validationErrors.color}</Text>
                     )}
 
-                    <Text style={styles.vinLabel}>Slot Number: *</Text>
+                    <Text style={styles.vinLabel}>Slot Number:</Text>
                     <View>
                       <TextInput
                         style={[
                           styles.vinInput,
                           validationErrors.slotNo && styles.inputError
                         ]}
-                        placeholder="Enter slot number (e.g., A1, B12)"
+                        placeholder="Enter slot number (e.g., A1, B12) - Optional"
                         placeholderTextColor="#999"
                         value={vehicleSlotNo}
                         onChangeText={handleSlotNumberChange}
@@ -1382,37 +1384,51 @@ const YardDetailScreen = ({ navigation, route }) => {
                 <>
                   <TouchableOpacity
                     style={styles.duplicateActionButton}
-                    onPress={async () => {
-                      try {
-                        // Unassign the duplicate chip from the vehicle it belongs to in Supabase
-                        const chipIdToUnassign = duplicateInfo?.value;
+                    onPress={() => {
+                      const chipIdToUnassign = duplicateInfo?.value;
+                      Alert.alert(
+                        'Unassign Chip',
+                        `Are you sure you want to unassign this chip?\n\nChip ID: ${chipIdToUnassign}\nVIN: ${duplicateInfo?.vin}\nYard: ${duplicateInfo?.yardName}\n\nThe vehicle will become inactive.`,
+                        [
+                          {
+                            text: 'No',
+                            style: 'cancel',
+                          },
+                          {
+                            text: 'Yes',
+                            style: 'destructive',
+                            onPress: async () => {
+                              try {
+                                // Update vehicle in Supabase to remove chip
+                                const { error: updateError } = await supabase
+                                  .from('cars')
+                                  .update({ chip: null })
+                                  .eq('chip', chipIdToUnassign);
 
-                        // Update vehicle in Supabase to remove chip
-                        const { error: updateError } = await supabase
-                          .from('cars')
-                          .update({ chip: null })
-                          .eq('chip', chipIdToUnassign);
+                                if (updateError) {
+                                  console.error('❌ Error unassigning chip:', updateError);
+                                  Toast.show('Failed to unassign chip', Toast.SHORT);
+                                  return;
+                                }
 
-                        if (updateError) {
-                          console.error('❌ Error unassigning chip:', updateError);
-                          Toast.show('Failed to unassign chip', Toast.SHORT);
-                          return;
-                        }
+                                console.log(`✅ Chip ${chipIdToUnassign} unassigned in Supabase`);
 
-                        console.log(`✅ Chip ${chipIdToUnassign} unassigned in Supabase`);
+                                // Move chip to inactive array in chip manager
+                                await moveChipToInactive(chipIdToUnassign);
+                                console.log(`✅ Chip ${chipIdToUnassign} moved to inactive chips`);
 
-                        // Move chip to inactive array in chip manager
-                        await moveChipToInactive(chipIdToUnassign);
-                        console.log(`✅ Chip ${chipIdToUnassign} moved to inactive chips`);
-
-                        // Reload vehicles
-                        await loadVehiclesFromStorage();
-                        setShowDuplicateModal(false);
-                        Toast.show('✅ Chip unassigned successfully', Toast.SHORT);
-                      } catch (e) {
-                        console.error('❌ Error unassigning chip:', e);
-                        Toast.show('Failed to unassign chip', Toast.SHORT);
-                      }
+                                // Reload vehicles
+                                await loadVehiclesFromStorage();
+                                setShowDuplicateModal(false);
+                                Toast.show('✅ Chip unassigned successfully', Toast.SHORT);
+                              } catch (e) {
+                                console.error('❌ Error unassigning chip:', e);
+                                Toast.show('Failed to unassign chip', Toast.SHORT);
+                              }
+                            },
+                          },
+                        ]
+                      );
                     }}
                     activeOpacity={0.8}
                   >
