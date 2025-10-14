@@ -1513,6 +1513,8 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-netinfo (11.4.1):
+    - React-Core
   - react-native-safe-area-context (5.6.1):
     - DoubleConversion
     - glog
@@ -2269,6 +2271,7 @@ DEPENDENCIES:
   - react-native-ble-plx (from `../node_modules/react-native-ble-plx`)
   - "react-native-geolocation (from `../node_modules/@react-native-community/geolocation`)"
   - react-native-maps (from `../node_modules/react-native-maps`)
+  - "react-native-netinfo (from `../node_modules/@react-native-community/netinfo`)"
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - react-native-simple-toast (from `../node_modules/react-native-simple-toast`)
   - react-native-streetview (from `../node_modules/react-native-streetview`)
@@ -2426,6 +2429,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/geolocation"
   react-native-maps:
     :path: "../node_modules/react-native-maps"
+  react-native-netinfo:
+    :path: "../node_modules/@react-native-community/netinfo"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-simple-toast:
@@ -2578,6 +2583,7 @@ SPEC CHECKSUMS:
   react-native-ble-plx: e1aa206c3d1a311de06c82cdab5be4abefad4634
   react-native-geolocation: d43962eb0be1b0056ba5c1f95e94fb7907494268
   react-native-maps: 7c4f042c31e7ba4a124478ae5ebbb098786469fc
+  react-native-netinfo: cec9c4e86083cb5b6aba0e0711f563e2fbbff187
   react-native-safe-area-context: 895c49ee2613865f90318789be89a8e286fe7b69
   react-native-simple-toast: c441c833fe4c18473c09fd3b5789f0b279dd074d
   react-native-streetview: 025bde0e066eb35e2224e52cbd1342a07c7105da

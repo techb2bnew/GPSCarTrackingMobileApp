@@ -923,6 +923,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               keyExtractor={item => item.id}
               renderItem={renderItem}
               contentContainerStyle={styles.listContainer}
+              showsVerticalScrollIndicator={false}
             />
           ) : (
             <View style={styles.beautifulEmptyContainer}>

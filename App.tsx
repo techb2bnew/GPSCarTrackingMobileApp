@@ -103,6 +103,7 @@ import AuthStack from './src/navigations/AuthStack';
 import AnimatedLottieView from 'lottie-react-native';
 import { whiteColor } from './src/constants/Color';
 import { BaseStyle } from './src/constants/Style';
+import InternetChecker from './src/components/InternetChecker';
 
 const { flex, alignItemsCenter, alignJustifyCenter } = BaseStyle;
 
@@ -124,6 +125,7 @@ console.log("userDatauserData",userData);
 
   return (
     <View style={styles.container}>
+      <InternetChecker />
       {showSplash ? (
         <View style={styles.splashContainer}>
           <AnimatedLottieView
