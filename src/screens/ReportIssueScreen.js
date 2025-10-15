@@ -9,9 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-simple-toast';
+import { useSelector } from 'react-redux';
+import { supabase } from '../lib/supabaseClient';
 import { spacings, style } from '../constants/Fonts';
 import { blackColor, grayColor, redColor, whiteColor } from '../constants/Color';
 
@@ -19,10 +22,14 @@ const ReportIssueScreen = ({ navigation }) => {
   const [issueTitle, setIssueTitle] = useState('');
   const [issueDescription, setIssueDescription] = useState('');
   const [issueCategory, setIssueCategory] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({
     issueTitle: '',
     issueDescription: '',
   });
+
+  // Get user data from Redux
+  const userData = useSelector(state => state.user.userData);
 
   // Clear specific error
   const clearError = (field) => {
@@ -55,24 +62,69 @@ const ReportIssueScreen = ({ navigation }) => {
   };
 
   // Handle submit
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
       return;
     }
 
-    // Show success message
-    Toast.show('✅ Issue reported successfully! We will review it soon.', Toast.LONG);
+    // Check if user is logged in
+    if (!userData || !userData.id) {
+      Alert.alert(
+        'Login Required',
+        'Please login to report an issue.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
 
-    // TODO: API call will be added here later
-    console.log('Issue Report:', {
-      title: issueTitle,
-      description: issueDescription,
-      category: issueCategory,
-      timestamp: new Date().toISOString(),
-    });
+    setIsSubmitting(true);
 
-    // Navigate back
-    navigation.goBack();
+    try {
+      // Prepare report data
+      const reportData = {
+        user_id: userData.id || userData.userId || 'unknown',
+        user_name: userData.name || userData.username || userData.email || 'Anonymous',
+        user_email: userData.email || null,
+        issue_title: issueTitle.trim(),
+        issue_category: issueCategory.trim() || 'General',
+        issue_description: issueDescription.trim(),
+        status: 'pending',
+        priority: 'normal',
+      };
+
+      console.log('Submitting report:', reportData);
+
+      // Insert to Supabase
+      const { data, error } = await supabase
+        .from('report_issues')
+        .insert([reportData])
+        .select();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Report submitted successfully:', data);
+
+      // Show success message
+      Toast.show('✅ Issue reported successfully! We will review it soon.', Toast.LONG);
+
+      // Navigate back
+      setTimeout(() => {
+        navigation.goBack();
+      }, 500);
+
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      Alert.alert(
+        'Submission Failed',
+        'Failed to submit your report. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -190,14 +242,34 @@ const ReportIssueScreen = ({ navigation }) => {
               </Text>
             </View>
 
+            {/* User Info Display */}
+            {userData && (
+              <View style={styles.userInfoCard}>
+                <Ionicons name="person-circle-outline" size={20} color="#666" />
+                <Text style={styles.userInfoText}>
+                  Reporting as: {userData.name || userData.username || userData.email || 'User'}
+                </Text>
+              </View>
+            )}
+
             {/* Submit Button */}
             <TouchableOpacity
-              style={styles.submitButton}
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
               onPress={handleSubmit}
               activeOpacity={0.8}
+              disabled={isSubmitting}
             >
-              <Ionicons name="send" size={20} color="#fff" />
-              <Text style={styles.submitButtonText}>Submit Report</Text>
+              {isSubmitting ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text style={styles.submitButtonText}>Submitting...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="send" size={20} color="#fff" />
+                  <Text style={styles.submitButtonText}>Submit Report</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -328,6 +400,22 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontStyle: 'italic',
   },
+  userInfoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: spacings.medium,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  userInfoText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
   submitButton: {
     backgroundColor: '#613EEA',
     flexDirection: 'row',
@@ -341,6 +429,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9E8FE5',
+    opacity: 0.7,
   },
   submitButtonText: {
     color: whiteColor,

@@ -163,8 +163,27 @@ const ActiveChipScreen = ({ navigation, route }) => {
           });
         });
 
-        // Save to local storage
+        // Save to local storage (fallback)
         await saveBatteryDataToStorage(chipId, batteryLevel, timestamp);
+
+        // Also update database
+        try {
+          const { error: updateError } = await supabase
+            .from('cars')
+            .update({ 
+              battery_level: batteryLevel,
+              last_battery_update: timestamp
+            })
+            .eq('chip', chipId);
+
+          if (updateError) {
+            console.error('❌ Error updating battery in database:', updateError);
+          } else {
+            console.log(`🔋 ✅ Battery level updated in database: ${chipId} = ${batteryLevel}%`);
+          }
+        } catch (dbError) {
+          console.error('❌ Database update error:', dbError);
+        }
 
       } catch (error) {
         console.error('🔋 ❌ Error parsing MQTT message:', error);
@@ -262,24 +281,29 @@ const ActiveChipScreen = ({ navigation, route }) => {
           yardName: car.facilityId || 'Unknown',
           facility: car.facilityId || 'Unknown',
           slotNo: car.slotNo || car.slot || '',
-          batteryLevel: null,
-          lastBatteryUpdate: null,
+          batteryLevel: car.battery_level || null, // Get from database first
+          lastBatteryUpdate: car.last_battery_update || null, // Get from database first
           assignedAt: new Date().toISOString(),
         }));
 
-        // Load battery data from local storage and MQTT state
+        // Load battery data from local storage as fallback
         const chipIds = chipsData.map(c => c.chipId);
         const storedBatteryData = await loadBatteryDataFromStorage(chipIds);
 
-        // Merge battery data with chips
+        // Merge battery data with chips (database first, then local storage fallback)
         chipsData = chipsData.map(chip => {
           // First check batteryData state (real-time MQTT)
           const mqttBattery = batteryData[chip.chipId];
-          // Then check stored data
+          // Then check database data (already in chip.batteryLevel)
+          const dbBattery = chip.batteryLevel !== null ? {
+            level: chip.batteryLevel,
+            timestamp: chip.lastBatteryUpdate
+          } : null;
+          // Finally check stored data (local storage fallback)
           const storedBattery = storedBatteryData[chip.chipId];
 
-          // Use MQTT data if available, otherwise use stored data
-          const batteryInfo = mqttBattery || storedBattery;
+          // Priority: MQTT > Database > Local Storage
+          const batteryInfo = mqttBattery || dbBattery || storedBattery;
 
           if (batteryInfo) {
             return {

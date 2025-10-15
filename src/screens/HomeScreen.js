@@ -180,11 +180,30 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
           console.log(`🔋 ✅ Battery level received for chip ${chipId}: ${batteryValue}%`);
 
-          // Update battery level in chip manager
+          // 1. Update battery level in database (Supabase)
+          try {
+            const { error: updateError } = await supabase
+              .from('cars')
+              .update({ 
+                battery_level: batteryValue,
+                last_battery_update: new Date().toISOString()
+              })
+              .eq('chip', chipId);
+
+            if (updateError) {
+              console.error('❌ Error updating battery in database:', updateError);
+            } else {
+              console.log(`🔋 ✅ Battery level updated in database: ${chipId} = ${batteryValue}%`);
+            }
+          } catch (dbError) {
+            console.error('❌ Database update error:', dbError);
+          }
+
+          // 2. Update battery level in local storage (fallback)
           const updated = await updateChipBatteryLevel(chipId, batteryValue);
 
           if (updated) {
-            console.log(`🔋 ✅ Battery level updated in chip manager: ${chipId} = ${batteryValue}%`);
+            console.log(`🔋 ✅ Battery level updated in local storage: ${chipId} = ${batteryValue}%`);
             // Reload chip stats to update low battery count
             loadChipStats();
           }
@@ -366,9 +385,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       console.log('🔍 Assigned cars sample:', assignedTrackers.slice(0, 2));
       console.log('🔍 Unassigned cars sample:', unassignedTrackers.slice(0, 2));
 
-      // For now, we'll use a placeholder for low battery chips
-      // This can be enhanced later with actual battery data from MQTT
-      const lowBatteryChips = 0; // Will be updated when battery data is available
+      // Count low battery chips (battery_level <= 20%) from assigned trackers
+      const lowBatteryChips = assignedTrackers.filter(car => {
+        return car.battery_level !== null && car.battery_level !== undefined && car.battery_level <= 20;
+      }).length;
+
+      console.log(`🔋 Low battery chips count: ${lowBatteryChips}`);
 
       setChipStats({
         activeChips: assignedTrackers.length,

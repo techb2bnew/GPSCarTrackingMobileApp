@@ -217,37 +217,79 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         try {
           const payload = JSON.parse(message.toString());
 
-          console.log('MQTT message received on topic:', topic);
-          console.log('Message payload:', payload);
+          console.log('📍 [MQTT] 📨 Message received on topic:', topic);
+          console.log('📍 [MQTT] 📦 Message payload:', payload);
 
           // Since we're subscribed to specific chip ID topics, all messages are for our target chip
           if (topic.includes("4197")) {
             latestLon = payload.value;   // longitude
-            console.log('Longitude received for chip', targetChipId, ':', latestLon);
+            console.log('📍 [MQTT] 🌐 Longitude received for chip', targetChipId, ':', latestLon);
           } else if (topic.includes("4198")) {
             latestLat = payload.value;   // latitude
-            console.log('Latitude received for chip', targetChipId, ':', latestLat);
+            console.log('📍 [MQTT] 🌍 Latitude received for chip', targetChipId, ':', latestLat);
           }
 
           // Update location when both coordinates are received
           if (latestLat !== null && latestLon !== null) {
             const latitude = parseFloat(latestLat);
             const longitude = parseFloat(latestLon);
-            console.log("📡 MQTT GPS for chip", targetChipId, ":", latitude, longitude);
+            console.log("📍 [MQTT] 🎯 Complete GPS coordinates received for chip", targetChipId, ":", {
+              latitude,
+              longitude,
+              timestamp: new Date().toISOString()
+            });
 
             if (!isNaN(latitude) && !isNaN(longitude)) {
               const timestamp = Date.now();
               const nextCoords = { latitude, longitude };
 
-              // Save to AsyncStorage with chip ID and timestamp
+              // Save to AsyncStorage with chip ID and timestamp (fallback)
               await saveChipLocation(targetChipId, latitude, longitude, timestamp);
 
-              // Update saved location state
+              // Update database with new location
+              try {
+                // Use current timestamp instead of MQTT timestamp to avoid timezone issues
+                const currentTimestamp = new Date().toISOString();
+                console.log(`📍 [MQTT] 🔄 Updating database with new location for chip: ${targetChipId}`, {
+                  latitude,
+                  longitude,
+                  mqttTimestamp: new Date(timestamp).toISOString(),
+                  currentTimestamp: currentTimestamp,
+                  localTime: new Date().toLocaleString()
+                });
+                
+                const { error: updateError } = await supabase
+                  .from('cars')
+                  .update({ 
+                    latitude: latitude,
+                    longitude: longitude,
+                    last_location_update: currentTimestamp // Use current time instead of MQTT time
+                  })
+                  .eq('chip', targetChipId);
+
+                if (updateError) {
+                  console.error('📍 [MQTT] ❌ Error updating location in database:', updateError);
+                } else {
+                  console.log(`📍 [MQTT] ✅ Location updated in database successfully:`, {
+                    chipId: targetChipId,
+                    latitude,
+                    longitude,
+                    databaseTimestamp: currentTimestamp,
+                    localTime: new Date().toLocaleString(),
+                    timeAgo: 'Just now'
+                  });
+                }
+              } catch (dbError) {
+                console.error('📍 [MQTT] ❌ Database location update error:', dbError);
+              }
+
+              // Update saved location state with current timestamp
+              const currentTime = Date.now();
               setSavedLocation({
                 latitude,
                 longitude,
-                timestamp,
-                lastUpdated: new Date(timestamp).toLocaleTimeString()
+                timestamp: currentTime, // Use current time for UI
+                lastUpdated: new Date(currentTime).toLocaleTimeString()
               });
 
               // Set both chip location and car location to same coordinates
@@ -257,6 +299,13 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
               // Update last update time
               setLastUpdateTime(new Date().toLocaleTimeString());
+              
+              console.log('📍 [MQTT] ✅ Location updated in UI successfully:', {
+                chipId: targetChipId,
+                coordinates: nextCoords,
+                currentTime: new Date().toLocaleString(),
+                timeAgo: 'Just now'
+              });
 
               // Recalculate distance if current location is available
               if (currentLocation) {
@@ -462,15 +511,70 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
       // Only proceed if chip is assigned
       if (chipId) {
-        // Load saved location first
-        const saved = await loadChipLocation(chipId);
-        if (saved) {
-          setSavedLocation(saved);
-          setChipLocation({ latitude: saved.latitude, longitude: saved.longitude });
-          setCarLocation({ latitude: saved.latitude, longitude: saved.longitude });
-          setMqttDataReceived(true);
-          setTimeAgo(getTimeAgo(saved.timestamp));
-          console.log('Loaded saved location on page open:', saved);
+        // First, try to load location from database
+        try {
+          console.log(`📍 [INIT] Loading location from database for chip: ${chipId}`);
+          const { data: carData, error: dbError } = await supabase
+            .from('cars')
+            .select('latitude, longitude, last_location_update')
+            .eq('chip', chipId)
+            .single();
+
+          console.log(`📍 [DATABASE] Query result:`, { carData, dbError });
+
+          if (!dbError && carData && carData.latitude && carData.longitude) {
+            console.log('📍 [DATABASE] ✅ Location found in database:', {
+              latitude: carData.latitude,
+              longitude: carData.longitude,
+              last_update: carData.last_location_update
+            });
+            const timestamp = carData.last_location_update ? new Date(carData.last_location_update).getTime() : Date.now();
+            
+            setSavedLocation({
+              latitude: carData.latitude,
+              longitude: carData.longitude,
+              timestamp: timestamp,
+              lastUpdated: new Date(timestamp).toLocaleTimeString()
+            });
+            setChipLocation({ latitude: carData.latitude, longitude: carData.longitude });
+            setCarLocation({ latitude: carData.latitude, longitude: carData.longitude });
+            setMqttDataReceived(true);
+            setTimeAgo(getTimeAgo(timestamp));
+            console.log('📍 [DATABASE] ✅ Location loaded successfully from database');
+          } else {
+            console.log('📍 [DATABASE] ❌ No location found in database, checking local storage...', {
+              hasData: !!carData,
+              hasLat: carData?.latitude,
+              hasLng: carData?.longitude,
+              error: dbError
+            });
+            // Fallback to local storage if no database location
+            const saved = await loadChipLocation(chipId);
+            if (saved) {
+              setSavedLocation(saved);
+              setChipLocation({ latitude: saved.latitude, longitude: saved.longitude });
+              setCarLocation({ latitude: saved.latitude, longitude: saved.longitude });
+              setMqttDataReceived(true);
+              setTimeAgo(getTimeAgo(saved.timestamp));
+              console.log('📍 [LOCAL] ✅ Loaded location from local storage:', saved);
+            } else {
+              console.log('📍 [LOCAL] ❌ No location found in local storage either');
+            }
+          }
+        } catch (error) {
+          console.error('📍 [ERROR] Database loading failed:', error);
+          // Fallback to local storage
+          const saved = await loadChipLocation(chipId);
+          if (saved) {
+            setSavedLocation(saved);
+            setChipLocation({ latitude: saved.latitude, longitude: saved.longitude });
+            setCarLocation({ latitude: saved.latitude, longitude: saved.longitude });
+            setMqttDataReceived(true);
+            setTimeAgo(getTimeAgo(saved.timestamp));
+            console.log('📍 [FALLBACK] ✅ Loaded location from local storage after database error');
+          } else {
+            console.log('📍 [FALLBACK] ❌ No location available anywhere');
+          }
         }
 
         // Initialize MQTT connection only if chip is assigned
