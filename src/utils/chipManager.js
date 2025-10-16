@@ -374,3 +374,120 @@ export const getTimeAgo = (timestamp) => {
   return `${diffDay}d ago`;
 };
 
+/**
+ * Get active chips with location data from AsyncStorage
+ * @returns {Promise<Array>} Array of active chips with location data
+ */
+export const getActiveChipsWithLocations = async () => {
+  try {
+    const activeChips = await getActiveChips();
+    
+    // Filter chips that have location data
+    const chipsWithLocations = activeChips.filter(chip => 
+      chip.latitude && chip.longitude
+    );
+    
+    console.log(`🗺️ [CHIP_MANAGER] Found ${chipsWithLocations.length} active chips with locations`);
+    return chipsWithLocations;
+  } catch (error) {
+    console.error('❌ [CHIP_MANAGER] Error getting active chips with locations:', error);
+    return [];
+  }
+};
+
+/**
+ * Update chip location in AsyncStorage
+ * @param {string} chipId - Chip ID
+ * @param {number} latitude - Latitude
+ * @param {number} longitude - Longitude
+ * @returns {Promise<boolean>} Success status
+ */
+export const updateChipLocation = async (chipId, latitude, longitude) => {
+  try {
+    const activeChips = await getActiveChips();
+    const chipIndex = activeChips.findIndex(c => c.chipId === chipId);
+    
+    if (chipIndex >= 0) {
+      activeChips[chipIndex].latitude = latitude;
+      activeChips[chipIndex].longitude = longitude;
+      activeChips[chipIndex].lastLocationUpdate = new Date().toISOString();
+      
+      await AsyncStorage.setItem(ACTIVE_CHIPS_KEY, JSON.stringify(activeChips));
+      console.log(`✅ [CHIP_MANAGER] Updated location for chip ${chipId}: ${latitude}, ${longitude}`);
+      return true;
+    }
+    
+    console.log(`⚠️ [CHIP_MANAGER] Chip ${chipId} not found in active chips`);
+    return false;
+  } catch (error) {
+    console.error('❌ [CHIP_MANAGER] Error updating chip location:', error);
+    return false;
+  }
+};
+
+/**
+ * Check if chip has valid location data
+ * @param {Object} chip - Chip object
+ * @returns {boolean} True if chip has valid location
+ */
+export const hasValidLocation = (chip) => {
+  return chip && 
+         chip.latitude && 
+         chip.longitude && 
+         !isNaN(parseFloat(chip.latitude)) && 
+         !isNaN(parseFloat(chip.longitude));
+};
+
+/**
+ * Calculate distance between two coordinates (in kilometers)
+ * @param {number} lat1 - Latitude 1
+ * @param {number} lon1 - Longitude 1
+ * @param {number} lat2 - Latitude 2
+ * @param {number} lon2 - Longitude 2
+ * @returns {number} Distance in kilometers
+ */
+export const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const distance = R * c;
+  return distance;
+};
+
+/**
+ * Find chips within radius of a location
+ * @param {number} centerLat - Center latitude
+ * @param {number} centerLon - Center longitude
+ * @param {number} radiusKm - Radius in kilometers
+ * @returns {Promise<Array>} Array of chips within radius
+ */
+export const findChipsWithinRadius = async (centerLat, centerLon, radiusKm = 10) => {
+  try {
+    const activeChips = await getActiveChipsWithLocations();
+    
+    const nearbyChips = activeChips.filter(chip => {
+      if (!hasValidLocation(chip)) return false;
+      
+      const distance = calculateDistance(
+        centerLat, 
+        centerLon, 
+        parseFloat(chip.latitude), 
+        parseFloat(chip.longitude)
+      );
+      
+      return distance <= radiusKm;
+    });
+    
+    console.log(`🗺️ [CHIP_MANAGER] Found ${nearbyChips.length} chips within ${radiusKm}km radius`);
+    return nearbyChips;
+  } catch (error) {
+    console.error('❌ [CHIP_MANAGER] Error finding chips within radius:', error);
+    return [];
+  }
+};
+

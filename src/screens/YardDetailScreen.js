@@ -224,11 +224,11 @@ const YardDetailScreen = ({ navigation, route }) => {
       console.log(`🔍 Yard ID: ${yardId}`);
       console.log(`🔍 Current Yard:`, currentYard);
 
-      // Fetch vehicles from Supabase for this specific facility/yard
+      // Fetch vehicles from Supabase for this specific facility/yard using facility ID
       const { data, error } = await supabase
         .from('cars')
         .select('*')
-        .eq('facilityId', displayYardName);
+        .eq('facilityId', yardId);
 
       if (error) {
         console.error('❌ Error loading vehicles from Supabase:', error);
@@ -239,7 +239,7 @@ const YardDetailScreen = ({ navigation, route }) => {
         return;
       }
 
-      console.log(`✅ Loaded ${data?.length || 0} vehicles from Supabase for facility "${displayYardName}"`);
+      console.log(`✅ Loaded ${data?.length || 0} vehicles from Supabase for facility ID "${yardId}"`);
       console.log(`🔍 Raw data from Supabase:`, data);
 
       // Transform Supabase data to match app format
@@ -482,7 +482,7 @@ const YardDetailScreen = ({ navigation, route }) => {
     // Debounce the slot check (wait 800ms after user stops typing)
     slotCheckTimeoutRef.current = setTimeout(async () => {
       try {
-        const slotCheck = await checkSlotExists(text.trim(), displayYardName);
+        const slotCheck = await checkSlotExists(text.trim(), yardId);
 
         if (slotCheck.exists) {
           setValidationErrors(prev => ({
@@ -596,7 +596,7 @@ const YardDetailScreen = ({ navigation, route }) => {
 
     // Check if slot is already occupied (only if slot is provided)
     if (vehicleSlotNo && vehicleSlotNo.trim().length > 0) {
-      const slotCheck = await checkSlotExists(vehicleSlotNo.trim(), displayYardName);
+      const slotCheck = await checkSlotExists(vehicleSlotNo.trim(), yardId);
       if (slotCheck.exists) {
         errors.slotNo = `Slot ${vehicleSlotNo} is already occupied by VIN: ${slotCheck.vin}`;
       }
@@ -681,7 +681,7 @@ const YardDetailScreen = ({ navigation, route }) => {
           chip: chipId,
           slotNo: vehicleSlotNo.trim() || null, // Optional - can be null
           trackerNo: '', // Optional - empty for now
-          facilityId: displayYardName, // Send yard name instead of ID
+          facilityId: yardId, // Send facility ID instead of name
           make: scannedVinData.make,
           model: scannedVinData.model,
           color: vehicleColor.trim() || null, // Optional - can be null
@@ -772,7 +772,7 @@ const YardDetailScreen = ({ navigation, route }) => {
         chip: null, // No chip assigned yet
         slotNo: vehicleSlotNo.trim() || null, // Optional - can be null
         trackerNo: '', // Optional - empty for now
-        facilityId: displayYardName, // Send yard name instead of ID
+        facilityId: yardId, // Send facility ID instead of name
         make: scannedVinData.make,
         model: scannedVinData.model,
         color: vehicleColor.trim() || null, // Optional - can be null

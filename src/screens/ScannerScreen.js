@@ -21,6 +21,30 @@ const ScannerScreen = ({ navigation, route }) => {
   
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  // Function to get yard name from facility ID
+  const getYardNameFromId = async (facilityId) => {
+    try {
+      if (!facilityId || facilityId === 'Unknown') return 'Unknown Yard';
+      
+      // Get yard name from facility table
+      const { data: facilityData, error } = await supabase
+        .from('facility')
+        .select('name')
+        .eq('id', facilityId)
+        .single();
+
+      if (error || !facilityData) {
+        console.log(`⚠️ Yard name not found for ID: ${facilityId}`);
+        return `Yard ${facilityId}`; // Fallback with ID
+      }
+
+      return facilityData.name;
+    } catch (error) {
+      console.error('❌ Error fetching yard name:', error);
+      return `Yard ${facilityId}`; // Fallback with ID
+    }
+  };
+
   // Find vehicle in all yards by VIN (Supabase)
   const findVehicleByVin = async (vin) => {
     try {
@@ -41,8 +65,8 @@ const ScannerScreen = ({ navigation, route }) => {
         const foundVehicle = data[0];
         console.log('✅ Found vehicle in Supabase:', foundVehicle);
         
-        // facilityId is the yard name (string)
-        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+        // Get yard name from facility ID
+        const yardName = await getYardNameFromId(foundVehicle.facilityId);
 
         // Transform to match app format
         const vehicleWithYardId = {
@@ -60,8 +84,8 @@ const ScannerScreen = ({ navigation, route }) => {
 
         return { 
           vehicle: vehicleWithYardId, 
-          yardId: foundVehicle.facilityId, // Using yard name as ID for now
-          yardName: yardName 
+          yardId: foundVehicle.facilityId, // Send ID to backend
+          yardName: yardName // Show name in UI
         };
       }
 
@@ -94,8 +118,8 @@ const ScannerScreen = ({ navigation, route }) => {
         const foundVehicle = data[0];
         console.log('✅ Found vehicle with chip in Supabase:', foundVehicle);
         
-        // facilityId is the yard name (string)
-        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+        // Get yard name from facility ID
+        const yardName = await getYardNameFromId(foundVehicle.facilityId);
 
         // Transform to match app format
         const vehicleWithYardId = {
@@ -113,8 +137,8 @@ const ScannerScreen = ({ navigation, route }) => {
 
         return { 
           vehicle: vehicleWithYardId, 
-          yardId: foundVehicle.facilityId, // Using yard name as ID for now
-          yardName: yardName 
+          yardId: foundVehicle.facilityId, // Send ID to backend
+          yardName: yardName // Show name in UI
         };
       }
 

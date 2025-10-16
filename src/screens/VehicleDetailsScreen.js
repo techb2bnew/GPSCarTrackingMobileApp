@@ -78,7 +78,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
-    return vehicle?.chipId; // Fallback to default chip ID
+    return vehicle?.chip || vehicle?.chipId; // Support both chip and chipId fields
   };
 
   // Get current user info for history
@@ -231,6 +231,30 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     return `${diffDay}d ago`;
   };
 
+  // Function to get yard name from facility ID
+  const getYardNameFromId = async (facilityId) => {
+    try {
+      if (!facilityId || facilityId === 'Unknown') return 'Unknown Yard';
+      
+      // Get yard name from facility table
+      const { data: facilityData, error } = await supabase
+        .from('facility')
+        .select('name')
+        .eq('id', facilityId)
+        .single();
+
+      if (error || !facilityData) {
+        console.log(`⚠️ Yard name not found for ID: ${facilityId}`);
+        return `Yard ${facilityId}`; // Fallback with ID
+      }
+
+      return facilityData.name;
+    } catch (error) {
+      console.error('❌ Error fetching yard name:', error);
+      return `Yard ${facilityId}`; // Fallback with ID
+    }
+  };
+
   // Check if chip already exists in Supabase (case-insensitive)
   const checkChipExists = async (chipId) => {
     try {
@@ -252,8 +276,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         const foundVehicle = data[0];
         console.log(`❌ Chip ${chipId} already exists in facility: ${foundVehicle.facilityId}`);
 
-        // facilityId is the yard name (string)
-        const yardName = foundVehicle.facilityId || 'Unknown Facility';
+        // Get yard name from facility ID
+        const yardName = await getYardNameFromId(foundVehicle.facilityId);
 
         return {
           exists: true,
@@ -794,8 +818,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           vin: vehicle.vin,
           make: vehicle.make,
           model: vehicle.model,
-          yardId: yardName || yardId, // facilityId is yard name
-          yardName: yardName || 'Unknown Yard'
+          yardId: yardId, // Send actual yard ID to backend
+          yardName: yardName || 'Unknown Yard' // Show yard name in UI
         });
         console.log(`✅ Chip ${chipId} assigned and added to active chips`);
         Toast.show('✅ Chip assigned successfully!', Toast.LONG);

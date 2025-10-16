@@ -352,12 +352,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }
   };
 
-  // Load chip stats from Supabase database
+  // Load chip stats from Supabase database (same as ActiveChipScreen)
   const loadChipStats = async () => {
     try {
       console.log('🔄 Loading chip stats from Supabase...');
 
-      // Get all cars from Supabase to count assigned/unassigned trackers
+      // Get all cars from Supabase
       const { data: carsData, error: carsError } = await supabase
         .from('cars')
         .select('*');
@@ -368,7 +368,6 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       }
 
       console.log('✅ Fetched cars from Supabase:', carsData.length);
-      console.log('🔍 Sample car data:', carsData[0]); // Debug: Check first car structure
 
       // Count assigned trackers (cars with chip) - these are Active Chips
       const assignedTrackers = carsData.filter(car => {
@@ -376,28 +375,32 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
       });
       
-      // Count unassigned trackers (cars without chip or NULL chip) - these are In-Active Chips
+      // Count unassigned trackers (cars without chip or NULL chip) - these are Inactive Chips
       const unassignedTrackers = carsData.filter(car => {
         const chip = car.chip;
         return !chip || chip === null || chip === 'NULL' || chip.toString().trim() === '' || chip.toString().trim() === 'null';
       });
       
-      console.log('🔍 Assigned cars sample:', assignedTrackers.slice(0, 2));
-      console.log('🔍 Unassigned cars sample:', unassignedTrackers.slice(0, 2));
-
       // Count low battery chips (battery_level <= 20%) from assigned trackers
       const lowBatteryChips = assignedTrackers.filter(car => {
         return car.battery_level !== null && car.battery_level !== undefined && car.battery_level <= 20;
       }).length;
 
       console.log(`🔋 Low battery chips count: ${lowBatteryChips}`);
+      console.log(`✅ Active chips (assigned): ${assignedTrackers.length}`);
+      console.log(`✅ Inactive chips (unassigned): ${unassignedTrackers.length}`);
 
       setChipStats({
         activeChips: assignedTrackers.length,
         inactiveChips: unassignedTrackers.length,
-        lowBatteryChips,
+        lowBatteryChips: lowBatteryChips,
       });
 
+      console.log('📊 Final chip stats from Supabase:', {
+        activeChips: assignedTrackers.length,
+        inactiveChips: unassignedTrackers.length,
+        lowBatteryChips: lowBatteryChips,
+      });
     
     } catch (error) {
       console.error('❌ Error loading chip stats:', error);
@@ -603,66 +606,93 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
   // Delete yard
   const handleDeleteYard = async (yard) => {
-    // Check if yard has vehicles
-    const storageKey = `yard_${yard.id}_vehicles`;
-    const savedVehicles = await AsyncStorage.getItem(storageKey);
-    const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
+    try {
+      // Check vehicle count from Supabase (not AsyncStorage)
+      const { data: vehicles, error: vehiclesError } = await supabase
+        .from('cars')
+        .select('id')
+        .eq('facilityId', yard.id);
 
-    if (vehicleCount > 0) {
+      if (vehiclesError) {
+        console.error('❌ Error fetching vehicles:', vehiclesError);
+        Alert.alert('Error', 'Failed to check yard vehicles');
+        return;
+      }
+
+      const vehicleCount = vehicles ? vehicles.length : 0;
+      console.log(`🔍 Yard "${yard.name}" has ${vehicleCount} vehicles`);
+
+      // Determine confirmation message based on vehicle count
+      const confirmationMessage = vehicleCount > 0 
+        ? `This yard has ${vehicleCount} vehicles. Deleting this yard will also delete all ${vehicleCount} vehicles. Are you sure you want to proceed?`
+        : `Are you sure you want to delete "${yard.name}"?`;
+
       Alert.alert(
-        'Cannot Delete Yard',
-        `This yard has ${vehicleCount} vehicles. Please remove all vehicles first.`,
-        [{ text: 'OK' }]
-      );
-      return;
-    }
+        'Delete Yard',
+        confirmationMessage,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                console.log('🔄 Deleting yard and vehicles from Supabase...');
 
-    Alert.alert(
-      'Delete Yard',
-      `Are you sure you want to delete "${yard.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🔄 Deleting yard from Supabase...');
+                // 1. First delete all vehicles in this yard
+                if (vehicleCount > 0) {
+                  const { error: vehiclesDeleteError } = await supabase
+                    .from('cars')
+                    .delete()
+                    .eq('facilityId', yard.id);
 
-              // 1. Delete from Supabase first
-              const { error } = await supabase
-                .from('facility')
-                .delete()
-                .eq('id', yard.id);
+                  if (vehiclesDeleteError) {
+                    console.error('❌ Error deleting vehicles:', vehiclesDeleteError);
+                    Alert.alert('Error', `Failed to delete vehicles: ${vehiclesDeleteError.message}`);
+                    return;
+                  }
+                  console.log(`✅ Deleted ${vehicleCount} vehicles from yard`);
+                }
 
-              if (error) {
-                console.error('❌ Supabase delete error:', error);
+                // 2. Delete the yard itself
+                const { error: yardDeleteError } = await supabase
+                  .from('facility')
+                  .delete()
+                  .eq('id', yard.id);
+
+                if (yardDeleteError) {
+                  console.error('❌ Supabase delete error:', yardDeleteError);
+                  Alert.alert('Error', `Failed to delete yard: ${yardDeleteError.message}`);
+                  return;
+                }
+
+                console.log('✅ Deleted yard from Supabase');
+
+                // 3. Update local storage
+                const updatedYards = yards.filter(y => y.id !== yard.id);
+                setYards(updatedYards);
+                await saveYards(updatedYards);
+
+                // 4. Remove yard vehicles storage key (cleanup)
+                const storageKey = `yard_${yard.id}_vehicles`;
+                await AsyncStorage.removeItem(storageKey);
+
+                console.log('✅ Deleted from local storage');
+
+                Toast.show(`✅ Yard and ${vehicleCount} vehicles deleted successfully!`, Toast.LONG);
+
+              } catch (error) {
+                console.error('❌ Error deleting yard:', error);
                 Alert.alert('Error', `Failed to delete yard: ${error.message}`);
-                return;
               }
-
-              console.log('✅ Deleted from Supabase');
-
-              // 2. Update local storage
-              const updatedYards = yards.filter(y => y.id !== yard.id);
-              setYards(updatedYards);
-              await saveYards(updatedYards);
-
-              // Remove yard vehicles storage key
-              await AsyncStorage.removeItem(storageKey);
-
-              console.log('✅ Deleted from local storage');
-
-              Toast.show('✅ Yard deleted successfully!', Toast.LONG);
-
-            } catch (error) {
-              console.error('❌ Error deleting yard:', error);
-              Alert.alert('Error', `Failed to delete yard: ${error.message}`);
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    } catch (error) {
+      console.error('❌ Error in handleDeleteYard:', error);
+      Alert.alert('Error', 'Failed to process yard deletion');
+    }
   };
 
   // Helper function to get slot information for a yard
@@ -683,7 +713,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       const { data: vehicles, error } = await supabase
         .from('cars')
         .select('id', { count: 'exact' })
-        .eq('facilityId', yardName);
+        .eq('facilityId', yard.id);
 
       if (error) {
         console.error('❌ Error fetching vehicle count:', error);

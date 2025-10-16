@@ -205,7 +205,7 @@ const ParkingYardScreen = ({ navigation }) => {
       const { data: vehicles, error } = await supabase
         .from('cars')
         .select('id', { count: 'exact' })
-        .eq('facilityId', yardName);
+        .eq('facilityId', yard.id);
 
       if (error) {
         console.error('❌ Error fetching vehicle count:', error);
@@ -510,66 +510,94 @@ const ParkingYardScreen = ({ navigation }) => {
 
   // Delete yard
   const handleDeleteYard = async (yard) => {
-    const storageKey = `yard_${yard.id}_vehicles`;
-    const savedVehicles = await AsyncStorage.getItem(storageKey);
-    const vehicleCount = savedVehicles ? JSON.parse(savedVehicles).length : 0;
+    try {
+      // Check vehicle count from Supabase (not AsyncStorage)
+      const { data: vehicles, error: vehiclesError } = await supabase
+        .from('cars')
+        .select('id')
+        .eq('facilityId', yard.id);
 
-    if (vehicleCount > 0) {
+      if (vehiclesError) {
+        console.error('❌ [ParkingYardScreen] Error fetching vehicles:', vehiclesError);
+        Alert.alert('Error', 'Failed to check yard vehicles');
+        return;
+      }
+
+      const vehicleCount = vehicles ? vehicles.length : 0;
+      console.log(`🔍 [ParkingYardScreen] Yard "${yard.name}" has ${vehicleCount} vehicles`);
+
+      // Determine confirmation message based on vehicle count
+      const confirmationMessage = vehicleCount > 0 
+        ? `This yard has ${vehicleCount} vehicles. Deleting this yard will also delete all ${vehicleCount} vehicles. Are you sure you want to proceed?`
+        : `Are you sure you want to delete "${yard.name}"?`;
+
       Alert.alert(
-        'Cannot Delete Yard',
-        `This yard has ${vehicleCount} vehicles. Please remove all vehicles first.`,
-        [{ text: 'OK' }]
-      );
-      return;
-    }
+        'Delete Yard',
+        confirmationMessage,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                console.log('🔄 [ParkingYardScreen] Deleting yard and vehicles from Supabase...');
 
-    Alert.alert(
-      'Delete Yard',
-      `Are you sure you want to delete "${yard.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('🔄 [ParkingYardScreen] Deleting yard from Supabase...');
+                // 1. First delete all vehicles in this yard
+                if (vehicleCount > 0) {
+                  const { error: vehiclesDeleteError } = await supabase
+                    .from('cars')
+                    .delete()
+                    .eq('facilityId', yard.id);
 
-              // 1. Delete from Supabase first
-              const { error } = await supabase
-                .from('facility')
-                .delete()
-                .eq('id', yard.id);
+                  if (vehiclesDeleteError) {
+                    console.error('❌ [ParkingYardScreen] Error deleting vehicles:', vehiclesDeleteError);
+                    Alert.alert('Error', `Failed to delete vehicles: ${vehiclesDeleteError.message}`);
+                    return;
+                  }
+                  console.log(`✅ [ParkingYardScreen] Deleted ${vehicleCount} vehicles from yard`);
+                }
 
-              if (error) {
-                console.error('❌ [ParkingYardScreen] Supabase delete error:', error);
+                // 2. Delete the yard itself
+                const { error: yardDeleteError } = await supabase
+                  .from('facility')
+                  .delete()
+                  .eq('id', yard.id);
+
+                if (yardDeleteError) {
+                  console.error('❌ [ParkingYardScreen] Supabase delete error:', yardDeleteError);
+                  Alert.alert('Error', `Failed to delete yard: ${yardDeleteError.message}`);
+                  return;
+                }
+
+                console.log('✅ [ParkingYardScreen] Deleted yard from Supabase');
+
+                // 3. Update local storage
+                const updatedYards = yards.filter(y => y.id !== yard.id);
+                setYards(updatedYards);
+                setFilteredYards(updatedYards);
+                await saveYards(updatedYards);
+                
+                // 4. Remove yard vehicles storage key (cleanup)
+                const storageKey = `yard_${yard.id}_vehicles`;
+                await AsyncStorage.removeItem(storageKey);
+
+                console.log('✅ [ParkingYardScreen] Deleted from local storage');
+                
+                Toast.show(`✅ Yard and ${vehicleCount} vehicles deleted successfully!`, Toast.LONG);
+
+              } catch (error) {
+                console.error('❌ [ParkingYardScreen] Error deleting yard:', error);
                 Alert.alert('Error', `Failed to delete yard: ${error.message}`);
-                return;
               }
-
-              console.log('✅ [ParkingYardScreen] Deleted from Supabase');
-
-              // 2. Update local storage
-              const updatedYards = yards.filter(y => y.id !== yard.id);
-              setYards(updatedYards);
-              setFilteredYards(updatedYards);
-              await saveYards(updatedYards);
-              
-              // Remove yard vehicles storage key
-              await AsyncStorage.removeItem(storageKey);
-
-              console.log('✅ [ParkingYardScreen] Deleted from local storage');
-              
-              Toast.show('✅ Yard deleted successfully!', Toast.LONG);
-
-            } catch (error) {
-              console.error('❌ [ParkingYardScreen] Error deleting yard:', error);
-              Alert.alert('Error', `Failed to delete yard: ${error.message}`);
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    } catch (error) {
+      console.error('❌ [ParkingYardScreen] Error in handleDeleteYard:', error);
+      Alert.alert('Error', 'Failed to process yard deletion');
+    }
   };
 
   // Yard Card Component with dynamic slot info

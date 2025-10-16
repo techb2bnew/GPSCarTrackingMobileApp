@@ -198,6 +198,30 @@ const ActiveChipScreen = ({ navigation, route }) => {
     setMqttClient(client);
   };
 
+  // Function to get yard name from facility ID
+  const getYardNameFromId = async (facilityId) => {
+    try {
+      if (!facilityId || facilityId === 'Unknown') return 'Unknown Yard';
+      
+      // Get yard name from facility table
+      const { data: facilityData, error } = await supabase
+        .from('facility')
+        .select('name')
+        .eq('id', facilityId)
+        .single();
+
+      if (error || !facilityData) {
+        console.log(`⚠️ Yard name not found for ID: ${facilityId}`);
+        return `Yard ${facilityId}`; // Fallback with ID
+      }
+
+      return facilityData.name;
+    } catch (error) {
+      console.error('❌ Error fetching yard name:', error);
+      return `Yard ${facilityId}`; // Fallback with ID
+    }
+  };
+
   // Load chip data from Supabase database
   const loadChipData = async () => {
     try {
@@ -222,10 +246,20 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
       if (type === 'active') {
         // Active chips = cars with assigned chip (chip field has value)
-        chipsData = carsData.filter(car => {
+        const activeCars = carsData.filter(car => {
           const chip = car.chip;
           return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
-        }).map(car => ({
+        });
+
+        // Get yard names for all unique facility IDs
+        const uniqueFacilityIds = [...new Set(activeCars.map(car => car.facilityId))];
+        const yardNamesMap = {};
+        
+        for (const facilityId of uniqueFacilityIds) {
+          yardNamesMap[facilityId] = await getYardNameFromId(facilityId);
+        }
+
+        chipsData = activeCars.map(car => ({
           chipId: car.chip,
           vin: car.vin,
           vehicleId: car.id || car.vin,
@@ -233,8 +267,8 @@ const ActiveChipScreen = ({ navigation, route }) => {
           model: car.model || 'N/A',
           year: car.year || 'N/A',
           yardId: car.facilityId || 'Unknown',
-          yardName: car.facilityId || 'Unknown',
-          facility: car.facilityId || 'Unknown',
+          yardName: yardNamesMap[car.facilityId] || 'Unknown Yard',
+          facility: yardNamesMap[car.facilityId] || 'Unknown Yard',
           slotNo: car.slotNo || car.slot || '',
           batteryLevel: null,
           assignedAt: new Date().toISOString(),
@@ -244,10 +278,20 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
       } else if (type === 'inactive') {
         // Inactive chips = cars without assigned chip (chip field is NULL)
-        chipsData = carsData.filter(car => {
+        const inactiveCars = carsData.filter(car => {
           const chip = car.chip;
           return !chip || chip === null || chip === 'NULL' || chip.toString().trim() === '' || chip.toString().trim() === 'null';
-        }).map(car => ({
+        });
+
+        // Get yard names for all unique facility IDs
+        const uniqueFacilityIds = [...new Set(inactiveCars.map(car => car.facilityId))];
+        const yardNamesMap = {};
+        
+        for (const facilityId of uniqueFacilityIds) {
+          yardNamesMap[facilityId] = await getYardNameFromId(facilityId);
+        }
+
+        chipsData = inactiveCars.map(car => ({
           chipId: null,
           vin: car.vin,
           vehicleId: car.id || car.vin,
@@ -255,8 +299,8 @@ const ActiveChipScreen = ({ navigation, route }) => {
           model: car.model || 'N/A',
           year: car.year || 'N/A',
           yardId: car.facilityId || 'Unknown',
-          yardName: car.facilityId || 'Unknown',
-          facility: car.facilityId || 'Unknown',
+          yardName: yardNamesMap[car.facilityId] || 'Unknown Yard',
+          facility: yardNamesMap[car.facilityId] || 'Unknown Yard',
           slotNo: car.slotNo || car.slot || '',
           unassignedAt: new Date().toISOString(),
         }));
@@ -270,6 +314,14 @@ const ActiveChipScreen = ({ navigation, route }) => {
           return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
         });
 
+        // Get yard names for all unique facility IDs
+        const uniqueFacilityIds = [...new Set(activeCars.map(car => car.facilityId))];
+        const yardNamesMap = {};
+        
+        for (const facilityId of uniqueFacilityIds) {
+          yardNamesMap[facilityId] = await getYardNameFromId(facilityId);
+        }
+
         chipsData = activeCars.map(car => ({
           chipId: car.chip,
           vin: car.vin,
@@ -278,8 +330,8 @@ const ActiveChipScreen = ({ navigation, route }) => {
           model: car.model || 'N/A',
           year: car.year || 'N/A',
           yardId: car.facilityId || 'Unknown',
-          yardName: car.facilityId || 'Unknown',
-          facility: car.facilityId || 'Unknown',
+          yardName: yardNamesMap[car.facilityId] || 'Unknown Yard',
+          facility: yardNamesMap[car.facilityId] || 'Unknown Yard',
           slotNo: car.slotNo || car.slot || '',
           batteryLevel: car.battery_level || null, // Get from database first
           lastBatteryUpdate: car.last_battery_update || null, // Get from database first
