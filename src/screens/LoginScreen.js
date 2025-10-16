@@ -9,7 +9,10 @@ import {
   ImageBackground,
   Image,
   ActivityIndicator,
+  Modal,
+  Linking,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import bcrypt from 'bcryptjs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabaseClient'; // adjust path to your Supabase client
@@ -25,11 +28,35 @@ const LoginScreen = ({ navigation }) => {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
+  const [supportModalVisible, setSupportModalVisible] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const clearErrors = () => {
     setEmailError('');
     setPasswordError('');
     setGeneralError('');
+  };
+
+  const handleEmailContact = () => {
+    const email = 'support@example.com'; // Replace with your support email
+    const subject = 'Customer Support Request';
+    const body = 'Hello, I need help with...';
+    
+    const emailUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    
+    Linking.openURL(emailUrl).catch(err => {
+      Alert.alert('Error', 'Could not open email client');
+    });
+  };
+
+  const handlePhoneContact = () => {
+    const phoneNumber = '+1234567890'; // Replace with your support phone number
+    
+    const phoneUrl = `tel:${phoneNumber}`;
+    
+    Linking.openURL(phoneUrl).catch(err => {
+      Alert.alert('Error', 'Could not open phone dialer');
+    });
   };
 
   const handleLogin = async () => {
@@ -144,32 +171,42 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.passwordRow}>
           <Text style={styles.label}>Password</Text>
         </View>
-        <TextInput
-          style={[styles.input, passwordError ? styles.inputError : null]}
-          placeholder="**********"
-          placeholderTextColor="#aaa"
-          secureTextEntry
-          value={password}
-          onChangeText={(text) => {
-            setPassword(text);
-            if (passwordError) clearErrors();
-          }}
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={[styles.passwordInput, passwordError ? styles.inputError : null]}
+            placeholder="**********"
+            placeholderTextColor="#aaa"
+            secureTextEntry={!showPassword}
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              if (passwordError) clearErrors();
+            }}
+          />
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setShowPassword(!showPassword)}
+          >
+            <Icon
+              name={showPassword ? 'visibility' : 'visibility-off'}
+              size={20}
+              color="#666"
+            />
+          </TouchableOpacity>
+        </View>
         {passwordError ? (
           <Text style={styles.fieldErrorText}>{passwordError}</Text>
         ) : null}
 
         {generalError ? (
-          // <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{generalError}</Text>
-          // </View>
         ) : null}
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={{ alignSelf: 'flex-end' }}
           onPress={() => navigation.navigate('ForgetPasswordFlow')}>
           <Text style={styles.forgot}>Forget Password?</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           {loading ? (
@@ -187,7 +224,59 @@ const LoginScreen = ({ navigation }) => {
             <Text style={styles.signupLink}>Sign up</Text>
           </Text>
         </TouchableOpacity> */}
+
+        {/* Customer Support Button */}
+        <TouchableOpacity 
+          style={styles.supportButton}
+          onPress={() => setSupportModalVisible(true)}
+        >
+          <Text style={styles.supportButtonText}>Customer Support</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Support Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={supportModalVisible}
+        onRequestClose={() => setSupportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Contact Support</Text>
+            <Text style={styles.modalSubtitle}>Choose how you'd like to contact us</Text>
+            
+            <TouchableOpacity 
+              style={styles.contactOption}
+              onPress={() => {
+                setSupportModalVisible(false);
+                handleEmailContact();
+              }}
+            >
+              <Text style={styles.contactOptionText}>📧 Email Support</Text>
+              <Text style={styles.contactOptionSubtext}>support@example.com</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.contactOption}
+              onPress={() => {
+                setSupportModalVisible(false);
+                handlePhoneContact();
+              }}
+            >
+              <Text style={styles.contactOptionText}>📞 Phone Support</Text>
+              <Text style={styles.contactOptionSubtext}>+1 (234) 567-8900</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => setSupportModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ImageBackground>
   );
 };
@@ -214,6 +303,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     marginBottom: 10,
+    backgroundColor: 'white',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderColor: '#aaa',
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 10,
+    backgroundColor: 'white',
+  },
+  passwordInput: {
+    flex: 1,
+    height: 45,
+    paddingHorizontal: 12,
+    borderWidth: 0,
+  },
+  eyeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   passwordRow: {
     flexDirection: 'row',
@@ -271,5 +382,75 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 10,
     marginLeft: 4,
+  },
+  supportButton: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  supportButtonText: {
+    color: '#613EEA',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '80%',
+    maxWidth: 300,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+    color: '#333',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#666',
+  },
+  contactOption: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  contactOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  contactOptionSubtext: {
+    fontSize: 14,
+    color: '#666',
+  },
+  cancelButton: {
+    backgroundColor: '#6c757d',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  cancelButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

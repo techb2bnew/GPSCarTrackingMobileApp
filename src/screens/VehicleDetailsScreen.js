@@ -26,6 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addActiveChip, moveChipToInactive, moveChipToActive, removeInactiveChip } from '../utils/chipManager';
 import { supabase } from '../lib/supabaseClient';
 import Toast from 'react-native-simple-toast';
+import { useSelector } from 'react-redux';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -34,6 +35,9 @@ const { width, height } = Dimensions.get('window');
 const VehicleDetailsScreen = ({ navigation, route }) => {
   const { vehicle: initialVehicle, yardName, yardId } = route?.params || {};
   const [vehicle, setVehicle] = useState(initialVehicle);
+
+  // Get current user from Redux store
+  const userData = useSelector(state => state.user.userData);
   const mapRef = useRef(null);
 
   // Location states
@@ -58,6 +62,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateInfo, setDuplicateInfo] = useState(null);
 
+  // History states
+  const [chipHistory, setChipHistory] = useState([]);
+
   // Remove mock data - will use real MQTT data
 
   // MQTT Configuration (same as ParkingMap1)
@@ -72,6 +79,108 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
     return vehicle?.chipId; // Fallback to default chip ID
+  };
+
+  // Get current user info for history
+  const getCurrentUser = () => {
+    try {
+      if (userData) {
+        console.log("📚 [HISTORY] User data:", userData);
+
+        return {
+          name: userData?.name || userData?.email || 'Admin User',
+          email: userData?.email || 'admin@example.com'
+        };
+      }
+
+    } catch (error) {
+      console.error('Error getting user data:', error);
+    }
+  };
+
+  // Add entry to chip history
+  const addToHistory = async (action, chipId, notes) => {
+    try {
+      console.log(`📚 [HISTORY] Adding ${action} entry for chip: ${chipId}`);
+
+      const user = getCurrentUser();
+      const newEntry = {
+        action,
+        chip_id: chipId,
+        vin: vehicle?.vin,
+        timestamp: new Date().toISOString(),
+        user_name: user.name,
+        user_email: user.email,
+        notes
+      };
+
+      // Get current history from database
+      const { data: currentData, error: fetchError } = await supabase
+        .from('cars')
+        .select('history')
+        .eq('id', vehicle.id)
+        .single();
+
+      if (fetchError) {
+        console.error('📚 [HISTORY] Error fetching current history:', fetchError);
+        return;
+      }
+
+      // Parse existing history or create new array
+      const existingHistory = currentData?.history || { chip_history: [] };
+      const historyArray = existingHistory.chip_history || [];
+
+      // Add new entry to the beginning of array (most recent first)
+      const updatedHistory = {
+        chip_history: [newEntry, ...historyArray]
+      };
+
+      // Update database with new history
+      const { error: updateError } = await supabase
+        .from('cars')
+        .update({ history: updatedHistory })
+        .eq('id', vehicle.id);
+
+      if (updateError) {
+        console.error('📚 [HISTORY] Error updating history in database:', updateError);
+      } else {
+        console.log('📚 [HISTORY] ✅ History updated successfully:', newEntry);
+        // Update local state
+        setChipHistory(updatedHistory.chip_history);
+      }
+    } catch (error) {
+      console.error('📚 [HISTORY] Error adding to history:', error);
+    }
+  };
+
+  // Load chip history from database
+  const loadChipHistory = async () => {
+    try {
+      if (!vehicle?.id) return;
+
+      console.log(`📚 [HISTORY] Loading history for vehicle: ${vehicle.vin}`);
+
+      const { data, error } = await supabase
+        .from('cars')
+        .select('history')
+        .eq('id', vehicle.id)
+        .single();
+
+      if (error) {
+        console.error('📚 [HISTORY] Error loading history:', error);
+        return;
+      }
+
+      if (data?.history?.chip_history) {
+        setChipHistory(data.history.chip_history);
+        console.log('📚 [HISTORY] ✅ History loaded:', data.history.chip_history.length, 'entries');
+      } else {
+        setChipHistory([]);
+        console.log('📚 [HISTORY] No history found for vehicle');
+      }
+    } catch (error) {
+      console.error('📚 [HISTORY] Error loading chip history:', error);
+    }
   };
 
   // Save chip location to AsyncStorage
@@ -257,10 +366,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                   currentTimestamp: currentTimestamp,
                   localTime: new Date().toLocaleString()
                 });
-                
+
                 const { error: updateError } = await supabase
                   .from('cars')
-                  .update({ 
+                  .update({
                     latitude: latitude,
                     longitude: longitude,
                     last_location_update: currentTimestamp // Use current time instead of MQTT time
@@ -299,7 +408,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
               // Update last update time
               setLastUpdateTime(new Date().toLocaleTimeString());
-              
+
               console.log('📍 [MQTT] ✅ Location updated in UI successfully:', {
                 chipId: targetChipId,
                 coordinates: nextCoords,
@@ -529,7 +638,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               last_update: carData.last_location_update
             });
             const timestamp = carData.last_location_update ? new Date(carData.last_location_update).getTime() : Date.now();
-            
+
             setSavedLocation({
               latitude: carData.latitude,
               longitude: carData.longitude,
@@ -579,6 +688,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
         // Initialize MQTT connection only if chip is assigned
         initializeMqtt();
+
+        // Load chip history
+        loadChipHistory();
       }
 
       const hasPermission = await requestLocationPermission();
@@ -719,7 +831,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             text: 'Yes',
             style: 'destructive',
             onPress: async () => {
+              const chipId = vehicle?.chipId || vehicle?.chip;
               await updateVehicleWithChip(null);
+              // Add to history
+              await addToHistory('unassigned', chipId, 'Chip unassigned successfully');
             },
           },
         ]
@@ -762,6 +877,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
         // Update the vehicle with the new chip ID
         await updateVehicleWithChip(chipId);
+
+        // Add to history
+        await addToHistory('assigned', chipId, 'Chip assigned successfully');
       } else {
         console.log('Info', 'Chip scanning cancelled');
       }
@@ -1001,7 +1119,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         </View>
       </View>
 
-     {getChipId() && <View style={styles.locationInfoCard}>
+      {getChipId() && <View style={styles.locationInfoCard}>
         <Text style={styles.cardTitle}>Location Information</Text>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Distance to Vehicle:</Text>
@@ -1037,6 +1155,53 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             <Text style={styles.unassignChipButtonText}>Unassign Chip</Text>
           </View>
         </TouchableOpacity>
+      )}
+
+      {/* Chip History Section */}
+      {chipHistory.length > 0 && (
+        <View style={styles.historyInfoCard}>
+          <Text style={styles.cardTitle}>📚 Chip Assignment History</Text>
+          {chipHistory.map((entry, index) => (
+            <View key={index} style={styles.historyEntry}>
+              <View style={styles.historyHeader}>
+                <View style={[
+                  styles.historyIcon,
+                  {
+                    backgroundColor: entry.action === 'assigned' ? greenColor :
+                      entry.action === 'vehicle_scanned' ? '#007AFF' : '#ff6b6b'
+                  }
+                ]}>
+                  <Ionicons
+                    name={entry.action === 'assigned' ? 'checkmark' :
+                      entry.action === 'vehicle_scanned' ? 'phone-portrait' :
+                        'close'}
+                    size={16}
+                    color="#fff"
+                  />
+                </View>
+                <View style={styles.historyDetails}>
+                  <Text style={styles.historyAction}>
+                    {entry.action === 'assigned' ? '✅ Assigned' :
+                      entry.action === 'unassigned' ? '❌ Unassigned' :
+                        entry.action === 'vehicle_scanned' ? '📱 Vehicle Scanned' :
+                          '📋 Action'}: {entry.chip_id || entry.vin || 'N/A'}
+                  </Text>
+                  <Text style={styles.historyTime}>
+                    {new Date(entry.timestamp).toLocaleString()}
+                  </Text>
+                  <Text style={styles.historyUser}>
+                    By: {entry.user_name} ({entry.user_email})
+                  </Text>
+                  {entry.notes && (
+                    <Text style={styles.historyNotes}>
+                      {entry.notes}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
       )}
     </ScrollView>
   );
@@ -1517,6 +1682,63 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 8,
     letterSpacing: 0.5,
+  },
+  // History Styles
+  historyInfoCard: {
+    backgroundColor: whiteColor,
+    borderRadius: 12,
+    padding: spacings.xLarge,
+    marginVertical: spacings.large,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: hp(10),
+  },
+  historyEntry: {
+    marginBottom: spacings.medium,
+    paddingBottom: spacings.medium,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  historyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacings.medium,
+  },
+  historyDetails: {
+    flex: 1,
+  },
+  historyAction: {
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: '600',
+    color: blackColor,
+    marginBottom: 4,
+  },
+  historyTime: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: grayColor,
+    marginBottom: 2,
+  },
+  historyUser: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: grayColor,
+    marginBottom: 4,
+  },
+  historyNotes: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: grayColor,
+    fontStyle: 'italic',
   },
 });
 

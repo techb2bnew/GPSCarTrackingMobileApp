@@ -23,6 +23,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-simple-toast';
 import { supabase } from '../lib/supabaseClient';
 import { addActiveChip, moveChipToInactive, removeInactiveChip } from '../utils/chipManager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSelector } from 'react-redux';
 import CustomButton from '../components/CustomButton';
 import { parkingYards } from '../constants/Constants';
 import { spacings, style } from '../constants/Fonts';
@@ -33,6 +35,9 @@ const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirec
 
 const YardDetailScreen = ({ navigation, route }) => {
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Get current user from Redux store
+  const userData = useSelector(state => state.user.userData);
   const [vehicles, setVehicles] = useState([]);
   const [filteredVehicles, setFilteredVehicles] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,6 +54,77 @@ const YardDetailScreen = ({ navigation, route }) => {
   const [editYardSlots, setEditYardSlots] = useState('');
   const [vehicleSlotNo, setVehicleSlotNo] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
+
+  // Get current user info for history
+  const getCurrentUser = () => {
+    try {
+      if (userData) {
+        console.log("📚 [HISTORY] User data:", userData);
+        
+        return {
+          name: userData?.name || userData?.email || 'Admin User',
+          email: userData?.email || 'admin@example.com'
+        };
+      }
+
+    } catch (error) {
+      console.error('Error getting user data:', error);
+     
+    }
+  };
+
+  // Add entry to chip history
+  const addToHistory = async (action, chipId, vehicleId, notes, vin = null) => {
+    try {
+      console.log(`📚 [HISTORY] Adding ${action} entry:`, { chipId, vehicleId, vin });
+      
+      const user = getCurrentUser();
+      const newEntry = {
+        action,
+        chip_id: chipId,
+        vin: vin,
+        timestamp: new Date().toISOString(),
+        user_name: user.name,
+        user_email: user.email,
+        notes
+      };
+
+      // Get current history from database
+      const { data: currentData, error: fetchError } = await supabase
+        .from('cars')
+        .select('history')
+        .eq('id', vehicleId)
+        .single();
+
+      if (fetchError) {
+        console.error('📚 [HISTORY] Error fetching current history:', fetchError);
+        return;
+      }
+
+      // Parse existing history or create new array
+      const existingHistory = currentData?.history || { chip_history: [] };
+      const historyArray = existingHistory.chip_history || [];
+      
+      // Add new entry to the beginning of array (most recent first)
+      const updatedHistory = {
+        chip_history: [newEntry, ...historyArray]
+      };
+
+      // Update database with new history
+      const { error: updateError } = await supabase
+        .from('cars')
+        .update({ history: updatedHistory })
+        .eq('id', vehicleId);
+
+      if (updateError) {
+        console.error('📚 [HISTORY] Error updating history in database:', updateError);
+      } else {
+        console.log('📚 [HISTORY] ✅ History updated successfully:', newEntry);
+      }
+    } catch (error) {
+      console.error('📚 [HISTORY] Error adding to history:', error);
+    }
+  };
   const [validationErrors, setValidationErrors] = useState({});
   const [isCheckingSlot, setIsCheckingSlot] = useState(false);
   const { yardId, yardName, fromScreen } = route?.params || {};
@@ -641,6 +717,12 @@ const YardDetailScreen = ({ navigation, route }) => {
         });
         console.log(`✅ Chip ${chipId} added to active chips array`);
 
+        // Add vehicle scan history first
+        await addToHistory('vehicle_scanned', null, insertedData[0].id, `Vehicle VIN ${scannedVinData.vin} scanned`, scannedVinData.vin);
+        
+        // Add chip assign history
+        await addToHistory('assigned', chipId, insertedData[0].id, 'Chip assigned to scanned vehicle');
+
         // Reload vehicles from Supabase
         await loadVehiclesFromStorage();
 
@@ -710,6 +792,9 @@ const YardDetailScreen = ({ navigation, route }) => {
       }
 
       console.log('✅ Vehicle added to Supabase successfully (without chip):', insertedData);
+
+      // Add vehicle scan history (without chip)
+      await addToHistory('vehicle_scanned', null, insertedData[0].id, `Vehicle VIN ${scannedVinData.vin} added without chip`, scannedVinData.vin);
 
       // Reload vehicles from Supabase
       await loadVehiclesFromStorage();
@@ -1416,6 +1501,9 @@ const YardDetailScreen = ({ navigation, route }) => {
                                 // Move chip to inactive array in chip manager
                                 await moveChipToInactive(chipIdToUnassign);
                                 console.log(`✅ Chip ${chipIdToUnassign} moved to inactive chips`);
+
+                                // Add to history
+                                await addToHistory('unassigned', chipIdToUnassign, duplicateInfo?.vehicleId, 'Chip unassigned from duplicate vehicle', duplicateInfo?.vin);
 
                                 // Reload vehicles
                                 await loadVehiclesFromStorage();
