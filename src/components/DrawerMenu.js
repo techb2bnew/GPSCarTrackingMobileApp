@@ -21,7 +21,7 @@ import { useDispatch } from 'react-redux';
 import { clearUser } from '../redux/userSlice';
 import { whiteColor } from '../constants/Color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { clearAllChips } from '../utils/chipManager';
+import { clearAllChips, clearAllAsyncStorageData } from '../utils/chipManager';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
@@ -45,42 +45,27 @@ export default function DrawerMenu({
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      // Clear all AsyncStorage data
+      console.log('🚀 [DrawerMenu] Starting logout process...');
       
-      // 1. Clear all chip data (active & inactive)
-      await clearAllChips();
-      console.log('✅ Cleared all chip data');
+      // Use the comprehensive logout function that clears ALL AsyncStorage data
+      const clearResult = await clearAllAsyncStorageData();
       
-      // 2. Clear all parking yards
-      await AsyncStorage.removeItem('parking_yards');
-      console.log('✅ Cleared parking yards');
-      
-      // 3. Clear all yard vehicles
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
-      for (const key of yardKeys) {
-        await AsyncStorage.removeItem(key);
+      if (clearResult.success) {
+        console.log(`✅ [DrawerMenu] Successfully cleared all ${clearResult.clearedKeys} AsyncStorage keys`);
+      } else {
+        console.warn(`⚠️ [DrawerMenu] Cleared ${clearResult.clearedKeys}/${clearResult.totalKeys} keys. ${clearResult.remainingKeys} keys remain`);
+        if (clearResult.errors.length > 0) {
+          console.error('❌ [DrawerMenu] Errors during cleanup:', clearResult.errors);
+        }
       }
-      console.log(`✅ Cleared ${yardKeys.length} yard vehicle data`);
       
-      // 4. Clear all chip locations
-      const chipLocationKeys = keys.filter(key => key.startsWith('chip_'));
-      for (const key of chipLocationKeys) {
-        await AsyncStorage.removeItem(key);
-      }
-      console.log(`✅ Cleared ${chipLocationKeys.length} chip locations`);
-      
-      // 5. Clear user data from Redux
+      // Clear user data from Redux
       dispatch(clearUser());
-      console.log('✅ User data cleared from Redux');
+      console.log('✅ [DrawerMenu] User data cleared from Redux');
       
-      // 6. Clear user data from AsyncStorage
-      await AsyncStorage.removeItem('user');
-      console.log('✅ User data cleared from AsyncStorage');
-      
-      console.log('🎉 All data cleared successfully on logout');
+      console.log('🎉 [DrawerMenu] Logout process completed successfully');
     } catch (error) {
-      console.error('❌ Error clearing data on logout:', error);
+      console.error('❌ [DrawerMenu] Critical error during logout:', error);
     }
     setShowModal(false);
     setTimeout(() => setIsLoggingOut(false), 500);

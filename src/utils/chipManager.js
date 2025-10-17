@@ -491,3 +491,61 @@ export const findChipsWithinRadius = async (centerLat, centerLon, radiusKm = 10)
   }
 };
 
+/**
+ * Comprehensive logout function that clears ALL AsyncStorage data
+ * Gets all keys and removes them one by one
+ * @returns {Promise<Object>} { success: boolean, clearedKeys: number, errors: Array }
+ */
+export const clearAllAsyncStorageData = async () => {
+  try {
+    console.log('🚀 [LOGOUT] Starting comprehensive AsyncStorage cleanup...');
+    
+    // Get all keys from AsyncStorage
+    const allKeys = await AsyncStorage.getAllKeys();
+    console.log(`📋 [LOGOUT] Found ${allKeys.length} keys in AsyncStorage:`, allKeys);
+    
+    let clearedCount = 0;
+    const errors = [];
+    
+    // Clear each key individually
+    for (const key of allKeys) {
+      try {
+        await AsyncStorage.removeItem(key);
+        clearedCount++;
+        console.log(`✅ [LOGOUT] Cleared key: ${key}`);
+      } catch (error) {
+        console.error(`❌ [LOGOUT] Error clearing key ${key}:`, error);
+        errors.push({ key, error: error.message });
+      }
+    }
+    
+    // Verify all keys are cleared
+    const remainingKeys = await AsyncStorage.getAllKeys();
+    
+    const result = {
+      success: remainingKeys.length === 0,
+      clearedKeys: clearedCount,
+      totalKeys: allKeys.length,
+      remainingKeys: remainingKeys.length,
+      errors: errors
+    };
+    
+    if (result.success) {
+      console.log(`🎉 [LOGOUT] Successfully cleared all ${clearedCount} AsyncStorage keys!`);
+    } else {
+      console.warn(`⚠️ [LOGOUT] Cleared ${clearedCount}/${allKeys.length} keys. ${remainingKeys.length} keys remain:`, remainingKeys);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('❌ [LOGOUT] Critical error during AsyncStorage cleanup:', error);
+    return {
+      success: false,
+      clearedKeys: 0,
+      totalKeys: 0,
+      remainingKeys: 0,
+      errors: [{ key: 'CRITICAL_ERROR', error: error.message }]
+    };
+  }
+};
+

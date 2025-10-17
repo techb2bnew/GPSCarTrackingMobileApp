@@ -2,8 +2,13 @@ import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
 
 // Replace with your Supabase URL and ANON key from Supabase dashboard
-const supabaseUrl = 'https://rgddlworlyuvvtwvsofo.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnZGRsd29ybHl1dnZ0d3Zzb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxNjEzMjUsImV4cCI6MjA2ODczNzMyNX0.suljQ88eDZhvQ5lK6oTSzfxXXWvbKiQxangn9M4HsiM';
+// const supabaseUrl = 'https://rgddlworlyuvvtwvsofo.supabase.co';
+// const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnZGRsd29ybHl1dnZ0d3Zzb2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMxNjEzMjUsImV4cCI6MjA2ODczNzMyNX0.suljQ88eDZhvQ5lK6oTSzfxXXWvbKiQxangn9M4HsiM';
+
+
+const supabaseUrl = 'https://vhjetkdfxqbogbegboic.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoamV0a2RmeHFib2diZWdib2ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA1ODU4MzgsImV4cCI6MjA3NjE2MTgzOH0.r4GY5UgwRjhicFnnmcRxBySjN7PMJKhImSDHwxqKcyg';
+
 
 // Create client with bypass RLS option
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {

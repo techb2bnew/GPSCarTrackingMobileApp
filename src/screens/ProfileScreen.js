@@ -19,7 +19,7 @@ import Toast from 'react-native-simple-toast';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../redux/userSlice';
 import AnimatedLottieView from 'lottie-react-native';
-import { clearAllChips, getChipCounts, getCriticalBatteryChips } from '../utils/chipManager';
+import { clearAllChips, getChipCounts, getCriticalBatteryChips, clearAllAsyncStorageData } from '../utils/chipManager';
 import { spacings, style } from '../constants/Fonts';
 import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
@@ -278,45 +278,32 @@ const ProfileScreen = ({ navigation }) => {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      // Clear all AsyncStorage data
-
-      // 1. Clear all chip data (active & inactive)
-      await clearAllChips();
-      console.log('✅ Cleared all chip data');
-
-      // 2. Clear all parking yards
-      await AsyncStorage.removeItem('parking_yards');
-      console.log('✅ Cleared parking yards');
-
-      // 3. Clear all yard vehicles
-      const keys = await AsyncStorage.getAllKeys();
-      const yardKeys = keys.filter(key => key.startsWith('yard_') && key.endsWith('_vehicles'));
-      for (const key of yardKeys) {
-        await AsyncStorage.removeItem(key);
+      console.log('🚀 [ProfileScreen] Starting logout process...');
+      
+      // Use the comprehensive logout function that clears ALL AsyncStorage data
+      const clearResult = await clearAllAsyncStorageData();
+      
+      if (clearResult.success) {
+        console.log(`✅ [ProfileScreen] Successfully cleared all ${clearResult.clearedKeys} AsyncStorage keys`);
+      } else {
+        console.warn(`⚠️ [ProfileScreen] Cleared ${clearResult.clearedKeys}/${clearResult.totalKeys} keys. ${clearResult.remainingKeys} keys remain`);
+        if (clearResult.errors.length > 0) {
+          console.error('❌ [ProfileScreen] Errors during cleanup:', clearResult.errors);
+        }
       }
-      console.log(`✅ Cleared ${yardKeys.length} yard vehicle data`);
-
-      // 4. Clear all chip locations
-      const chipLocationKeys = keys.filter(key => key.startsWith('chip_'));
-      for (const key of chipLocationKeys) {
-        await AsyncStorage.removeItem(key);
-      }
-      console.log(`✅ Cleared ${chipLocationKeys.length} chip locations`);
-
-      // 5. Clear user data from Redux
+      
+      // Clear user data from Redux
       dispatch(clearUser());
-      console.log('✅ User data cleared from Redux');
-
-      // 6. Clear user data from AsyncStorage
-      await AsyncStorage.removeItem('user');
-      console.log('✅ User data cleared from AsyncStorage');
-
-      console.log('🎉 All data cleared successfully on logout from ProfileScreen');
+      console.log('✅ [ProfileScreen] User data cleared from Redux');
+      
+      console.log('🎉 [ProfileScreen] Logout process completed successfully');
 
       // Navigate to login screen
       navigation.navigate('LoginScreen');
     } catch (error) {
-      console.error('❌ Error clearing data on logout:', error);
+      console.error('❌ [ProfileScreen] Critical error during logout:', error);
+      // Still navigate to login even if there's an error
+      navigation.navigate('LoginScreen');
     }
     setShowLogoutModal(false);
     setTimeout(() => setIsLoggingOut(false), 500);
