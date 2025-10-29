@@ -191,7 +191,7 @@ const ParkingYardScreen = ({ navigation }) => {
   const getSlotInfo = async (yardId) => {
     try {
       console.log(`🔍 Getting slot info for yard ID: ${yardId}`);
-      
+
       // Get yard info from yards state (dynamic yards from Supabase)
       let yard = yards.find(y => y.id === yardId);
       if (!yard) {
@@ -236,7 +236,7 @@ const ParkingYardScreen = ({ navigation }) => {
   const loadYards = async () => {
     try {
       console.log('🔄 [ParkingYardScreen] Loading yards from Supabase (real-time)...');
-      
+
       // Fetch from Supabase - Primary source
       const { data: supabaseYards, error } = await supabase
         .from('facility')
@@ -527,7 +527,7 @@ const ParkingYardScreen = ({ navigation }) => {
       console.log(`🔍 [ParkingYardScreen] Yard "${yard.name}" has ${vehicleCount} vehicles`);
 
       // Determine confirmation message based on vehicle count
-      const confirmationMessage = vehicleCount > 0 
+      const confirmationMessage = vehicleCount > 0
         ? `This yard has ${vehicleCount} vehicles. Deleting this yard will also delete all ${vehicleCount} vehicles. Are you sure you want to proceed?`
         : `Are you sure you want to delete "${yard.name}"?`;
 
@@ -577,13 +577,13 @@ const ParkingYardScreen = ({ navigation }) => {
                 setYards(updatedYards);
                 setFilteredYards(updatedYards);
                 await saveYards(updatedYards);
-                
+
                 // 4. Remove yard vehicles storage key (cleanup)
                 const storageKey = `yard_${yard.id}_vehicles`;
                 await AsyncStorage.removeItem(storageKey);
 
                 console.log('✅ [ParkingYardScreen] Deleted from local storage');
-                
+
                 Toast.show(`✅ Yard and ${vehicleCount} vehicles deleted successfully!`, Toast.LONG);
 
               } catch (error) {
@@ -653,7 +653,7 @@ const ParkingYardScreen = ({ navigation }) => {
               )} */}
             </View>
           </View>
-          
+
           {/* Edit & Delete Buttons - Top Right */}
           <View style={styles.yardCardActions}>
             <TouchableOpacity
@@ -664,7 +664,7 @@ const ParkingYardScreen = ({ navigation }) => {
               }}>
               <Ionicons name="pencil" size={18} color="#613EEA" />
             </TouchableOpacity>
-            
+
             <TouchableOpacity
               style={styles.deleteYardButton}
               onPress={(e) => {
@@ -899,8 +899,8 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    paddingTop: 20,
-    paddingHorizontal: 16,
+    paddingTop: spacings.large,
+    paddingHorizontal: spacings.large,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginBottom: 16,
     backgroundColor: '#fff',
-    height: heightPercentageToDP(5),
+    height: Platform.OS === 'ios' ? hp(5) : hp(5.5),
   },
   searchInput: {
     flex: 1,

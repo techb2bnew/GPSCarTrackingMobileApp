@@ -279,10 +279,10 @@ const ProfileScreen = ({ navigation }) => {
     setIsLoggingOut(true);
     try {
       console.log('🚀 [ProfileScreen] Starting logout process...');
-      
+
       // Use the comprehensive logout function that clears ALL AsyncStorage data
       const clearResult = await clearAllAsyncStorageData();
-      
+
       if (clearResult.success) {
         console.log(`✅ [ProfileScreen] Successfully cleared all ${clearResult.clearedKeys} AsyncStorage keys`);
       } else {
@@ -291,11 +291,11 @@ const ProfileScreen = ({ navigation }) => {
           console.error('❌ [ProfileScreen] Errors during cleanup:', clearResult.errors);
         }
       }
-      
+
       // Clear user data from Redux
       dispatch(clearUser());
       console.log('✅ [ProfileScreen] User data cleared from Redux');
-      
+
       console.log('🎉 [ProfileScreen] Logout process completed successfully');
 
       // Navigate to login screen
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: spacings.xxxLarge,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? hp(7) : hp(2),
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -1361,7 +1361,7 @@ const styles = StyleSheet.create({
   },
   // Quick Actions Styles
   quickActionsContainer: {
-    marginBottom: spacings.xLarge,
+    marginBottom: Platform.OS === 'android' ? hp(10) : spacings.xLarge,
   },
   quickActionsGrid: {
     flexDirection: 'row',

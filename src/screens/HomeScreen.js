@@ -184,7 +184,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           try {
             const { error: updateError } = await supabase
               .from('cars')
-              .update({ 
+              .update({
                 battery_level: batteryValue,
                 last_battery_update: new Date().toISOString()
               })
@@ -374,13 +374,13 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         const chip = car.chip;
         return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
       });
-      
+
       // Count unassigned trackers (cars without chip or NULL chip) - these are Inactive Chips
       const unassignedTrackers = carsData.filter(car => {
         const chip = car.chip;
         return !chip || chip === null || chip === 'NULL' || chip.toString().trim() === '' || chip.toString().trim() === 'null';
       });
-      
+
       // Count low battery chips (battery_level <= 20%) from assigned trackers
       const lowBatteryChips = assignedTrackers.filter(car => {
         return car.battery_level !== null && car.battery_level !== undefined && car.battery_level <= 20;
@@ -401,7 +401,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         inactiveChips: unassignedTrackers.length,
         lowBatteryChips: lowBatteryChips,
       });
-    
+
     } catch (error) {
       console.error('❌ Error loading chip stats:', error);
     }
@@ -623,7 +623,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       console.log(`🔍 Yard "${yard.name}" has ${vehicleCount} vehicles`);
 
       // Determine confirmation message based on vehicle count
-      const confirmationMessage = vehicleCount > 0 
+      const confirmationMessage = vehicleCount > 0
         ? `This yard has ${vehicleCount} vehicles. Deleting this yard will also delete all ${vehicleCount} vehicles. Are you sure you want to proceed?`
         : `Are you sure you want to delete "${yard.name}"?`;
 
@@ -699,7 +699,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   const getSlotInfo = async (yardId) => {
     try {
       console.log(`🔍 Getting slot info for yard ID: ${yardId}`);
-      
+
       // Get yard info from yards state (dynamic yards from Supabase)
       let yard = yards.find(y => y.id === yardId);
       if (!yard) {
@@ -738,7 +738,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
   // Yard Card Component with dynamic slot info
   const YardCard = ({ item, isSelected, onPress }) => {
-    const [slotInfo, setSlotInfo] = useState({ total: item?.slots , occupied: 0, available: item?.slots  });
+    const [slotInfo, setSlotInfo] = useState({ total: item?.slots, occupied: 0, available: item?.slots });
 
     const loadSlotInfo = async () => {
       const info = await getSlotInfo(item.id);
@@ -833,14 +833,14 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       />
     );
   };
-  const handlePress = item => {
+  const handleMenuPress = () => {
     setDrawerOpen(true);
 
     // Hide tab bar when modal opens
     navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
   };
 
-  const closeModal = () => {
+  const closeDrawer = () => {
     setDrawerOpen(false);
 
     // Show tab bar again
@@ -870,7 +870,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       {/* Beautiful Gradient Header */}
       <View style={styles.beautifulHeader}>
         <View style={styles.headerTop}>
-          <TouchableOpacity onPress={handlePress} style={styles.menuBtn}>
+          <TouchableOpacity onPress={handleMenuPress} style={styles.menuBtn}>
             <Ionicons name="menu" size={26} color="#fff" />
           </TouchableOpacity>
 
@@ -884,9 +884,9 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               <Ionicons name="navigate" size={24} color="#fff" />
             </TouchableOpacity> */}
             <TouchableOpacity
-              onPress={() => navigation.navigate('NotificationScreen')}
+              onPress={() => navigation.navigate('ProfileScreen')}
               style={styles.iconBtn}>
-              <Ionicons name="notifications" size={24} color="#fff" />
+              <Ionicons name="person" size={24} color="#fff" />
 
             </TouchableOpacity>
           </View>
@@ -912,17 +912,24 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       <Modal
         visible={isDrawerOpen}
         transparent
-        animationType="none"         // Drawer apni reanimated se slide hoga
-        onRequestClose={() => setDrawerOpen(false)}
+        animationType="none"       
+        onRequestClose={closeDrawer}
       >
-
-        <DrawerMenu
-          isOpen={isDrawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          user={user}
-          navigation={navigation}
-          setCheckUser={setCheckUser}
-        />
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeDrawer}
+        >
+          <View style={styles.drawerWrapper}>
+            <DrawerMenu
+              isOpen={isDrawerOpen}
+              onClose={closeDrawer}
+              user={user}
+              navigation={navigation}
+              setCheckUser={setCheckUser}
+            />
+          </View>
+        </TouchableOpacity>
       </Modal>
       {/* Beautiful Stats Cards */}
       <View style={styles.beautifulCardsContainer}>
@@ -953,8 +960,8 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </TouchableOpacity>
         ))}
       </View>
-      <View style={{ flex: 1, marginBottom: 100 }}>
-        <View style={{ flex: 1, paddingTop: 30, paddingHorizontal: 20 }}>
+      <View style={{ flex: 1, marginBottom: Platform.OS === 'ios' ? 100 : 80 }}>
+        <View style={{ flex: 1, paddingTop: spacings.xxxxLarge, paddingHorizontal: 20 }}>
           <View style={styles.beautifulYardsHeader}>
             <View style={styles.yardsTitleSection}>
               <Text style={styles.beautifulTitle}>Parking Yards</Text>
@@ -1141,9 +1148,9 @@ const styles = StyleSheet.create({
   // Beautiful Header Styles
   beautifulHeader: {
     backgroundColor: '#613EEA',
-    paddingTop: heightPercentageToDP(6),
+    paddingTop: Platform.OS === 'ios' ? heightPercentageToDP(6) : heightPercentageToDP(1),
     paddingBottom: spacings.Large1x,
-    paddingHorizontal: spacings.xxxxLarge,
+    paddingHorizontal: Platform.OS === 'ios' ? spacings.xxxxLarge : spacings.xLarge,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     shadowColor: '#613EEA',
@@ -1208,7 +1215,7 @@ const styles = StyleSheet.create({
     backgroundColor: whiteColor,
     borderRadius: spacings.large,
     paddingHorizontal: spacings.large,
-    paddingVertical: spacings.large,
+    paddingVertical: Platform.OS === 'ios' ? spacings.large : spacings.normal,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: blackColor,
@@ -1231,24 +1238,7 @@ const styles = StyleSheet.create({
   searchArrow: {
     marginLeft: spacings.large,
   },
-
-  // Legacy header styles
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    marginTop: 10,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f2f2f2',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    height: heightPercentageToDP(5),
-    width: widthPercentageToDP(64),
-  },
+  
   input: {
     flex: 1,
     fontSize: 16,
@@ -1304,8 +1294,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 15,
-    paddingHorizontal: 20,
+    marginTop: spacings.xxLarge,
+    paddingHorizontal: Platform.OS === 'ios' ? 20 : 16,
   },
   beautifulCard: {
     width: '48%',
@@ -1319,8 +1309,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   cardBackground: {
-    padding: 16,
-    minHeight: 110,
+    padding: spacings.xxxLarge,
+    minHeight: hp(12),
   },
   cardContent: {
     flexDirection: 'row',
@@ -1687,6 +1677,18 @@ const styles = StyleSheet.create({
     color: '#613EEA',
     fontWeight: '500',
     textAlign: 'center',
+  },
+
+  // Modal Overlay Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  drawerWrapper: {
+    flex: 1,
+    width: '100%',
   },
 });
 

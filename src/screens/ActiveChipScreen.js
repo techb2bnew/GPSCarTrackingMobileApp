@@ -11,6 +11,7 @@ import {
   Modal,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -20,6 +21,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getActiveChips, getInactiveChips, moveChipToActive, getBatteryStatus, getTimeAgo } from '../utils/chipManager';
 import { supabase } from '../lib/supabaseClient';
 import mqtt from 'mqtt/dist/mqtt';
+import { style } from '../constants/Fonts';
 
 
 const ActiveChipScreen = ({ navigation, route }) => {
@@ -100,7 +102,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
     }
 
     console.log('🔄 Initializing MQTT for battery monitoring...');
-    
+
     const client = mqtt.connect(MQTT_CONFIG.host, {
       username: MQTT_CONFIG.username,
       password: MQTT_CONFIG.password,
@@ -130,7 +132,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
     client.on("message", async (topic, message) => {
       try {
         const payload = JSON.parse(message.toString());
-        
+
         // Extract chip ID from topic: /device_sensor_data/449810146246400/2CF7F1C07190019F/0/vs/3000
         const topicParts = topic.split('/');
         const chipId = topicParts[3];
@@ -170,7 +172,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         try {
           const { error: updateError } = await supabase
             .from('cars')
-            .update({ 
+            .update({
               battery_level: batteryLevel,
               last_battery_update: timestamp
             })
@@ -202,7 +204,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
   const getYardNameFromId = async (facilityId) => {
     try {
       if (!facilityId || facilityId === 'Unknown') return 'Unknown Yard';
-      
+
       // Get yard name from facility table
       const { data: facilityData, error } = await supabase
         .from('facility')
@@ -254,7 +256,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         // Get yard names for all unique facility IDs
         const uniqueFacilityIds = [...new Set(activeCars.map(car => car.facilityId))];
         const yardNamesMap = {};
-        
+
         for (const facilityId of uniqueFacilityIds) {
           yardNamesMap[facilityId] = await getYardNameFromId(facilityId);
         }
@@ -286,7 +288,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         // Get yard names for all unique facility IDs
         const uniqueFacilityIds = [...new Set(inactiveCars.map(car => car.facilityId))];
         const yardNamesMap = {};
-        
+
         for (const facilityId of uniqueFacilityIds) {
           yardNamesMap[facilityId] = await getYardNameFromId(facilityId);
         }
@@ -317,7 +319,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         // Get yard names for all unique facility IDs
         const uniqueFacilityIds = [...new Set(activeCars.map(car => car.facilityId))];
         const yardNamesMap = {};
-        
+
         for (const facilityId of uniqueFacilityIds) {
           yardNamesMap[facilityId] = await getYardNameFromId(facilityId);
         }
@@ -381,7 +383,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         const goodCount = chipsData.filter(c => c.batteryLevel !== null && c.batteryLevel > 60).length;
         const unknownCount = chipsData.filter(c => c.batteryLevel === null || c.batteryLevel === undefined).length;
         console.log(`🔋 Battery distribution: Critical=${criticalCount}, Normal=${normalCount}, Good=${goodCount}, Unknown=${unknownCount}`);
-        
+
         // Initialize MQTT if not already connected
         if (!mqttClient && type === 'lowBattery') {
           console.log('🔄 Starting MQTT connection for battery monitoring...');
@@ -413,7 +415,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
     return () => {
       clearInterval(refreshInterval);
-      
+
       // Cleanup MQTT connection when leaving screen
       if (mqttClient) {
         console.log('🔌 Disconnecting MQTT from ActiveChipScreen...');
@@ -764,14 +766,14 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
         {/* Refresh Button for Battery Page */}
         {type === 'lowBattery' && (
-            <TouchableOpacity
-              onPress={() => {
-                console.log('🔄 Manual refresh battery data');
-                loadChipData();
-              }}
-              style={styles.refreshButton}>
-              <Icon name="refresh" size={24} color="#613EEA" />
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              console.log('🔄 Manual refresh battery data');
+              loadChipData();
+            }}
+            style={styles.refreshButton}>
+            <Icon name="refresh" size={24} color="#613EEA" />
+          </TouchableOpacity>
         )}
       </View>
       {/* Search bar */}
@@ -956,7 +958,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: 24,
+    fontSize: style.fontSizeLarge.fontSize,
     fontWeight: '700',
     marginVertical: 16,
     paddingHorizontal: 16,
@@ -970,7 +972,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     margin: 16,
     backgroundColor: '#f9f9f9',
-    height: heightPercentageToDP(5),
+    height: Platform.OS === 'ios' ? heightPercentageToDP(5) : heightPercentageToDP(5.5),
   },
   searchInput: {
     flex: 1,

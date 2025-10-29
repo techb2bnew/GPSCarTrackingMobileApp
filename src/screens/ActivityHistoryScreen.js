@@ -14,6 +14,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import {NOTIFICATION} from '../assests/images';
 import { supabase } from '../lib/supabaseClient';
 import { useFocusEffect } from '@react-navigation/native';
+import { spacings } from '../constants/Fonts';
 
 const {width} = Dimensions.get('window');
 
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    padding: spacings.large,
   },
   headerTitle: {fontWeight: 'bold', fontSize: 16},
   card: {

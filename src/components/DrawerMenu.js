@@ -46,10 +46,10 @@ export default function DrawerMenu({
     setIsLoggingOut(true);
     try {
       console.log('🚀 [DrawerMenu] Starting logout process...');
-      
+
       // Use the comprehensive logout function that clears ALL AsyncStorage data
       const clearResult = await clearAllAsyncStorageData();
-      
+
       if (clearResult.success) {
         console.log(`✅ [DrawerMenu] Successfully cleared all ${clearResult.clearedKeys} AsyncStorage keys`);
       } else {
@@ -58,11 +58,11 @@ export default function DrawerMenu({
           console.error('❌ [DrawerMenu] Errors during cleanup:', clearResult.errors);
         }
       }
-      
+
       // Clear user data from Redux
       dispatch(clearUser());
       console.log('✅ [DrawerMenu] User data cleared from Redux');
-      
+
       console.log('🎉 [DrawerMenu] Logout process completed successfully');
     } catch (error) {
       console.error('❌ [DrawerMenu] Critical error during logout:', error);
@@ -83,13 +83,10 @@ export default function DrawerMenu({
   }));
 
   return (
-    <Animated.View
-      style={[styles.drawer, animatedStyle]}
-      // prevent touches from bubbling to any parent/backdrop that might fade
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => false}
-      onResponderTerminationRequest={() => false}
-    >
+    <View style={styles.drawerContainer}>
+      <Animated.View
+        style={[styles.drawer, animatedStyle]}
+      >
       {/* Close button */}
       <TouchableOpacity
         onPress={onClose}
@@ -103,16 +100,16 @@ export default function DrawerMenu({
       <View style={styles.profileContainer}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {user?.name 
+            {user?.name
               ? user.name.charAt(0).toUpperCase()
               : 'U'}
           </Text>
         </View>
         <Text style={styles.name}>
-          {user?.name 
-            ? user.name.split(' ').map(word => 
-                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-              ).join(' ')
+          {user?.name
+            ? user.name.split(' ').map(word =>
+              word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            ).join(' ')
             : 'User'}
         </Text>
       </View>
@@ -202,11 +199,16 @@ export default function DrawerMenu({
           </View>
         </View>
       </Modal>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  drawerContainer: {
+    flex: 1,
+    width: '100%',
+  },
   drawer: {
     position: 'absolute',
     top: 0,
@@ -216,7 +218,7 @@ const styles = StyleSheet.create({
     backgroundColor: whiteColor,
     borderTopRightRadius: 30,
     borderBottomRightRadius: 30,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? heightPercentageToDP(7) : heightPercentageToDP(1),
     paddingHorizontal: 20,
     zIndex: 999999999,
     elevation: 12,
@@ -225,10 +227,10 @@ const styles = StyleSheet.create({
   closeButton: { alignSelf: 'flex-start' },
 
   profileContainer: { alignItems: 'center', marginVertical: 20 },
-  avatar: { 
-    height: 80, 
-    width: 80, 
-    borderRadius: 40, 
+  avatar: {
+    height: 80,
+    width: 80,
+    borderRadius: 40,
     backgroundColor: '#613EEA',
     justifyContent: 'center',
     alignItems: 'center',

@@ -130,7 +130,7 @@ const ReportIssueScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[  styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : spacings.xLarge }]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
@@ -274,7 +274,7 @@ const ReportIssueScreen = ({ navigation }) => {
           </View>
 
           {/* Extra space for keyboard */}
-          <View style={{ height: 40 }} />
+          <View style={{ height: Platform.OS === 'ios' ? 40 : 80 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -291,7 +291,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: spacings.xxxLarge,
-    paddingTop: 50,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -370,8 +369,8 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
+    paddingVertical: spacings.large,
+    fontSize: style.fontSizeNormal.fontSize,
     color: blackColor,
   },
   textArea: {
@@ -421,7 +420,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: spacings.xLarge,
     borderRadius: 12,
     marginTop: spacings.large,
     shadowColor: '#613EEA',
@@ -436,7 +435,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: whiteColor,
-    fontSize: 18,
+    fontSize: style.fontSizeNormal2x.fontSize,
     fontWeight: 'bold',
     marginLeft: 10,
   },

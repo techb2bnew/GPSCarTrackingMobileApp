@@ -235,7 +235,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const getYardNameFromId = async (facilityId) => {
     try {
       if (!facilityId || facilityId === 'Unknown') return 'Unknown Yard';
-      
+
       // Get yard name from facility table
       const { data: facilityData, error } = await supabase
         .from('facility')
@@ -600,12 +600,63 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     };
   };
 
-  // Get current location
-  const getCurrentLocation = () => {
+
+  const getCurrentLocationAlternative = () => {
+    console.log('📍 [VEHICLE] Trying alternative location method...');
+    
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
         const newCurrentLocation = { latitude, longitude };
+        console.log('✅ [VEHICLE] Alternative location obtained:', { latitude, longitude });
+        setCurrentLocation(newCurrentLocation);
+
+        // Calculate distance to car if car location is available
+        if (carLocation) {
+          const distance = calculateDistance(newCurrentLocation, carLocation);
+          setDistanceToCar(distance);
+        }
+
+        setLastUpdateTime(new Date().toLocaleTimeString());
+        setIsLoading(false);
+
+        // Calculate optimal region and animate to it if car location is available
+        if (mapRef.current && carLocation) {
+          const region = calculateMapRegion(newCurrentLocation, carLocation);
+          mapRef.current.animateToRegion(region, 1500);
+        }
+      },
+      (error) => {
+        console.error('❌ [VEHICLE] Alternative location also failed:', error);
+        console.error('❌ [VEHICLE] Alternative error code:', error.code);
+        
+        // Try one more time with even more relaxed settings
+        if (error.code === 3) { // Still timeout
+          console.log('🔄 [VEHICLE] Trying third attempt with very relaxed settings...');
+          getCurrentLocationThirdAttempt();
+        } else {
+          console.log('⚠️ [VEHICLE] Alternative location failed, stopping attempts');
+          setIsLoading(false);
+          setLastUpdateTime(new Date().toLocaleTimeString());
+        }
+      },
+      {
+        enableHighAccuracy: false, // Try with lower accuracy
+        timeout: 45000, // 45 seconds timeout
+        maximumAge: 300000, // 5 minutes old location is okay
+        distanceFilter: 100, // 100 meters filter
+      }
+    );
+  };
+  // Get current location
+  const getCurrentLocation = () => {
+    console.log('📍 [VEHICLE] Getting current location...');
+    
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const newCurrentLocation = { latitude, longitude };
+        console.log('✅ [VEHICLE] Current location obtained:', { latitude, longitude });
         setCurrentLocation(newCurrentLocation);
 
         // Car location will be set by MQTT data when available
@@ -628,12 +679,77 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         }
       },
       (error) => {
-        console.log('Location error:', error);
+        console.error('❌ [VEHICLE] Error getting current location:', error);
+        console.error('❌ [VEHICLE] Error code:', error.code);
+        console.error('❌ [VEHICLE] Error message:', error.message);
+        
+        // Handle different error types
+        if (error.code === 3) { // TIMEOUT
+          console.log('⏰ [VEHICLE] Location request timed out, trying alternative method...');
+          getCurrentLocationAlternative();
+        } else if (error.code === 1) { // PERMISSION_DENIED
+          console.log('🚫 [VEHICLE] Permission denied, requesting again...');
+          requestLocationPermission().then(() => {
+            // Retry after permission request
+            setTimeout(() => getCurrentLocation(), 1000);
+          });
+        } else if (Platform.OS === 'android') {
+          console.log('🔄 [VEHICLE] Trying alternative location method for Android...');
+          getCurrentLocationAlternative();
+        } else {
+          console.log('⚠️ [VEHICLE] Location failed on iOS');
+          setIsLoading(false);
+          setLastUpdateTime(new Date().toLocaleTimeString());
+        }
+      },
+      {
+        enableHighAccuracy: false, // Start with lower accuracy for Android
+        timeout: Platform.OS === 'android' ? 30000 : 15000, // 30 seconds for Android
+        maximumAge: Platform.OS === 'android' ? 0 : 10000, // Always fresh for Android
+        distanceFilter: 0, // No distance filter
+      }
+    );
+  };
+
+
+
+  const getCurrentLocationThirdAttempt = () => {
+    console.log('📍 [VEHICLE] Third attempt with very relaxed settings...');
+    
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const newCurrentLocation = { latitude, longitude };
+        console.log('✅ [VEHICLE] Third attempt location obtained:', { latitude, longitude });
+        setCurrentLocation(newCurrentLocation);
+
+        // Calculate distance to car if car location is available
+        if (carLocation) {
+          const distance = calculateDistance(newCurrentLocation, carLocation);
+          setDistanceToCar(distance);
+        }
+
+        setLastUpdateTime(new Date().toLocaleTimeString());
         setIsLoading(false);
-        // Don't set mock locations - wait for MQTT data
+
+        // Calculate optimal region and animate to it if car location is available
+        if (mapRef.current && carLocation) {
+          const region = calculateMapRegion(newCurrentLocation, carLocation);
+          mapRef.current.animateToRegion(region, 1500);
+        }
+      },
+      (error) => {
+        console.error('❌ [VEHICLE] All location attempts failed:', error);
+        console.log('⚠️ [VEHICLE] All location attempts failed, stopping');
+        setIsLoading(false);
         setLastUpdateTime(new Date().toLocaleTimeString());
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      {
+        enableHighAccuracy: false,
+        timeout: 60000, // 1 minute timeout
+        maximumAge: 600000, // 10 minutes old location is okay
+        distanceFilter: 500, // 500 meters filter
+      }
     );
   };
 
@@ -1329,7 +1445,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: spacings.xxxLarge,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? hp(7) : hp(1.7),
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },

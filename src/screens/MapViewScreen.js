@@ -1,8 +1,8 @@
-import {Pressable, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator} from 'react-native';
-import React, {useEffect, useState} from 'react';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Platform, PermissionsAndroid, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import ParkingMap from '../components/ParkingMap';
-import {SingleVehInparkingYard, parkingYards} from '../constants/Constants';
-import {heightPercentageToDP as hp, widthPercentageToDP as wp} from '../utils';
+import { SingleVehInparkingYard, parkingYards } from '../constants/Constants';
+import { heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
 import Fontisto from 'react-native-vector-icons/Fontisto';
 import Header from '../components/Header';
 import Ionicons from 'react-native-vector-icons/dist/Ionicons';
@@ -13,13 +13,13 @@ import Geolocation from '@react-native-community/geolocation';
 import mqtt from 'mqtt/dist/mqtt';
 
 
-const MapViewScreen = ({navigation}) => {
+const MapViewScreen = ({ navigation }) => {
   const [feeds, setFeeds] = useState([]);
   const [activeChips, setActiveChips] = useState([]);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [locationSubscription, setLocationSubscription] = useState(null);
-  
+
   // MQTT states for location updates
   const [mqttClient, setMqttClient] = useState(null);
   const [mqttConnected, setMqttConnected] = useState(false);
@@ -53,22 +53,27 @@ const MapViewScreen = ({navigation}) => {
   const initializeMap = async () => {
     try {
       setIsLoading(true);
-      
+
+      // Request location permissions on Android
+      if (Platform.OS === 'android') {
+        await requestLocationPermission();
+      }
+
       // Get current location
       getCurrentLocation();
-      
+
       // Fetch active chips with locations
       await fetchActiveChips();
-      
+
       // Initialize MQTT for location updates
       initializeMqtt();
-      
+
       // Start real-time subscription
       startRealTimeUpdates();
-      
+
       // Fetch feeds data (existing)
       await fetchData();
-      
+
     } catch (error) {
       console.error('❌ [MAP] Error initializing map:', error);
     } finally {
@@ -76,9 +81,62 @@ const MapViewScreen = ({navigation}) => {
     }
   };
 
+  const requestLocationPermission = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        // Check if permission is already granted
+        const hasPermission = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+        );
+
+        if (hasPermission) {
+          console.log('✅ [MAP] Location permission already granted');
+          return true;
+        }
+
+        // Request permission
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Location Permission',
+            message: 'This app needs access to your location to show your current position on the map.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('✅ [MAP] Location permission granted');
+          return true;
+        } else {
+          console.log('❌ [MAP] Location permission denied');
+          Alert.alert(
+            'Permission Required',
+            'Location permission is required to show your current position on the map. Please enable it in Settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Settings', onPress: () => {
+                  // You can add logic to open app settings here
+                  console.log('User wants to go to settings');
+                }
+              }
+            ]
+          );
+          return false;
+        }
+      }
+      return true; // iOS doesn't need explicit permission request
+    } catch (error) {
+      console.error('❌ [MAP] Error requesting location permission:', error);
+      return false;
+    }
+  };
+
   const getCurrentLocation = () => {
     console.log('📍 [MAP] Getting current location...');
-    
+
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -87,16 +145,96 @@ const MapViewScreen = ({navigation}) => {
       },
       (error) => {
         console.error('❌ [MAP] Error getting current location:', error);
-        // Set default location (Delhi) if geolocation fails
-        setCurrentLocation({
-          latitude: 28.6139,
-          longitude: 77.2090,
-        });
+        console.error('❌ [MAP] Error code:', error.code);
+        console.error('❌ [MAP] Error message:', error.message);
+
+        // Handle different error types
+        if (error.code === 3) { // TIMEOUT
+          console.log('⏰ [MAP] Location request timed out, trying alternative method...');
+          getCurrentLocationAlternative();
+        } else if (error.code === 1) { // PERMISSION_DENIED
+          console.log('🚫 [MAP] Permission denied, requesting again...');
+          requestLocationPermission().then(() => {
+            // Retry after permission request
+            setTimeout(() => getCurrentLocation(), 1000);
+          });
+        } else if (Platform.OS === 'android') {
+          console.log('🔄 [MAP] Trying alternative location method for Android...');
+          getCurrentLocationAlternative();
+        } else {
+          // Set default location (Delhi) if geolocation fails on iOS
+          // setCurrentLocation({
+          //   latitude: 28.6139,
+          //   longitude: 77.2090,
+          // });
+        }
       },
       {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
+        enableHighAccuracy: false, // Start with lower accuracy for Android
+        timeout: Platform.OS === 'android' ? 30000 : 10000, // 30 seconds for Android
+        maximumAge: Platform.OS === 'android' ? 0 : 60000, // Always fresh for Android
+        distanceFilter: 0, // No distance filter
+      }
+    );
+  };
+
+  const getCurrentLocationAlternative = () => {
+    console.log('📍 [MAP] Trying alternative location method...');
+
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log('✅ [MAP] Alternative location obtained:', { latitude, longitude });
+        setCurrentLocation({ latitude, longitude });
+      },
+      (error) => {
+        console.error('❌ [MAP] Alternative location also failed:', error);
+        console.error('❌ [MAP] Alternative error code:', error.code);
+
+        // Try one more time with even more relaxed settings
+        if (error.code === 3) { // Still timeout
+          console.log('🔄 [MAP] Trying third attempt with very relaxed settings...');
+          getCurrentLocationThirdAttempt();
+        } else {
+          // Only set default location as last resort
+          console.log('⚠️ [MAP] Setting default location as last resort');
+          // setCurrentLocation({
+          //   latitude: 28.6139,
+          //   longitude: 77.2090,
+          // });
+        }
+      },
+      {
+        enableHighAccuracy: false, // Try with lower accuracy
+        timeout: 45000, // 45 seconds timeout
+        maximumAge: 300000, // 5 minutes old location is okay
+        distanceFilter: 100, // 100 meters filter
+      }
+    );
+  };
+
+  const getCurrentLocationThirdAttempt = () => {
+    console.log('📍 [MAP] Third attempt with very relaxed settings...');
+
+    Geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log('✅ [MAP] Third attempt location obtained:', { latitude, longitude });
+        setCurrentLocation({ latitude, longitude });
+      },
+      (error) => {
+        console.error('❌ [MAP] All location attempts failed:', error);
+        console.log('⚠️ [MAP] Setting default location as final fallback');
+        // setCurrentLocation({
+        //   latitude: 28.6139,
+        //   longitude: 77.2090,
+        // });
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 60000, // 1 minute timeout
+        maximumAge: 600000, // 10 minutes old location is okay
+        distanceFilter: 500, // 500 meters filter
       }
     );
   };
@@ -116,7 +254,7 @@ const MapViewScreen = ({navigation}) => {
   const initializeMqtt = async () => {
     try {
       console.log('🔗 [MAP] Initializing MQTT for location updates...');
-      
+
       const client = mqtt.connect(MQTT_CONFIG.host, {
         username: MQTT_CONFIG.username,
         password: MQTT_CONFIG.password,
@@ -130,7 +268,7 @@ const MapViewScreen = ({navigation}) => {
       client.on("connect", () => {
         console.log('✅ [MAP] MQTT connected for location updates');
         setMqttConnected(true);
-        
+
         // Subscribe to location topics for all active chips
         const chipIds = activeChips.map(chip => chip.chip || chip.chip_id).filter(Boolean);
         chipIds.forEach(chipId => {
@@ -148,19 +286,19 @@ const MapViewScreen = ({navigation}) => {
       client.on("message", async (topic, message) => {
         try {
           const payload = JSON.parse(message.toString());
-          
+
           // Process location updates (topic format: /device_sensor_data/449810146246400/{chipId}/0/location)
           if (topic.includes('/location')) {
             const topicParts = topic.split('/');
             const chipId = topicParts[3];
-            
+
             if (payload.latitude && payload.longitude) {
               console.log(`📍 [MAP] Location update for chip ${chipId}:`, payload);
-              
+
               // Update location in Supabase
               const { error: updateError } = await supabase
                 .from('cars')
-                .update({ 
+                .update({
                   latitude: payload.latitude,
                   longitude: payload.longitude,
                   last_location_update: new Date().toISOString()
@@ -171,17 +309,17 @@ const MapViewScreen = ({navigation}) => {
                 console.error('❌ [MAP] Error updating location in database:', updateError);
               } else {
                 console.log(`📍 [MAP] Location updated in database for chip: ${chipId}`);
-                
+
                 // Update local state for immediate UI update
-                setActiveChips(prevChips => 
-                  prevChips.map(chip => 
+                setActiveChips(prevChips =>
+                  prevChips.map(chip =>
                     (chip.chip === chipId || chip.chip_id === chipId)
-                      ? { 
-                          ...chip, 
-                          latitude: payload.latitude,
-                          longitude: payload.longitude,
-                          last_location_update: new Date().toISOString()
-                        }
+                      ? {
+                        ...chip,
+                        latitude: payload.latitude,
+                        longitude: payload.longitude,
+                        last_location_update: new Date().toISOString()
+                      }
                       : chip
                   )
                 );
@@ -206,20 +344,20 @@ const MapViewScreen = ({navigation}) => {
 
   const startRealTimeUpdates = () => {
     console.log('🔔 [MAP] Starting real-time updates...');
-    
+
     const subscription = startLocationSubscription((updatedChip) => {
       console.log('📍 [MAP] Real-time location update:', updatedChip);
-      
+
       // Update the chip in our state
-      setActiveChips(prevChips => 
-        prevChips.map(chip => 
-          chip.id === updatedChip.id 
+      setActiveChips(prevChips =>
+        prevChips.map(chip =>
+          chip.id === updatedChip.id
             ? { ...chip, ...updatedChip }
             : chip
         )
       );
     });
-    
+
     setLocationSubscription(subscription);
   };
 
@@ -229,7 +367,7 @@ const MapViewScreen = ({navigation}) => {
 
   const handleViewDetail = async (chip) => {
     console.log('👁️ [MAP] View detail pressed for chip:', chip);
-    
+
     try {
       // Fetch complete vehicle data from Supabase
       const { data: vehicleData, error } = await supabase
@@ -257,7 +395,7 @@ const MapViewScreen = ({navigation}) => {
       }
 
       // Navigate to vehicle details page with complete data
-      navigation.navigate('VehicleDetailsScreen', { 
+      navigation.navigate('VehicleDetailsScreen', {
         // Complete vehicle object
         vehicle: {
           id: vehicleData.id,
@@ -303,12 +441,12 @@ const MapViewScreen = ({navigation}) => {
     }
   };
   return (
-    <View style={{flex: 1}}>
+    <View style={{ flex: 1 }}>
       {/* <Header title="Home" backArrow={true} /> */}
-      <TouchableOpacity onPress={()=> navigation.goBack()} style={styles.notificationIcon}>
-          <Ionicons name="arrow-back" size={32} color="black" />
-        </TouchableOpacity>
-      
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.notificationIcon}>
+        <Ionicons name="arrow-back" size={32} color="black" />
+      </TouchableOpacity>
+
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
@@ -320,17 +458,17 @@ const MapViewScreen = ({navigation}) => {
           currentLocation={currentLocation}
           onChipPress={handleChipPress}
           onViewDetail={handleViewDetail}
-          style={{flex: 1}}
+          style={{ flex: 1 }}
         />
       )}
-      
+
       {/* Keep original ParkingMap1 as fallback if needed */}
       {/* <ParkingMap1
         parkingYards={parkingYards}
         single={true}
         home={true}
       /> */}
-      
+
     </View>
   );
 };
@@ -341,7 +479,7 @@ const styles = StyleSheet.create({
   notificationIcon: {
     position: 'absolute',
     left: wp(2),
-    top: hp(5),
+    top: Platform.OS === 'ios' ? hp(7) : hp(1),
     width: wp(15),
     height: wp(15),
     zIndex: 999,

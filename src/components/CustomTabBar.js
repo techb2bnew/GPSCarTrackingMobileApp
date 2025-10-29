@@ -1,7 +1,7 @@
 // CustomTabBar.js
 
 import React from 'react';
-import { View, TouchableOpacity, Text, Image, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, Image, StyleSheet, Platform } from 'react-native';
 import Animated, {
   FadeIn,
   FadeOut,
@@ -23,8 +23,8 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
           options.tabBarLabel !== undefined
             ? options.tabBarLabel
             : options.title !== undefined
-            ? options.title
-            : route.name;
+              ? options.title
+              : route.name;
 
         const isFocused = state.index === index;
 
@@ -46,7 +46,7 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
 
         return (
           <AnimatedTouchableOpacity
-            layout={LinearTransition.springify().mass(0.5)}
+            layout={Platform.OS === 'ios' ? LinearTransition.springify().mass(0.5) : undefined}
             key={route.key}
             onPress={onPress}
             style={[
@@ -75,12 +75,12 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: "#613EEA",
-    width: '80%',
+    width: Platform.OS === 'ios' ? "80%" : '90%',
     alignSelf: 'center',
-    bottom: 40,
+    bottom: Platform.OS === 'ios' ? 40 : 10,
     borderRadius: 40,
     paddingHorizontal: 12,
     paddingVertical: 15,
@@ -88,18 +88,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
+    elevation: Platform.OS === 'android' ? 8 : 0,
   },
   tabItem: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     height: 36,
-    paddingHorizontal: 20,
+    paddingHorizontal: Platform.OS === 'ios' ? 20 : 16,
     borderRadius: 30,
-  },
+    },
   text: {
     color: PRIMARY_COLOR,
     marginLeft: 8,
     fontWeight: '500',
+    fontSize: 12,
   },
 });

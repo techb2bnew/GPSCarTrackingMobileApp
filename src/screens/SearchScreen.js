@@ -7,11 +7,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons'; // vector-icons
 import { useFocusEffect } from '@react-navigation/native';
 import {heightPercentageToDP} from '../utils';
 import { supabase } from '../lib/supabaseClient';
+import { spacings } from '../constants/Fonts';
 
 const SearchScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
@@ -188,14 +190,14 @@ export default SearchScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 12,
+    padding: spacings.large,
     backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: spacings.large,
     marginBottom: 20,
   },
   headerTitle: {fontWeight: 'bold', fontSize: 16},
@@ -206,8 +208,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     marginBottom: 20,
-    marginHorizontal: 16,
-    height: heightPercentageToDP(5),
+    marginHorizontal: spacings.xLarge,
+    height: Platform.OS === 'ios' ? heightPercentageToDP(5) : heightPercentageToDP(5.5),
   },
   input: {
     flex: 1,
