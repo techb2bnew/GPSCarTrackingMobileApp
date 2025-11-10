@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, FlatList, Platform } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { widthPercentageToDP } from '../utils';
 import AnimatedLottieView from 'lottie-react-native';
 import BleTesting from '../components/BleTesting';
 import { supabase } from '../lib/supabaseClient';
+import { spacings, style } from '../constants/Fonts';
 
 export default function ScanScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
@@ -375,11 +376,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: spacings.large,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     marginBottom: 40,
   },
   button: {
@@ -400,9 +401,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     marginLeft: 12,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
   },
   icon: {},
   modalContainer: {
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 20,
+    padding: spacings.large,
     alignItems: 'center',
     width: widthPercentageToDP(80),
   },
@@ -429,7 +430,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    padding: 25,
+    padding: spacings.Large1x,
     maxHeight: '80%',
   },
   detailModalHeader: {
@@ -442,8 +443,8 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   detailModalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLargeXX.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: 'black',
   },
   detailSection: {
@@ -461,14 +462,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailLabel: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#666',
     marginBottom: 4,
   },
   detailValue: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: 'black',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   closeButton: {
     backgroundColor: '#613EEA',
@@ -479,14 +480,14 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
   },
   modalButtonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 10,
-    marginTop: 10,
+    marginTop: Platform.OS === 'ios' ? spacings.small : -5,
   },
   modalButton: {
     flex: 1,
@@ -502,8 +503,8 @@ const styles = StyleSheet.create({
   },
   closeButtonSecondaryText: {
     color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   viewDetailsButton: {
     backgroundColor: '#613EEA',
@@ -512,7 +513,7 @@ const styles = StyleSheet.create({
   },
   viewDetailsButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     fontWeight: '700',
   },
 
@@ -526,7 +527,7 @@ const styles = StyleSheet.create({
   notFoundModalContent: {
     backgroundColor: 'white',
     borderRadius: 20,
-    padding: 25,
+    padding: spacings.Large1x,
     width: widthPercentageToDP(85),
     alignItems: 'center',
   },
@@ -538,8 +539,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   notFoundModalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLargeX.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#ff6b6b',
     flex: 1,
     textAlign: 'center',
@@ -550,16 +551,16 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   notFoundText: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#666',
     textAlign: 'center',
     marginBottom: 15,
     lineHeight: 22,
   },
   notFoundQuestion: {
-    fontSize: 18,
+    fontSize: style.fontSizeMedium1x.fontSize,
     color: 'black',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
     textAlign: 'center',
   },
   notFoundButtons: {
@@ -582,13 +583,13 @@ const styles = StyleSheet.create({
   },
   noButtonText: {
     color: '#666',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
   },
   yesButtonText: {
     color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
   },
 
   // Yard Selection Modal Styles
@@ -601,7 +602,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    padding: 25,
+    padding: spacings.Large1x,
     maxHeight: '80%',
   },
   yardSelectionModalHeader: {
@@ -614,12 +615,12 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   yardSelectionModalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLargeXX.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: 'black',
   },
   yardSelectionSubtitle: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#666',
     textAlign: 'center',
     marginBottom: 20,
@@ -632,19 +633,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#c1b7ed',
     borderRadius: 10,
-    padding: 16,
+    padding: spacings.large,
     marginBottom: 12,
     backgroundColor: '#fff',
     justifyContent: 'center',
   },
   yardCardName: {
-    fontWeight: 'bold',
-    fontSize: 17,
+    fontWeight: style.fontWeightBold.fontWeight,
+    fontSize: style.fontSizeMedium.fontSize,
     color: '#252837',
     marginBottom: 4,
   },
   yardCardAddress: {
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     color: '#252837',
   },
   emptyYardsContainer: {
@@ -653,14 +654,14 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyYardsText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
     marginTop: 20,
     marginBottom: 10,
   },
   emptyYardsSubtext: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 40,

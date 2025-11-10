@@ -4,6 +4,7 @@ import MapView, {Marker, Circle, Polygon} from 'react-native-maps';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {CAR} from '../assests/images';
+import { spacings, style } from '../constants/Fonts';
 
 const SLOT_SIZE = 0.0001; // Adjust for slot size
 
@@ -268,8 +269,8 @@ console.log("selectedCar>>>", selectedCar);
                       <Text
                         style={{
                           color: 'red',
-                          fontWeight: 'bold',
-                          fontSize: 14,
+                          fontWeight: style.fontWeightBold.fontWeight,
+                          fontSize: style.fontSizeSmall1x.fontSize,
                         }}>
                         {/* {index + 1} */}
                       </Text>
@@ -301,14 +302,14 @@ const styles = StyleSheet.create({
     bottom: 20,
     alignSelf: 'center',
     backgroundColor: 'blue',
-    padding: 10,
+    padding: spacings.normal,
     borderRadius: 5,
   },
   customCallout: {
     position: 'absolute',
     bottom: 40,
     backgroundColor: 'white',
-    padding: 10,
+    padding: spacings.normal,
     borderRadius: 5,
     borderWidth: 1,
     width: 140,
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 40,
     backgroundColor: 'white',
-    padding: 10,
+    padding: spacings.normal,
     borderRadius: 5,
     borderWidth: 1,
     width: 140,
@@ -648,14 +649,14 @@ export default ParkingMap;
 //     bottom: 20,
 //     alignSelf: 'center',
 //     backgroundColor: 'blue',
-//     padding: 10,
+//     padding: spacings.normal,
 //     borderRadius: 5,
 //   },
 //   customCallout: {
 //     position: 'absolute',
 //     bottom: 40,
 //     backgroundColor: 'white',
-//     padding: 10,
+//     padding: spacings.normal,
 //     borderRadius: 5,
 //     borderWidth: 1,
 //     width: 140,
@@ -666,7 +667,7 @@ export default ParkingMap;
 //     position: 'absolute',
 //     bottom: 40,
 //     backgroundColor: 'white',
-//     padding: 10,
+//     padding: spacings.normal,
 //     borderRadius: 5,
 //     borderWidth: 1,
 //     width: 140,

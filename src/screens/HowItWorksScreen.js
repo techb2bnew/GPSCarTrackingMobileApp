@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { spacings, style } from '../constants/Fonts';
 
 const HowItWorksScreen = ({ navigation }) => {
   return (
@@ -400,8 +401,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
     color: '#000',
   },
   content: {
@@ -409,38 +410,38 @@ const styles = StyleSheet.create({
   },
   section: {
     backgroundColor: '#FFFFFF',
-    marginVertical: 8,
-    padding: 20,
+    marginVertical: spacings.small,
+    padding: spacings.large,
   },
   iconHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacings.large,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: style.fontSizeLargeX.fontSize,
+    fontWeight: style.fontWeightBlack.fontWeight,
     color: '#1A1A1A',
-    marginLeft: 12,
+    marginLeft: spacings.small2x,
   },
   description: {
-    fontSize: 15,
+    fontSize: style.fontSizeMedium.fontSize,
     color: '#666',
     lineHeight: 24,
-    marginBottom: 16,
+    marginBottom: spacings.large,
   },
   stepCard: {
     backgroundColor: '#F8F9FA',
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    padding: spacings.large,
+    marginBottom: spacings.large,
     borderLeftWidth: 4,
     borderLeftColor: '#613EEA',
   },
   stepHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacings.large,
   },
   stepNumber: {
     width: 36,
@@ -449,59 +450,59 @@ const styles = StyleSheet.create({
     backgroundColor: '#613EEA',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacings.small2x,
   },
   stepNumberText: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightBlack.fontWeight,
     color: '#FFFFFF',
   },
   stepTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
     color: '#1A1A1A',
   },
   stepItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: spacings.normal,
   },
   stepBullet: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#613EEA',
-    marginTop: 8,
-    marginRight: 12,
+    marginTop: spacings.small,
+    marginRight: spacings.small2x,
   },
   stepText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#333',
     lineHeight: 22,
   },
   footer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: spacings.ExtraLarge2x,
     backgroundColor: '#FFFFFF',
   },
   footerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
     color: '#1A1A1A',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: spacings.small2x,
+    marginBottom: spacings.small,
   },
   footerText: {
-    fontSize: 15,
+    fontSize: style.fontSizeMedium.fontSize,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: spacings.large,
     textAlign: 'center',
   },
   versionText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#BBB',
-    marginTop: 8,
+    marginTop: spacings.small,
   },
 });
 

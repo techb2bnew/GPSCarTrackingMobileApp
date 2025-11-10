@@ -19,6 +19,7 @@ import { supabase } from '../lib/supabaseClient'; // adjust path to your Supabas
 import { MAIN_LOGO } from '../assests/images';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../redux/userSlice';
+import { spacings, style } from '../constants/Fonts';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -41,9 +42,9 @@ const LoginScreen = ({ navigation }) => {
     const email = 'support@example.com'; // Replace with your support email
     const subject = 'Customer Support Request';
     const body = 'Hello, I need help with...';
-    
+
     const emailUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
+
     Linking.openURL(emailUrl).catch(err => {
       Alert.alert('Error', 'Could not open email client');
     });
@@ -51,9 +52,9 @@ const LoginScreen = ({ navigation }) => {
 
   const handlePhoneContact = () => {
     const phoneNumber = '+1234567890'; // Replace with your support phone number
-    
+
     const phoneUrl = `tel:${phoneNumber}`;
-    
+
     Linking.openURL(phoneUrl).catch(err => {
       Alert.alert('Error', 'Could not open phone dialer');
     });
@@ -93,7 +94,7 @@ const LoginScreen = ({ navigation }) => {
 
     try {
       // Fetch user from Supabase 'staff' table
-      const {data, error} = await supabase
+      const { data, error } = await supabase
         .from('staff')
         .select('*')
         .eq('email', email)
@@ -126,7 +127,7 @@ const LoginScreen = ({ navigation }) => {
       dispatch(setUser(data));
       await AsyncStorage.setItem('user', JSON.stringify(data));
       setLoading(false);
-      
+
       // Navigate to main screens
       navigation.navigate('mainscreens');
     } catch (err) {
@@ -171,9 +172,9 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.passwordRow}>
           <Text style={styles.label}>Password</Text>
         </View>
-        <View style={styles.passwordContainer}>
+        <View style={[  styles.passwordContainer, passwordError ? styles.inputError : null]}>
           <TextInput
-            style={[styles.passwordInput, passwordError ? styles.inputError : null]}
+            style={[styles.passwordInput]}
             placeholder="**********"
             placeholderTextColor="#aaa"
             secureTextEntry={!showPassword}
@@ -199,7 +200,7 @@ const LoginScreen = ({ navigation }) => {
         ) : null}
 
         {generalError ? (
-            <Text style={styles.errorText}>{generalError}</Text>
+          <Text style={styles.errorText}>{generalError}</Text>
         ) : null}
 
         {/* <TouchableOpacity
@@ -226,7 +227,7 @@ const LoginScreen = ({ navigation }) => {
         </TouchableOpacity> */}
 
         {/* Customer Support Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.supportButton}
           onPress={() => setSupportModalVisible(true)}
         >
@@ -245,8 +246,8 @@ const LoginScreen = ({ navigation }) => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Contact Support</Text>
             <Text style={styles.modalSubtitle}>Choose how you'd like to contact us</Text>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.contactOption}
               onPress={() => {
                 setSupportModalVisible(false);
@@ -257,7 +258,7 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.contactOptionSubtext}>support@example.com</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.contactOption}
               onPress={() => {
                 setSupportModalVisible(false);
@@ -268,7 +269,7 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.contactOptionSubtext}>+1 (234) 567-8900</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => setSupportModalVisible(false)}
             >
@@ -286,23 +287,23 @@ export default LoginScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    marginTop: 30,
+    paddingVertical: spacings.large,
+    paddingHorizontal: spacings.large,
+    marginTop: spacings.ExtraLarge2x,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 6,
-    marginTop: 10,
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    marginBottom: spacings.small,
+    marginTop: spacings.normal,
   },
   input: {
     height: 45,
     borderColor: '#aaa',
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 10,
+    paddingHorizontal: spacings.small2x,
+    marginBottom: spacings.normal,
     backgroundColor: 'white',
   },
   passwordContainer: {
@@ -311,18 +312,18 @@ const styles = StyleSheet.create({
     borderColor: '#aaa',
     borderWidth: 1,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: spacings.normal,
     backgroundColor: 'white',
   },
   passwordInput: {
     flex: 1,
     height: 45,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacings.small2x,
     borderWidth: 0,
   },
   eyeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: spacings.small2x,
+    paddingVertical: spacings.normal,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -332,45 +333,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   forgot: {
-    fontSize: 13,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeSmall2x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#613EEA',
   },
   loginButton: {
     backgroundColor: '#613EEA',
     borderRadius: 8,
-    paddingVertical: 14,
+    paddingVertical: spacings.xLarge,
     alignItems: 'center',
-    marginVertical: 40,
+    marginVertical: spacings.ExtraLarge2x,
   },
   loginButtonText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: style.fontWeightBold.fontWeight,
+    fontSize: style.fontSizeNormal.fontSize,
   },
   signupContainer: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: spacings.large,
   },
   signupText: {
     color: '#333',
   },
   signupLink: {
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#613EEA',
   },
   errorContainer: {
     backgroundColor: '#ffebee',
-    padding: 12,
+    padding: spacings.small2x,
     borderRadius: 8,
-    marginBottom: 16,
+    marginBottom: spacings.large,
     borderLeftWidth: 4,
     borderLeftColor: '#f44336',
   },
   errorText: {
     color: '#f44336',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   inputError: {
     borderColor: '#f44336',
@@ -378,24 +379,24 @@ const styles = StyleSheet.create({
   },
   fieldErrorText: {
     color: '#f44336',
-    fontSize: 12,
-    marginTop: -8,
-    marginBottom: 10,
-    marginLeft: 4,
+    fontSize: style.fontSizeSmall.fontSize,
+    marginTop: spacings.xsmall,
+    marginBottom: spacings.normal,
+    marginLeft: spacings.xsmall,
   },
   supportButton: {
     backgroundColor: '#f0f0f0',
     borderRadius: 8,
-    paddingVertical: 12,
+    paddingVertical: spacings.xLarge,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: spacings.large,
     borderWidth: 1,
     borderColor: '#ddd',
   },
   supportButtonText: {
     color: '#613EEA',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    fontSize: style.fontSizeSmall1x.fontSize,
   },
   modalOverlay: {
     flex: 1,

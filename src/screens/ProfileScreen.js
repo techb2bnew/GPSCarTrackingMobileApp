@@ -817,7 +817,7 @@ const styles = StyleSheet.create({
   profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    padding: spacings.large,
   },
   avatarContainer: {
     marginRight: 16,
@@ -845,8 +845,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 34,
-    fontWeight: '900',
+    fontSize: style.fontSizeExtraLarge.fontSize,
+    fontWeight: style.fontWeightBlack.fontWeight,
     color: '#FFFFFF',
     letterSpacing: 2,
   },
@@ -871,8 +871,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   userName: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: style.fontSizeLargeXX.fontSize,
+    fontWeight: style.fontWeightBlack.fontWeight,
     color: '#1A1A1A',
     marginRight: 8,
     letterSpacing: 0.5,
@@ -886,10 +886,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   userEmail: {
-    fontSize: 15,
+    fontSize: style.fontSizeMedium.fontSize,
     color: '#666666',
     marginLeft: 8,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   memberSinceRow: {
     flexDirection: 'row',
@@ -906,10 +906,10 @@ const styles = StyleSheet.create({
     borderColor: '#E0D4FF',
   },
   memberSinceText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#613EEA',
     marginLeft: 6,
-    fontWeight: '700',
+    fontWeight: style.fontWeightMedium1x.fontWeight,
   },
   editAvatarButton: {
     position: 'absolute',
@@ -936,8 +936,8 @@ const styles = StyleSheet.create({
   },
   editProfileButtonText: {
     color: '#613EEA',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     marginLeft: 8,
   },
   profileInfoContainer: {
@@ -950,14 +950,14 @@ const styles = StyleSheet.create({
     marginBottom: spacings.large,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: blackColor,
     marginVertical: spacings.large
   },
   editIconButton: {
     backgroundColor: '#f3f0ff',
-    padding: 10,
+    padding: spacings.normal,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -992,14 +992,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: grayColor,
     marginBottom: 2,
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: blackColor,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   statsContainer: {
     marginBottom: spacings.xLarge,
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
   statCardSmall: {
     backgroundColor: whiteColor,
     borderRadius: 12,
-    padding: 12,
+    padding: spacings.small1x,
     width: '31.5%',
     alignItems: 'center',
     borderWidth: 1,
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
   statCardLarge: {
     backgroundColor: whiteColor,
     borderRadius: 12,
-    padding: 18,
+    padding: spacings.medium,
     width: '48.5%',
     alignItems: 'center',
     borderWidth: 1,
@@ -1042,30 +1042,30 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statNumber: {
-    fontSize: 20,
-    fontWeight: '800',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightBlack.fontWeight,
     color: '#613EEA',
     marginBottom: 4,
   },
   statNumberLarge: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: style.fontSizeLarge2x.fontSize,
+    fontWeight: style.fontWeightBlack.fontWeight,
     color: '#613EEA',
     marginBottom: 6,
   },
   statLabelSmall: {
-    fontSize: 10,
+    fontSize: style.fontSizeExtraSmall.fontSize,
     color: grayColor,
     textAlign: 'center',
     lineHeight: 12,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   statLabelLarge: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: grayColor,
     textAlign: 'center',
     lineHeight: 14,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   // Old styles (can remove if not used)
   statsGrid: {
@@ -1089,7 +1089,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: style.fontSizeExtraSmall.fontSize,
     color: grayColor,
     textAlign: 'center',
     lineHeight: 12,
@@ -1127,12 +1127,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLargeX.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: blackColor,
   },
   closeButton: {
-    padding: 4,
+    padding: spacings.xsmall,
   },
   modalBody: {
     paddingHorizontal: 20,
@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: '#333',
     marginBottom: 8,
     flexDirection: 'row',
@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     paddingVertical: 14,
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: blackColor,
   },
   disabledInputWrapper: {
@@ -1176,7 +1176,7 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   inputHelperText: {
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     color: '#999',
     marginTop: 6,
     flexDirection: 'row',
@@ -1205,8 +1205,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   saveButton: {
     flex: 1,
@@ -1225,8 +1225,8 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: whiteColor,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   // Logout Card Styles
   logoutContainer: {
@@ -1261,13 +1261,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logoutTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: blackColor,
     marginBottom: 2,
   },
   logoutSubtitle: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: grayColor,
   },
   // Logout Modal Styles (matching drawer menu style)
@@ -1280,18 +1280,18 @@ const styles = StyleSheet.create({
   logoutModalContent: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 20,
+    padding: spacings.large,
     alignItems: 'center',
     width: wp('80%'),
   },
   logoutModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: blackColor,
     marginBottom: 10,
   },
   logoutModalMessage: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: grayColor,
     textAlign: 'center',
     marginBottom: 20,
@@ -1306,27 +1306,27 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     backgroundColor: '#e0e0e0',
-    padding: 12,
+    padding: spacings.small1x,
     borderRadius: 8,
     alignItems: 'center',
   },
   logoutCancelBtnText: {
     color: grayColor,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   logoutConfirmBtn: {
     flex: 1,
     marginHorizontal: 5,
     backgroundColor: 'red',
-    padding: 12,
+    padding: spacings.small1x,
     borderRadius: 8,
     alignItems: 'center',
   },
   logoutConfirmBtnText: {
     color: whiteColor,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   // Logout Animation Styles
   logoutAnimationContainer: {
@@ -1338,7 +1338,7 @@ const styles = StyleSheet.create({
     height: 100,
   },
   logoutAnimationText: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: grayColor,
     marginTop: 10,
     fontWeight: '500',
@@ -1350,11 +1350,11 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: grayColor,
   },
   inputHelperText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#999',
     marginTop: 5,
     fontStyle: 'italic',
@@ -1392,8 +1392,8 @@ const styles = StyleSheet.create({
     marginBottom: spacings.medium,
   },
   quickActionLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: style.fontSizeSmall2x.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: blackColor,
     textAlign: 'center',
     lineHeight: 18,

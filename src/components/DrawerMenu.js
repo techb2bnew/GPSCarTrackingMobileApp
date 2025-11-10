@@ -22,6 +22,7 @@ import { clearUser } from '../redux/userSlice';
 import { whiteColor } from '../constants/Color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearAllChips, clearAllAsyncStorageData } from '../utils/chipManager';
+import { spacings, style } from '../constants/Fonts';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = width * 0.75;
@@ -177,7 +178,7 @@ export default function DrawerMenu({
               loop
               style={{ width: 180, height: 180 }}
             />
-            <Text style={{ fontSize: 16, marginBottom: 20 }}>
+            <Text style={{ fontSize: style.fontSizeNormal.fontSize, marginBottom: spacings.large }}>
               Are you sure you want to log out?
             </Text>
             <View style={styles.buttonRow}>
@@ -236,11 +237,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLarge2x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#fff',
   },
-  name: { marginTop: 10, fontWeight: 'bold', fontSize: 16 },
+  name: { marginTop: spacings.normal, fontWeight: style.fontWeightBold.fontWeight, fontSize: style.fontSizeNormal.fontSize },
 
   menuItems: { marginTop: 30 },
 
@@ -255,7 +256,8 @@ const styles = StyleSheet.create({
   menuTap: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start', // so tap area is just content width
+    alignSelf: 'flex-start', 
+    width: '100%',
   },
 
   logout: {
@@ -276,7 +278,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 20,
+    padding: spacings.large,
     alignItems: 'center',
     width: widthPercentageToDP(80),
   },
@@ -289,7 +291,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     backgroundColor: 'red',
-    padding: 10,
+    padding: spacings.normal,
     borderRadius: 5,
     alignItems: 'center',
   },

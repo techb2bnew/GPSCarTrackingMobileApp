@@ -1182,13 +1182,13 @@ const styles = StyleSheet.create({
   welcomeText: {
     color: whiteColor,
     fontSize: style.fontSizeNormal.fontSize,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
     opacity: 0.9,
   },
   userName: {
     color: whiteColor,
     fontSize: style.fontSizeMedium1x.fontSize,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightThin1x.fontWeight,
     marginTop: spacings.xsmall,
   },
   headerIcons: {
@@ -1233,7 +1233,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: style.fontSizeNormal.fontSize,
     color: darkgrayColor,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin.fontWeight,
   },
   searchArrow: {
     marginLeft: spacings.large,
@@ -1337,14 +1337,14 @@ const styles = StyleSheet.create({
   beautifulCardText: {
     color: whiteColor,
     fontSize: style.fontSizeSmall1x.fontSize,
-    fontWeight: '600',
+    fontWeight: style.fontWeightThin1x.fontWeight,
     marginBottom: spacings.small2x,
     opacity: 0.95,
   },
   beautifulCardCount: {
     color: whiteColor,
     fontSize: style.fontSizeLargeXX.fontSize,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightThin.fontWeight,
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
@@ -1367,14 +1367,14 @@ const styles = StyleSheet.create({
   },
   beautifulTitle: {
     fontSize: style.fontSizeLargeX.fontSize,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
     color: darkgrayColor,
     marginBottom: spacings.xsmall,
   },
   yardsSubtitle: {
     fontSize: style.fontSizeNormal.fontSize,
     color: grayColor,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   beautifulAddButton: {
     backgroundColor: '#613EEA',
@@ -1394,7 +1394,7 @@ const styles = StyleSheet.create({
   simpleYardCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 14,
+    padding: spacings.xxLarge,
     marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1429,53 +1429,53 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   simpleYardName: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
     color: '#1a1a1a',
-    marginBottom: 3,
+    marginBottom: spacings.xsmall,
   },
   simpleYardAddress: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#666',
-    marginBottom: 3,
+    marginBottom: spacings.xsmall,
     lineHeight: 16,
   },
   slotInfoContainer: {
-    marginTop: 2,
+    marginTop: spacings.xxsmall,
   },
   simpleSlotText: {
-    fontSize: 11,
+    fontSize: style.fontSizeExtraSmall.fontSize,
     color: '#613EEA',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   fullYardContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: spacings.xxsmall,
   },
   fullYardText: {
-    fontSize: 11,
+    fontSize: style.fontSizeExtraSmall.fontSize,
     color: '#FF6B6B',
-    fontWeight: '600',
-    marginLeft: 4,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    marginLeft: spacings.xsmall,
   },
   totalSlotText: {
-    fontSize: 10,
+    fontSize: style.fontSizeExtraSmall.fontSize,
     color: '#999',
   },
   yardCardActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacings.small,
   },
   editYardButton: {
     backgroundColor: '#f3f0ff',
-    padding: 8,
+    padding: spacings.small,
     borderRadius: 8,
   },
   deleteYardButton: {
     backgroundColor: '#FFF5F5',
-    padding: 8,
+    padding: spacings.small,
     borderRadius: 8,
   },
   selectedText: {
@@ -1500,25 +1500,25 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   beautifulEmptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#1a1a1a',
-    marginBottom: 6,
+    marginBottom: spacings.small,
     textAlign: 'center',
   },
   beautifulEmptySubtext: {
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     color: '#666',
     textAlign: 'center',
     lineHeight: 18,
-    marginBottom: 20,
+    marginBottom: spacings.large,
   },
   emptyActionButton: {
     backgroundColor: '#613EEA',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: spacings.large,
+    paddingVertical: spacings.normal,
     borderRadius: 20,
     shadowColor: '#613EEA',
     shadowOffset: { width: 0, height: 3 },
@@ -1528,9 +1528,9 @@ const styles = StyleSheet.create({
   },
   emptyActionText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginLeft: 8,
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
+    marginLeft: spacings.small,
   },
 
   // Modal Overlay
@@ -1679,13 +1679,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Modal Overlay Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-  },
   drawerWrapper: {
     flex: 1,
     width: '100%',

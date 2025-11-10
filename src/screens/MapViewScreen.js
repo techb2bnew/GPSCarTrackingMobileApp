@@ -11,6 +11,7 @@ import ActiveChipsMap from '../components/ActiveChipsMap';
 import { fetchActiveChipsWithLocations, startLocationSubscription, supabase } from '../lib/supabaseClient';
 import Geolocation from '@react-native-community/geolocation';
 import mqtt from 'mqtt/dist/mqtt';
+import { spacings, style } from '../constants/Fonts';
 
 
 const MapViewScreen = ({ navigation }) => {
@@ -493,9 +494,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: spacings.normal,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
 });

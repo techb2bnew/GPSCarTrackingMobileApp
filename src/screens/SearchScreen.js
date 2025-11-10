@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/Ionicons'; // vector-icons
 import { useFocusEffect } from '@react-navigation/native';
 import {heightPercentageToDP} from '../utils';
 import { supabase } from '../lib/supabaseClient';
-import { spacings } from '../constants/Fonts';
+import { spacings, style } from '../constants/Fonts';
 
 const SearchScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacings.large,
     marginBottom: 20,
   },
-  headerTitle: {fontWeight: 'bold', fontSize: 16},
+  headerTitle: {fontWeight: style.fontWeightBold.fontWeight, fontSize: style.fontSizeNormal.fontSize},
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -213,11 +213,11 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#333',
   },
   card: {
-    padding: 16,
+    padding: spacings.large,
     borderRadius: 12,
     backgroundColor: '#fff',
     marginBottom: 12,
@@ -236,8 +236,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   vin: {
-    fontWeight: '700',
-    fontSize: 17,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
+    fontSize: style.fontSizeMedium.fontSize,
     color: '#333',
   },
   activeBadge: {
@@ -248,17 +248,17 @@ const styles = StyleSheet.create({
   },
   activeBadgeText: {
     color: '#fff',
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: style.fontSizeExtraSmall.fontSize,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
   },
   vehicleInfo: {
-    fontSize: 15,
+    fontSize: style.fontSizeMedium.fontSize,
     color: '#666',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
     marginBottom: 6,
   },
   colorInfo: {
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     color: '#888',
     marginBottom: 8,
   },
@@ -269,30 +269,30 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   yardInfo: {
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     color: '#613EEA',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   slotInfo: {
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     color: '#FF6B35',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   chipInfo: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#28a745',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
     marginTop: 4,
   },
   statusInfo: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#007bff',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   emptyText: {
     textAlign: 'center',
     marginTop: 8,
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: 'gray',
   },
   noDataContainer: {

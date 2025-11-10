@@ -8,6 +8,7 @@ import Animated, {
   Extrapolate,
 } from 'react-native-reanimated';
 import { INTRO_2 } from '../../assests/images';
+import { spacings, style } from '../../constants/Fonts';
 
 const { width, height } = Dimensions.get('window');
 
@@ -77,14 +78,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
+    fontSize: style.fontSizeLargeXX.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: '#130057',
     textAlign: 'center',
     marginBottom: 10,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#888',
     textAlign: 'center',
   },

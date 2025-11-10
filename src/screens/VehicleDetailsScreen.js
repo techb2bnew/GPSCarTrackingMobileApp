@@ -991,7 +991,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
 
       const config = {
-        license: 't0105HAEAADcNHV64OJlipcqCx3exOR+gSUqL7YqPqsz7SETM98L2Lvx6wS622L8kpqIvn+Jy7Y7dR1SpS4fQIOlJgnXwUlXbAF3cfFzzoBne6J2Tas81yMvxzdMpCv+dSl9nXy279wYdTDrk;t0109HAEAAJRt4MPEuaQhDlCa6yhda0j07Z/FYbFCd65Ty9mXDgoozD8MgTXwcxZlT+cz8Keo0zcHr2z3xne26lirx+S2TPkgLgCnAYbYvK+paIY7esaO4fu5Bfl3PHN1isx7p/zpHJvJbPQNKuw68w==',
+        license: 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -1474,7 +1474,7 @@ const styles = StyleSheet.create({
     left: 10,
     right: 10,
     backgroundColor: '#FFF5F5',
-    padding: 12,
+    padding: spacings.small1x,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FFE5E5',
@@ -1482,8 +1482,8 @@ const styles = StyleSheet.create({
   },
   noChipText: {
     color: '#FF6B6B',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     textAlign: 'center',
   },
   map: {
@@ -1557,8 +1557,8 @@ const styles = StyleSheet.create({
   },
   tooltipText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: style.fontSizeExtraSmall.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     textAlign: 'center',
     lineHeight: 12,
   },
@@ -1630,7 +1630,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: style.fontSizeNormal.fontSize,
     color: blackColor,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
     // flex: 2,
     textAlign: 'right',
   },
@@ -1648,7 +1648,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: style.fontSizeNormal.fontSize,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   assignChipButton: {
     backgroundColor: '#613EEA',
@@ -1700,7 +1700,7 @@ const styles = StyleSheet.create({
   duplicateModalContent: {
     backgroundColor: '#fff',
     borderRadius: 24,
-    padding: 0,
+    padding: spacings.none,
     width: '90%',
     maxWidth: 380,
     shadowColor: '#000',
@@ -1730,41 +1730,41 @@ const styles = StyleSheet.create({
     borderColor: '#FF6B6B',
   },
   duplicateModalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLargeX.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
     textAlign: 'center',
     letterSpacing: 0.5,
   },
   duplicateInfoContainer: {
-    padding: 24,
+    padding: spacings.LargeXX,
   },
   duplicateMainMessage: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#666',
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 24,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   duplicateYardText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#613EEA',
     textAlign: 'center',
     marginBottom: 16,
   },
   duplicateVinText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
     textAlign: 'center',
     marginBottom: 8,
     fontFamily: 'monospace',
   },
   duplicateChipText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
     textAlign: 'center',
     marginBottom: 8,
@@ -1795,7 +1795,7 @@ const styles = StyleSheet.create({
   },
   duplicateUnassignButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     fontWeight: '700',
     marginLeft: 8,
     letterSpacing: 0.5,
@@ -1818,7 +1818,7 @@ const styles = StyleSheet.create({
   },
   duplicateCloseButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     fontWeight: '700',
     marginLeft: 8,
     letterSpacing: 0.5,
@@ -1861,7 +1861,7 @@ const styles = StyleSheet.create({
   },
   historyAction: {
     fontSize: style.fontSizeNormal.fontSize,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: blackColor,
     marginBottom: 4,
   },

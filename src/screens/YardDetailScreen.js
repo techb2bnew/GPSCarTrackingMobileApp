@@ -28,14 +28,14 @@ import { useSelector } from 'react-redux';
 import CustomButton from '../components/CustomButton';
 import { parkingYards } from '../constants/Constants';
 import { spacings, style } from '../constants/Fonts';
-import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
+import { blackColor, blueColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
 const YardDetailScreen = ({ navigation, route }) => {
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Get current user from Redux store
   const userData = useSelector(state => state.user.userData);
   const [vehicles, setVehicles] = useState([]);
@@ -60,7 +60,7 @@ const YardDetailScreen = ({ navigation, route }) => {
     try {
       if (userData) {
         console.log("📚 [HISTORY] User data:", userData);
-        
+
         return {
           name: userData?.name || userData?.email || 'Admin User',
           email: userData?.email || 'admin@example.com'
@@ -69,7 +69,7 @@ const YardDetailScreen = ({ navigation, route }) => {
 
     } catch (error) {
       console.error('Error getting user data:', error);
-     
+
     }
   };
 
@@ -77,7 +77,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   const addToHistory = async (action, chipId, vehicleId, notes, vin = null) => {
     try {
       console.log(`📚 [HISTORY] Adding ${action} entry:`, { chipId, vehicleId, vin });
-      
+
       const user = getCurrentUser();
       const newEntry = {
         action,
@@ -104,7 +104,7 @@ const YardDetailScreen = ({ navigation, route }) => {
       // Parse existing history or create new array
       const existingHistory = currentData?.history || { chip_history: [] };
       const historyArray = existingHistory.chip_history || [];
-      
+
       // Add new entry to the beginning of array (most recent first)
       const updatedHistory = {
         chip_history: [newEntry, ...historyArray]
@@ -622,7 +622,7 @@ const YardDetailScreen = ({ navigation, route }) => {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
 
       const config = {
-        license: 't0105HAEAADcNHV64OJlipcqCx3exOR+gSUqL7YqPqsz7SETM98L2Lvx6wS622L8kpqIvn+Jy7Y7dR1SpS4fQIOlJgnXwUlXbAF3cfFzzoBne6J2Tas81yMvxzdMpCv+dSl9nXy279wYdTDrk;t0109HAEAAJRt4MPEuaQhDlCa6yhda0j07Z/FYbFCd65Ty9mXDgoozD8MgTXwcxZlT+cz8Keo0zcHr2z3xne26lirx+S2TPkgLgCnAYbYvK+paIY7esaO4fu5Bfl3PHN1isx7p/zpHJvJbPQNKuw68w==',
+        license: 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -719,7 +719,7 @@ const YardDetailScreen = ({ navigation, route }) => {
 
         // Add vehicle scan history first
         await addToHistory('vehicle_scanned', null, insertedData[0].id, `Vehicle VIN ${scannedVinData.vin} scanned`, scannedVinData.vin);
-        
+
         // Add chip assign history
         await addToHistory('assigned', chipId, insertedData[0].id, 'Chip assigned to scanned vehicle');
 
@@ -825,7 +825,7 @@ const YardDetailScreen = ({ navigation, route }) => {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
 
       const config = {
-        license: 't0105HAEAADcNHV64OJlipcqCx3exOR+gSUqL7YqPqsz7SETM98L2Lvx6wS622L8kpqIvn+Jy7Y7dR1SpS4fQIOlJgnXwUlXbAF3cfFzzoBne6J2Tas81yMvxzdMpCv+dSl9nXy279wYdTDrk;t0109HAEAAJRt4MPEuaQhDlCa6yhda0j07Z/FYbFCd65Ty9mXDgoozD8MgTXwcxZlT+cz8Keo0zcHr2z3xne26lirx+S2TPkgLgCnAYbYvK+paIY7esaO4fu5Bfl3PHN1isx7p/zpHJvJbPQNKuw68w==',
+        license: 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -928,7 +928,14 @@ const YardDetailScreen = ({ navigation, route }) => {
 
         {item.isActive && item.chipId ? (
           <View style={styles.chipIdTag}>
-            <Text style={styles.chipIdText}>Chip: {item.chipId}</Text>
+            <Text style={styles.chipIdText}>
+              <Text>
+                {item.chipId.slice(0, -3)}
+                <Text style={{ color: whiteColor, fontSize: style.fontSizeMedium.fontSize }}>
+                  {item.chipId.slice(-3)}
+                </Text>
+              </Text>
+            </Text>
           </View>
         ) : (
           <TouchableOpacity
@@ -1567,18 +1574,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   slotInfoText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#613EEA',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   fullYardHeaderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   fullYardHeaderText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#FF6B6B',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
     marginLeft: 4,
   },
   fullYardMessageContainer: {
@@ -1593,9 +1600,9 @@ const styles = StyleSheet.create({
     borderLeftColor: '#FF6B6B',
   },
   fullYardMessageText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#FF6B6B',
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
     marginLeft: 6,
     flex: 1,
   },
@@ -1707,6 +1714,7 @@ const styles = StyleSheet.create({
   },
   vehicleList: {
     flexGrow: 0,
+    marginBottom: hp(10),
   },
   addMoreButton: {
     backgroundColor: '#613EEA',
@@ -1745,7 +1753,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    padding: 20,
+    padding: spacings.large,
     paddingTop: 12,
     width: '100%',
     maxHeight: '85%',
@@ -1773,37 +1781,37 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
   },
   closeButton: {
-    padding: 5,
+    padding: spacings.small,
   },
   vinDetailsContainer: {
     marginBottom: 25,
   },
   vinLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: '#666',
     marginTop: 15,
     marginBottom: 5,
   },
   vinValue: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#333',
     backgroundColor: '#f8f9fa',
-    padding: 12,
+    padding: spacings.small2x,
     borderRadius: 8,
     borderLeftWidth: 4,
     borderLeftColor: '#613EEA',
   },
   vinInput: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#333',
     backgroundColor: '#fff',
-    padding: 12,
+    padding: spacings.small2x,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
@@ -1814,18 +1822,18 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#FF6B6B',
     marginTop: 2,
     marginBottom: 10,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   successText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#4CAF50',
     marginTop: 2,
     marginBottom: 10,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   checkingIndicator: {
     position: 'absolute',
@@ -1842,7 +1850,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#007AFF',
     marginLeft: 5,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -1860,8 +1868,8 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   assignChipButton: {
     flex: 1,
@@ -1877,8 +1885,8 @@ const styles = StyleSheet.create({
   },
   assignChipButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
   },
   disabledButton: {
     opacity: 0.6,
@@ -1918,7 +1926,7 @@ const styles = StyleSheet.create({
   },
   duplicateModalTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
     textAlign: 'center',
     letterSpacing: 0.5,
@@ -1927,31 +1935,31 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   duplicateMainMessage: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#666',
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 24,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   duplicateYardText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#613EEA',
     textAlign: 'center',
     marginBottom: 16,
   },
   duplicateVinText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
     textAlign: 'center',
     marginBottom: 8,
     fontFamily: 'monospace',
   },
   duplicateChipText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#333',
     textAlign: 'center',
     marginBottom: 8,
@@ -1974,7 +1982,7 @@ const styles = StyleSheet.create({
   duplicateCloseButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: style.fontWeightMedium1x.fontWeight,
     marginLeft: 8,
     letterSpacing: 0.5,
   },
@@ -1995,8 +2003,8 @@ const styles = StyleSheet.create({
   },
   duplicateActionButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium1x.fontWeight,
     textAlign: "center"
   },
   // Chip ID Styles
@@ -2011,7 +2019,7 @@ const styles = StyleSheet.create({
   chipIdText: {
     color: '#fff',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   // Search Bar Styles
   searchContainer: {
@@ -2069,8 +2077,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: '#333',
     marginBottom: 8,
   },
@@ -2079,7 +2087,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderRadius: 12,
     padding: 15,
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     backgroundColor: '#f8f9fa',
   },
   submitButton: {
@@ -2094,7 +2102,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
     marginLeft: 10,
   },
 });

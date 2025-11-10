@@ -7,6 +7,7 @@ import Animated, {
   FadeOut,
   LinearTransition,
 } from 'react-native-reanimated';
+import { spacings, style } from '../constants/Fonts';
 
 const AnimatedTouchableOpacity =
   Animated.createAnimatedComponent(TouchableOpacity);
@@ -101,7 +102,7 @@ const styles = StyleSheet.create({
   text: {
     color: PRIMARY_COLOR,
     marginLeft: 8,
-    fontWeight: '500',
-    fontSize: 12,
+    fontWeight: style.fontWeightThin1x.fontWeight,
+    fontSize: style.fontSizeSmall.fontSize,
   },
 });

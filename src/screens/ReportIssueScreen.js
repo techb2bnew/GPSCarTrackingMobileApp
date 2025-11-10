@@ -327,13 +327,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#613EEA',
     marginBottom: spacings.xsmall,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#613EEA',
     lineHeight: 20,
   },
@@ -344,8 +344,8 @@ const styles = StyleSheet.create({
     marginBottom: spacings.xLarge,
   },
   inputLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: style.fontSizeMedium.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: '#333',
     marginBottom: spacings.small,
     flexDirection: 'row',
@@ -389,12 +389,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: redColor,
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     marginLeft: 6,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   helperText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: grayColor,
     marginTop: 6,
     fontStyle: 'italic',
@@ -403,17 +403,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F5F5F5',
-    padding: 12,
+    padding: spacings.small1x,
     borderRadius: 10,
     marginBottom: spacings.medium,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
   userInfoText: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#666',
     marginLeft: 8,
-    fontWeight: '500',
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   submitButton: {
     backgroundColor: '#613EEA',
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: whiteColor,
     fontSize: style.fontSizeNormal2x.fontSize,
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
     marginLeft: 10,
   },
 });

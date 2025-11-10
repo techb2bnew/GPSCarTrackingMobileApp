@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import Ionicons from 'react-native-vector-icons/dist/Ionicons';
+import { spacings, style } from '../constants/Fonts';
 
 const { width, height } = Dimensions.get('window');
 
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
   currentLocationMarker: {
     backgroundColor: 'white',
     borderRadius: 20,
-    padding: 5,
+    padding: spacings.small,
     borderWidth: 2,
     borderColor: '#007AFF',
     shadowColor: '#000',
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
   chipMarker: {
     backgroundColor: 'white',
     borderRadius: 20,
-    padding: 6,
+    padding: spacings.small,
     borderWidth: 3,
     borderColor: '#FF3B30',
     shadowColor: '#000',
@@ -262,12 +263,12 @@ const styles = StyleSheet.create({
   chipMarkerInner: {
     backgroundColor: '#FFF5F5',
     borderRadius: 12,
-    padding: 4,
+    padding: spacings.xsmall,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipIcon: {
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
   },
   tooltipOverlay: {
     flex: 1,
@@ -278,7 +279,7 @@ const styles = StyleSheet.create({
   tooltipContainer: {
     backgroundColor: 'white',
     borderRadius: 12,
-    margin: 20,
+    margin: spacings.large,
     minWidth: width * 0.8,
     maxWidth: width * 0.9,
     shadowColor: '#000',
@@ -291,17 +292,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    padding: spacings.large,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5EA',
   },
   tooltipTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
     color: '#000',
   },
   tooltipContent: {
-    padding: 16,
+    padding: spacings.large,
   },
   tooltipRow: {
     flexDirection: 'row',
@@ -309,8 +310,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tooltipLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: '#666',
     marginLeft: 8,
     marginRight: 8,
@@ -323,7 +324,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tooltipButtonContainer: {
-    padding: 16,
+    padding: spacings.large,
     paddingTop: 0,
   },
   viewDetailButton: {
@@ -343,7 +344,7 @@ const styles = StyleSheet.create({
   },
   viewDetailButtonText: {
     color: '#FFF',
-    fontSize: 16,
+    fontSize: style.fontSizeNormal.fontSize,
     fontWeight: '600',
     marginLeft: 8,
   },

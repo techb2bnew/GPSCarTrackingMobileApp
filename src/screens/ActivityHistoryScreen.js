@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,78 +11,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {NOTIFICATION} from '../assests/images';
+import { NOTIFICATION } from '../assests/images';
 import { supabase } from '../lib/supabaseClient';
 import { useFocusEffect } from '@react-navigation/native';
-import { spacings } from '../constants/Fonts';
+import { spacings, style } from '../constants/Fonts';
 
-const {width} = Dimensions.get('window');
-
-const dummyData = [
-  {
-    vin: 'VIN-12345',
-    time: '10:30 AM',
-    fromSlot: 3,
-    toSlot: 30,
-    fromFacility: 2,
-    toFacility: 5,
-    date: '2025-07-15',
-  },
-  {
-    vin: 'VIN-54321',
-    time: '11:00 AM',
-    fromSlot: 5,
-    toSlot: 20,
-    fromFacility: 5,
-    toFacility: 8,
-    date: '2025-07-16',
-  },
-  {
-    vin: 'VIN-67890',
-    time: '11:30 AM',
-    fromSlot: 9,
-    toSlot: 18,
-    fromFacility: 10,
-    toFacility: 3,
-    date: '2025-07-17',
-  },
-  {
-    vin: 'VIN-09876',
-    time: '12:00 PM',
-    fromSlot: 7,
-    toSlot: 23,
-    fromFacility: 23,
-    toFacility: 22,
-    date: '2025-07-18',
-  },
-  {
-    vin: 'VIN-24680',
-    time: '12:30 PM',
-    fromSlot: 2,
-    toSlot: 10,
-    fromFacility: 28,
-    toFacility: 32,
-    date: '2025-07-20',
-  },
-  {
-    vin: 'VIN-13579',
-    time: '1:00 PM',
-    fromSlot: 24,
-    toSlot: 78,
-    fromFacility: 40,
-    toFacility: 35,
-    date: '2025-07-21',
-  },
-  {
-    vin: 'VIN-11223',
-    time: '1:30 PM',
-    fromSlot: 40,
-    toSlot: 12,
-    date: '2025-07-22',
-  },
-];
-
-const ActivityHistoryScreen = ({navigation}) => {
+const ActivityHistoryScreen = ({ navigation }) => {
   const [filter, setFilter] = useState('all');
   const [activityData, setActivityData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,9 +51,9 @@ const ActivityHistoryScreen = ({navigation}) => {
         chip: vehicle.chip,
         color: vehicle.color,
         date: new Date(vehicle.id).toISOString().split('T')[0], // Using ID timestamp as date
-        time: new Date(vehicle.id).toLocaleTimeString('en-US', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        time: new Date(vehicle.id).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         action: vehicle.chip ? 'Chip Assigned' : 'Vehicle Added',
       }));
@@ -159,10 +93,10 @@ const ActivityHistoryScreen = ({navigation}) => {
     return filtered;
   };
 
-  const renderItem = ({item}) => (
+  const renderItem = ({ item }) => (
     <View style={styles.card}>
       <View style={styles.vinRow}>
-        <View style={{flex: 1}}>
+        <View style={{ flex: 1 }}>
           <Text style={styles.vinNumber}>{item.vin}</Text>
           <Text style={styles.vehicleInfo}>{item.make} {item.model}</Text>
           <Text style={styles.dateText}>{item.date}</Text>
@@ -184,7 +118,7 @@ const ActivityHistoryScreen = ({navigation}) => {
           </View>
           {item.slotNo && (
             <View style={styles.movementInfo}>
-              <Text style={[styles.movementText, {color: '#000', fontWeight: '600'}]}>
+              <Text style={[styles.movementText, { color: '#000', fontWeight: '600' }]}>
                 Slot: {item.slotNo}
               </Text>
             </View>
@@ -266,7 +200,7 @@ const ActivityHistoryScreen = ({navigation}) => {
           data={getFilteredData()}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
-          contentContainerStyle={{padding: 16}}
+          contentContainerStyle={{ padding: 16 }}
           refreshing={loading}
           onRefresh={loadActivityData}
         />
@@ -288,47 +222,50 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: spacings.large,
   },
-  headerTitle: {fontWeight: 'bold', fontSize: 16},
+  headerTitle: {
+    fontWeight: style.fontWeightBold.fontWeight,
+    fontSize: style.fontSizeNormal.fontSize
+  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    padding: spacings.large,
+    marginBottom: spacings.large,
     // shadow for iOS
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     // elevation for Android
     elevation: 4,
   },
   vinNumber: {
-    fontWeight: 'bold',
-    fontSize: 16,
+    fontWeight: style.fontWeightBold.fontWeight,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#000',
   },
   divider: {
     height: 1,
     backgroundColor: '#E0E0E0',
-    marginVertical: 8,
+    marginVertical: spacings.small,
   },
   activityText: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#333',
-    marginBottom: 4,
+    marginBottom: spacings.xsmall,
   },
   slotText: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#333',
   },
   filterContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginVertical: 10,
+    marginVertical: spacings.normal,
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: spacings.small,
+    paddingHorizontal: spacings.small2x,
     borderRadius: 20,
     backgroundColor: '#E0E0E0',
   },
@@ -342,45 +279,45 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   dateText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#555',
-    marginTop: 4,
+    marginTop: spacings.xsmall,
   },
   vehicleInfo: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#666',
-    marginTop: 2,
-    fontWeight: '600',
+    marginTop: spacings.xxsmall,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   facilityText: {
-    fontSize: 13,
+    fontSize: style.fontSizeSmall2x.fontSize,
     color: '#000',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   activityRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: spacings.small,
   },
   chipBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#E8F5E9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: spacings.small,
+    paddingVertical: spacings.xsmall,
     borderRadius: 12,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: style.fontSizeExtraSmall.fontSize,
     color: '#4CAF50',
-    fontWeight: '600',
-    marginLeft: 4,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    marginLeft: spacings.xsmall,
   },
   colorText: {
-    fontSize: 12,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#888',
-    marginTop: 6,
+    marginTop: spacings.small,
   },
   loadingContainer: {
     flex: 1,
@@ -388,26 +325,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
+    marginTop: spacings.small2x,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#666',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: spacings.ExtraLarge2x,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
     color: '#999',
-    marginTop: 16,
+    marginTop: spacings.large,
   },
   emptySubText: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#BBB',
-    marginTop: 8,
+    marginTop: spacings.small,
     textAlign: 'center',
   },
   vinRow: {
@@ -420,27 +357,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   movementText: {
-    fontSize: 14,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: 'green',
-    fontWeight: '600',
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   arrow: {
     color: 'green',
-    fontWeight: 'bold',
+    fontWeight: style.fontWeightBold.fontWeight,
   },
   badgeBox: {
     backgroundColor: '#DFFFE1', // light green background
     borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingVertical: spacings.small,
+    paddingHorizontal: spacings.small2x,
     alignSelf: 'flex-start',
-    marginTop: 6,
+    marginTop: spacings.small,
     flexDirection: 'row',
     alignItems: 'center',
   },
   badgeText: {
     color: 'green',
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    fontSize: style.fontSizeSmall1x.fontSize,
   },
 });

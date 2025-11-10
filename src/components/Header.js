@@ -4,7 +4,7 @@ import {useNavigation} from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/dist/Ionicons';
 import {lightBlueColor} from '../constants/Color';
 import {heightPercentageToDP as hp} from '../utils';
-import {style} from '../constants/Fonts';
+import {style, spacings} from '../constants/Fonts';
 
 const Header = ({title, onBack, backArrow}) => {
   const navigation = useNavigation();
@@ -42,10 +42,10 @@ const styles = {
     marginTop: 38,
   },
   backButton: {
-    padding: 8,
+    padding: spacings.small,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: style.fontSizeLarge.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
 };
