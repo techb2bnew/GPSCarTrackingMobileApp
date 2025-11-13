@@ -14,6 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {heightPercentageToDP} from '../utils';
 import { supabase } from '../lib/supabaseClient';
 import { spacings, style } from '../constants/Fonts';
+import { greenColor } from '../constants/Color';
 
 const SearchScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
@@ -37,6 +38,21 @@ const SearchScreen = ({navigation}) => {
         return;
       }
 
+      // Fetch facility names for all vehicles
+      const facilityIds = [...new Set(vehicles.map(v => v.facilityId).filter(Boolean))];
+      const facilityMap = {};
+      if (facilityIds.length > 0) {
+        const { data: facilities } = await supabase
+          .from('facility')
+          .select('id, name')
+          .in('id', facilityIds);
+        if (facilities) {
+          facilities.forEach(f => {
+            facilityMap[f.id] = f.name;
+          });
+        }
+      }
+
       // Transform to match app format
       const allVehiclesData = vehicles.map(vehicle => ({
         id: vehicle.id,
@@ -48,7 +64,7 @@ const SearchScreen = ({navigation}) => {
         chipId: vehicle.chip,
         chip: vehicle.chip,
         facilityId: vehicle.facilityId,
-        parkingYard: vehicle.facilityId, // facilityId is the yard name
+        parkingYard: facilityMap[vehicle.facilityId] || vehicle.facilityId || 'Unknown Yard', // Use facility name instead of ID
         yardId: vehicle.facilityId,
         isActive: vehicle.chip ? true : false,
       }));
@@ -236,31 +252,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   vin: {
-    fontWeight: style.fontWeightMedium1x.fontWeight,
-    fontSize: style.fontSizeMedium.fontSize,
+    fontWeight: style.fontWeightThin1x.fontWeight,
+    fontSize: style.fontSizeNormal.fontSize,
     color: '#333',
   },
   activeBadge: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    backgroundColor: greenColor,
+    paddingHorizontal: spacings.normal,
+    paddingVertical: spacings.xsmall,
+    borderRadius: 8,
   },
   activeBadgeText: {
+    fontWeight: style.fontWeightMedium.fontWeight,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#fff',
-    fontSize: style.fontSizeExtraSmall.fontSize,
-    fontWeight: style.fontWeightMedium1x.fontWeight,
   },
   vehicleInfo: {
-    fontSize: style.fontSizeMedium.fontSize,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#666',
     fontWeight: style.fontWeightMedium.fontWeight,
-    marginBottom: 6,
+    marginBottom: spacings.xxsmall,
   },
   colorInfo: {
-    fontSize: style.fontSizeSmall2x.fontSize,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#888',
-    marginBottom: 8,
+    marginBottom: spacings.small,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -286,8 +302,9 @@ const styles = StyleSheet.create({
   },
   statusInfo: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#007bff',
+    color: '#28a745',
     fontWeight: style.fontWeightMedium.fontWeight,
+    marginTop: 4,
   },
   emptyText: {
     textAlign: 'center',

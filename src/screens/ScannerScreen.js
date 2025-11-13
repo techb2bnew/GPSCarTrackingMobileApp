@@ -100,23 +100,31 @@ const ScannerScreen = ({ navigation, route }) => {
   // Find vehicle in all yards by Chip ID (Supabase)
   const findVehicleByChipId = async (chipId) => {
     try {
-      console.log(`🔍 Searching for Chip: ${chipId} in Supabase...`);
+      // Clean and normalize chip ID (remove whitespace, convert to uppercase)
+      const cleanChipId = chipId.trim().toUpperCase();
+      console.log(`🔍 Searching for Chip: ${cleanChipId} in Supabase...`);
       
-      // Search in Supabase using case-insensitive search
-      const { data, error } = await supabase
+      // First, try exact match (case-insensitive)
+      let { data, error } = await supabase
         .from('cars')
         .select('*')
-        .ilike('chip', chipId)
+        .ilike('chip', cleanChipId)
         .not('chip', 'is', null);
 
       if (error) {
         console.error('❌ Error searching Chip in Supabase:', error);
-        return null;
+        return { status: 'error', message: 'Error searching chip' };
       }
 
       if (data && data.length > 0) {
         const foundVehicle = data[0];
         console.log('✅ Found vehicle with chip in Supabase:', foundVehicle);
+        
+        // Verify chip is actually assigned (not null or empty)
+        if (!foundVehicle.chip || foundVehicle.chip.trim() === '') {
+          console.log('⚠️ Chip field is empty or null');
+          return { status: 'not_assigned', message: 'Chip is not assigned to any vehicle' };
+        }
         
         // Get yard name from facility ID
         const yardName = await getYardNameFromId(foundVehicle.facilityId);
@@ -136,17 +144,65 @@ const ScannerScreen = ({ navigation, route }) => {
         };
 
         return { 
+          status: 'found',
           vehicle: vehicleWithYardId, 
           yardId: foundVehicle.facilityId, // Send ID to backend
           yardName: yardName // Show name in UI
         };
       }
 
-      console.log('❌ Chip not found in Supabase');
-      return null;
+      // If not found, check if chip exists in any format (with/without spaces, different case)
+      // Try searching with trimmed and normalized values
+      const { data: allChips, error: allChipsError } = await supabase
+        .from('cars')
+        .select('chip')
+        .not('chip', 'is', null);
+
+      if (!allChipsError && allChips) {
+        // Check if any chip matches (case-insensitive, trimmed)
+        const matchingChip = allChips.find(c => 
+          c.chip && c.chip.trim().toUpperCase() === cleanChipId
+        );
+        
+        if (matchingChip) {
+          // Chip exists but query didn't find it - retry with exact match
+          const { data: retryData, error: retryError } = await supabase
+            .from('cars')
+            .select('*')
+            .eq('chip', matchingChip.chip);
+
+          if (!retryError && retryData && retryData.length > 0) {
+            const foundVehicle = retryData[0];
+            const yardName = await getYardNameFromId(foundVehicle.facilityId);
+            
+            const vehicleWithYardId = {
+              id: foundVehicle.id,
+              vin: foundVehicle.vin,
+              chipId: foundVehicle.chip,
+              chip: foundVehicle.chip,
+              make: foundVehicle.make,
+              model: foundVehicle.model,
+              color: foundVehicle.color,
+              slotNo: foundVehicle.slotNo,
+              facilityId: foundVehicle.facilityId,
+              isActive: true,
+            };
+
+            return { 
+              status: 'found',
+              vehicle: vehicleWithYardId, 
+              yardId: foundVehicle.facilityId,
+              yardName: yardName
+            };
+          }
+        }
+      }
+
+      console.log('❌ Chip not assigned to any vehicle');
+      return { status: 'not_assigned', message: 'Chip is not assigned to any vehicle' };
     } catch (error) {
       console.error('❌ Error finding vehicle by chip:', error);
-      return null;
+      return { status: 'error', message: 'Error searching chip' };
     }
   };
 
@@ -243,8 +299,9 @@ const ScannerScreen = ({ navigation, route }) => {
         
         const found = await findVehicleByChipId(chipId);
         
-        if (found) {
-          // Show success animation then navigate back to ScanScreen with data
+        // Check the status of the result
+        if (found && found.status === 'found') {
+          // Chip is assigned - show success animation then navigate back to ScanScreen with data
           setShowSuccessModal(true);
           
           // After 2 seconds, navigate back to ScanScreen with vehicle data
@@ -255,12 +312,24 @@ const ScannerScreen = ({ navigation, route }) => {
               foundYardName: found.yardName
             });
           }, 2000);
-        } else {
-          // Navigate back to ScanScreen with not found data
+        } else if (found && found.status === 'not_assigned') {
+          // Chip is not assigned - navigate back to ScanScreen with not assigned message
           navigation.navigate('ScanScreen', {
             notFoundData: {
               type: 'chip',
-              scannedValue: chipId
+              scannedValue: chipId,
+              isNotAssigned: true, // Flag to show "chip not assigned" message
+              message: found.message || 'Chip is not assigned to any vehicle'
+            }
+          });
+        } else {
+          // Error or not found - navigate back to ScanScreen with not found data
+          navigation.navigate('ScanScreen', {
+            notFoundData: {
+              type: 'chip',
+              scannedValue: chipId,
+              isNotAssigned: false,
+              message: found?.message || 'Chip not found in any parking yard'
             }
           });
         }

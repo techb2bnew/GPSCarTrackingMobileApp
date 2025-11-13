@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator, Platform, PermissionsAndroid, Alert } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import ParkingMap from '../components/ParkingMap';
 import { SingleVehInparkingYard, parkingYards } from '../constants/Constants';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
@@ -12,6 +13,7 @@ import { fetchActiveChipsWithLocations, startLocationSubscription, supabase } fr
 import Geolocation from '@react-native-community/geolocation';
 import mqtt from 'mqtt/dist/mqtt';
 import { spacings, style } from '../constants/Fonts';
+import { requestLocationPermission, checkLocationPermission, shouldRequestPermission } from '../utils/locationPermission';
 
 
 const MapViewScreen = ({ navigation }) => {
@@ -20,6 +22,7 @@ const MapViewScreen = ({ navigation }) => {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [locationSubscription, setLocationSubscription] = useState(null);
+  const [locationPermission, setLocationPermission] = useState(false);
 
   // MQTT states for location updates
   const [mqttClient, setMqttClient] = useState(null);
@@ -51,19 +54,53 @@ const MapViewScreen = ({ navigation }) => {
     };
   }, []);
 
+  // Check permission when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      const checkPermissionOnFocus = async () => {
+        // Don't block UI - map should already be showing
+        setIsLoading(false);
+        
+        const hasPermission = await checkLocationPermission();
+        if (hasPermission) {
+          setLocationPermission(true);
+          if (!currentLocation) {
+            getCurrentLocation();
+          }
+        } else {
+          setLocationPermission(false);
+          // Request permission if not already denied 3 times (non-blocking)
+          const shouldRequest = await shouldRequestPermission();
+          if (shouldRequest) {
+            requestLocationPermission({
+              title: 'Location Permission',
+              message: 'This app needs access to your location to show your current position on the map.',
+              onGranted: () => {
+                setLocationPermission(true);
+                getCurrentLocation();
+              },
+              onDenied: () => {
+                setLocationPermission(false);
+              },
+            }).then((granted) => {
+              setLocationPermission(granted);
+              if (granted && !currentLocation) {
+                getCurrentLocation();
+              }
+            });
+          }
+        }
+      };
+
+      checkPermissionOnFocus();
+    }, [])
+  );
+
   const initializeMap = async () => {
     try {
       setIsLoading(true);
 
-      // Request location permissions on Android
-      if (Platform.OS === 'android') {
-        await requestLocationPermission();
-      }
-
-      // Get current location
-      getCurrentLocation();
-
-      // Fetch active chips with locations
+      // Fetch active chips with locations first (don't wait for permission)
       await fetchActiveChips();
 
       // Initialize MQTT for location updates
@@ -75,65 +112,45 @@ const MapViewScreen = ({ navigation }) => {
       // Fetch feeds data (existing)
       await fetchData();
 
+      // Set loading to false so map shows immediately
+      setIsLoading(false);
+
+      // Check and request location permission (non-blocking)
+      const hasPermission = await checkLocationPermission();
+      if (hasPermission) {
+        setLocationPermission(true);
+        getCurrentLocation();
+      } else {
+        // Request permission if not already denied 3 times (non-blocking)
+        const shouldRequest = await shouldRequestPermission();
+        if (shouldRequest) {
+          requestLocationPermission({
+            title: 'Location Permission',
+            message: 'This app needs access to your location to show your current position on the map.',
+            onGranted: () => {
+              setLocationPermission(true);
+              getCurrentLocation();
+            },
+            onDenied: () => {
+              setLocationPermission(false);
+            },
+          }).then((granted) => {
+            setLocationPermission(granted);
+            if (granted) {
+              getCurrentLocation();
+            }
+          });
+        } else {
+          setLocationPermission(false);
+        }
+      }
+
     } catch (error) {
       console.error('❌ [MAP] Error initializing map:', error);
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const requestLocationPermission = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        // Check if permission is already granted
-        const hasPermission = await PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-        );
-
-        if (hasPermission) {
-          console.log('✅ [MAP] Location permission already granted');
-          return true;
-        }
-
-        // Request permission
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Permission',
-            message: 'This app needs access to your location to show your current position on the map.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          console.log('✅ [MAP] Location permission granted');
-          return true;
-        } else {
-          console.log('❌ [MAP] Location permission denied');
-          Alert.alert(
-            'Permission Required',
-            'Location permission is required to show your current position on the map. Please enable it in Settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Settings', onPress: () => {
-                  // You can add logic to open app settings here
-                  console.log('User wants to go to settings');
-                }
-              }
-            ]
-          );
-          return false;
-        }
-      }
-      return true; // iOS doesn't need explicit permission request
-    } catch (error) {
-      console.error('❌ [MAP] Error requesting location permission:', error);
-      return false;
-    }
-  };
 
   const getCurrentLocation = () => {
     console.log('📍 [MAP] Getting current location...');
@@ -154,11 +171,10 @@ const MapViewScreen = ({ navigation }) => {
           console.log('⏰ [MAP] Location request timed out, trying alternative method...');
           getCurrentLocationAlternative();
         } else if (error.code === 1) { // PERMISSION_DENIED
-          console.log('🚫 [MAP] Permission denied, requesting again...');
-          requestLocationPermission().then(() => {
-            // Retry after permission request
-            setTimeout(() => getCurrentLocation(), 1000);
-          });
+          console.log('🚫 [MAP] Permission denied');
+          setLocationPermission(false);
+          setIsLoading(false);
+          // Don't request again here, let the screen focus handler do it
         } else if (Platform.OS === 'android') {
           console.log('🔄 [MAP] Trying alternative location method for Android...');
           getCurrentLocationAlternative();
@@ -460,6 +476,7 @@ const MapViewScreen = ({ navigation }) => {
           onChipPress={handleChipPress}
           onViewDetail={handleViewDetail}
           style={{ flex: 1 }}
+          hasLocationPermission={locationPermission}
         />
       )}
 

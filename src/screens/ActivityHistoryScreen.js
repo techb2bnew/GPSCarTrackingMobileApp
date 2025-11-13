@@ -15,6 +15,7 @@ import { NOTIFICATION } from '../assests/images';
 import { supabase } from '../lib/supabaseClient';
 import { useFocusEffect } from '@react-navigation/native';
 import { spacings, style } from '../constants/Fonts';
+import { heightPercentageToDP } from '../utils';
 
 const ActivityHistoryScreen = ({ navigation }) => {
   const [filter, setFilter] = useState('all');
@@ -27,36 +28,134 @@ const ActivityHistoryScreen = ({ navigation }) => {
       setLoading(true);
       console.log('🔍 Loading activity history from Supabase...');
 
-      // Get all vehicles with their history (recently added/updated)
+      // Get all vehicles with their history
+      // Use assigneddate column (as per database schema)
       const { data: vehicles, error } = await supabase
         .from('cars')
         .select('*')
-        .order('id', { ascending: false })
+        .order('assigneddate', { ascending: false, nullsFirst: false })
         .limit(50);
 
       if (error) {
         console.error('❌ Error loading activity:', error);
-        setActivityData([]);
+        // Fallback: try ordering by id if assigneddate fails
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('cars')
+          .select('*')
+          .order('id', { ascending: false })
+          .limit(50);
+        
+        if (fallbackError) {
+          console.error('❌ Error loading activity (fallback):', fallbackError);
+          setActivityData([]);
+          return;
+        }
+        
+        // Fetch facility names for all vehicles
+        const facilityIds = [...new Set(fallbackData.map(v => v.facilityId).filter(Boolean))];
+        const facilityMap = {};
+        
+        if (facilityIds.length > 0) {
+          const { data: facilities } = await supabase
+            .from('facility')
+            .select('id, name')
+            .in('id', facilityIds);
+          
+          if (facilities) {
+            facilities.forEach(f => {
+              facilityMap[f.id] = f.name;
+            });
+          }
+        }
+        
+        // Use fallback data
+        const activities = fallbackData.map((vehicle) => {
+          // Only use assigneddate - no fallback
+          let activityDate = null;
+          
+          if (vehicle.assigneddate) {
+            activityDate = new Date(vehicle.assigneddate);
+            const now = new Date();
+            if (isNaN(activityDate.getTime()) || activityDate > now) {
+              activityDate = null;
+            }
+          }
+          
+          return {
+            id: vehicle.id,
+            vin: vehicle.vin,
+            make: vehicle.make,
+            model: vehicle.model,
+            slotNo: vehicle.slotNo,
+            facility: facilityMap[vehicle.facilityId] || vehicle.facilityId || 'Unknown',
+            facilityId: vehicle.facilityId,
+            chip: vehicle.chip,
+            color: vehicle.color,
+            date: activityDate ? activityDate.toISOString().split('T')[0] : null,
+            time: activityDate ? activityDate.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }) : null,
+            action: vehicle.chip ? 'Chip Assigned' : 'Vehicle Added',
+            timestamp: activityDate ? activityDate.getTime() : null,
+          };
+        });
+        
+        setActivityData(activities);
         return;
       }
 
-      // Transform to activity format
-      const activities = vehicles.map((vehicle, index) => ({
-        id: vehicle.id,
-        vin: vehicle.vin,
-        make: vehicle.make,
-        model: vehicle.model,
-        slotNo: vehicle.slotNo,
-        facility: vehicle.facilityId,
-        chip: vehicle.chip,
-        color: vehicle.color,
-        date: new Date(vehicle.id).toISOString().split('T')[0], // Using ID timestamp as date
-        time: new Date(vehicle.id).toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        action: vehicle.chip ? 'Chip Assigned' : 'Vehicle Added',
-      }));
+      // Fetch facility names for all vehicles
+      const facilityIds = [...new Set(vehicles.map(v => v.facilityId).filter(Boolean))];
+      const facilityMap = {};
+      
+      if (facilityIds.length > 0) {
+        const { data: facilities } = await supabase
+          .from('facility')
+          .select('id, name')
+          .in('id', facilityIds);
+        
+        if (facilities) {
+          facilities.forEach(f => {
+            facilityMap[f.id] = f.name;
+          });
+        }
+      }
+
+      // Transform to activity format with proper date handling
+      const activities = vehicles.map((vehicle) => {
+        // Only use assigneddate - no fallback
+        let activityDate = null;
+        
+        if (vehicle.assigneddate) {
+          activityDate = new Date(vehicle.assigneddate);
+          // Validate date - if it's invalid or in the future, set to null
+          const now = new Date();
+          if (isNaN(activityDate.getTime()) || activityDate > now) {
+            console.warn(`⚠️ Invalid or future date for vehicle ${vehicle.id}`);
+            activityDate = null;
+          }
+        }
+        
+        return {
+          id: vehicle.id,
+          vin: vehicle.vin,
+          make: vehicle.make,
+          model: vehicle.model,
+          slotNo: vehicle.slotNo,
+          facility: facilityMap[vehicle.facilityId] || vehicle.facilityId || 'Unknown',
+          facilityId: vehicle.facilityId,
+          chip: vehicle.chip,
+          color: vehicle.color,
+          date: activityDate ? activityDate.toISOString().split('T')[0] : null,
+          time: activityDate ? activityDate.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : null,
+          action: vehicle.chip ? 'Chip Assigned' : 'Vehicle Added',
+          timestamp: activityDate ? activityDate.getTime() : null, // Store timestamp for filtering
+        };
+      });
 
       console.log(`✅ Loaded ${activities.length} activities`);
       setActivityData(activities);
@@ -81,15 +180,43 @@ const ActivityHistoryScreen = ({ navigation }) => {
   );
 
   const getFilteredData = () => {
+    // "All" shows everything regardless of assigneddate
     if (filter === 'all') return activityData;
+    
     const days = parseInt(filter);
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day for accurate comparison
+    
     const filtered = activityData.filter(item => {
-      const itemDate = new Date(item.date);
-      const diffTime = Math.abs(today - itemDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays <= days;
+      // Only filter by assigneddate - if assigneddate is null, skip this item for day filters
+      if (!item.timestamp || !item.date) {
+        // No assigneddate - skip for day-based filters
+        return false;
+      }
+      
+      // Use timestamp from assigneddate
+      const itemDate = new Date(item.timestamp);
+      
+      // Validate timestamp - if it's invalid or in future, skip this item
+      const now = new Date();
+      if (isNaN(itemDate.getTime()) || itemDate > now) {
+        console.warn(`⚠️ Invalid or future assigneddate for item ${item.id}, skipping from filter`);
+        return false; // Skip items with invalid/future dates
+      }
+      
+      itemDate.setHours(0, 0, 0, 0); // Set to start of day
+      
+      // Calculate difference in days
+      const diffTime = today.getTime() - itemDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Return true if item is within the specified number of days (including today)
+      // diffDays >= 0 means the date is today or in the past
+      // diffDays <= days means it's within the filter range
+      return diffDays >= 0 && diffDays <= days;
     });
+    
+    console.log(`📊 Filter: Last ${filter} days (based on assigneddate), Filtered ${filtered.length} out of ${activityData.length} activities`);
     return filtered;
   };
 
@@ -99,7 +226,9 @@ const ActivityHistoryScreen = ({ navigation }) => {
         <View style={{ flex: 1 }}>
           <Text style={styles.vinNumber}>{item.vin}</Text>
           <Text style={styles.vehicleInfo}>{item.make} {item.model}</Text>
-          <Text style={styles.dateText}>{item.date}</Text>
+          {item.date && item.time && (
+            <Text style={styles.dateText}>{item.date} at {item.time}</Text>
+          )}
         </View>
         <View
           style={{
@@ -113,7 +242,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
           }}>
           <View style={styles.movementInfo}>
             <Text style={styles.facilityText}>
-              📍 {item.facility}
+             Parking Yard : {item.facility}📍 
             </Text>
           </View>
           {item.slotNo && (
@@ -129,12 +258,12 @@ const ActivityHistoryScreen = ({ navigation }) => {
       <View style={styles.divider} />
       <View style={styles.activityRow}>
         <Text style={styles.activityText}>
-          {item.action} at {item.time}
+          {item.action} {item.date && item.time ? `at ${item.time}` : ''}
         </Text>
         {item.chip && (
           <View style={styles.chipBadge}>
             <Ionicons name="radio-outline" size={14} color="#4CAF50" />
-            <Text style={styles.chipText}>Chip Active</Text>
+            <Text style={styles.chipText}>Chip: {item.chip}</Text>
           </View>
         )}
       </View>
@@ -165,7 +294,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.filterContainer}>
-        {['10', '15', '30', 'all'].map(option => (
+        {['all','10', '15', '30'].map(option => (
           <TouchableOpacity
             key={option}
             style={[
@@ -200,9 +329,13 @@ const ActivityHistoryScreen = ({ navigation }) => {
           data={getFilteredData()}
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 16 }}
+          contentContainerStyle={{ 
+            padding: spacings.large,
+            paddingBottom: heightPercentageToDP(10) // Add bottom padding to prevent items from hiding behind bottom bar
+          }}
           refreshing={loading}
           onRefresh={loadActivityData}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>

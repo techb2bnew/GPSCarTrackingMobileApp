@@ -641,8 +641,21 @@ const ActiveChipScreen = ({ navigation, route }) => {
                 {displayMake} •  {displayModel}
               </Text>
               <Text style={styles.chipText}>
-                {isInactive ? 'Chip: Not Assigned' : `Chip: ${item.chipId}`}
+                {isInactive ? (
+                  'Chip: Not Assigned'
+                ) : (
+                  <>
+                    Chip:{' '}
+                    <Text>
+                      {item.chipId.slice(0, -3)}
+                      <Text style={{ fontSize: 18 }}>
+                        {item.chipId.slice(-3)}
+                      </Text>
+                    </Text>
+                  </>
+                )}
               </Text>
+
               <Text style={styles.yardText}>
                 {isInactive ? 'Current Yard: ' : 'Yard: '}{displayYardName}
               </Text>
@@ -800,7 +813,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
           keyExtractor={item => item.id}
           renderItem={renderItem}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: heightPercentageToDP(10) }}
           ListEmptyComponent={
             <View style={styles.noDataContainer}>
               <Icon name="battery-charging-outline" size={80} color="#ccc" />
@@ -1047,9 +1060,10 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#666',
+    fontWeight: style.fontWeightMedium.fontWeight,
+    color: 'green',
     marginTop: spacings.xxsmall,
-    fontFamily: 'monospace',
+    // fontFamily: 'monospace',
   },
   yardText: {
     fontSize: style.fontSizeSmall.fontSize,

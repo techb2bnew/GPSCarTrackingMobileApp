@@ -685,6 +685,11 @@ const YardDetailScreen = ({ navigation, route }) => {
           make: scannedVinData.make,
           model: scannedVinData.model,
           color: vehicleColor.trim() || null, // Optional - can be null
+          // assigneddate: new Date().toISOString(), // Set assigned date automatically
+          assigneddate: (() => {
+            const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+            return `${ist.getUTCFullYear()}-${String(ist.getUTCMonth() + 1).padStart(2, '0')}-${String(ist.getUTCDate()).padStart(2, '0')} ${String(ist.getUTCHours()).padStart(2, '0')}:${String(ist.getUTCMinutes()).padStart(2, '0')}:${String(ist.getUTCSeconds()).padStart(2, '0')}.${String(ist.getUTCMilliseconds()).padStart(3, '0')}`;
+          })(),
         };
 
         // Add vehicle to Supabase
@@ -776,6 +781,11 @@ const YardDetailScreen = ({ navigation, route }) => {
         make: scannedVinData.make,
         model: scannedVinData.model,
         color: vehicleColor.trim() || null, // Optional - can be null
+        // assigneddate: new Date().toISOString(), // Set assigned date automatically
+        assigneddate: (() => {
+          const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+          return `${ist.getUTCFullYear()}-${String(ist.getUTCMonth() + 1).padStart(2, '0')}-${String(ist.getUTCDate()).padStart(2, '0')} ${String(ist.getUTCHours()).padStart(2, '0')}:${String(ist.getUTCMinutes()).padStart(2, '0')}:${String(ist.getUTCSeconds()).padStart(2, '0')}.${String(ist.getUTCMilliseconds()).padStart(3, '0')}`;
+        })(),
       };
 
       // Add vehicle to Supabase
@@ -971,7 +981,6 @@ const YardDetailScreen = ({ navigation, route }) => {
     );
   };
 
-
   const renderSearchBar = () => (
     <View style={styles.searchContainer}>
       <View style={styles.searchInputContainer}>
@@ -993,7 +1002,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   );
 
   const renderVehicleList = () => (
-    <ScrollView style={styles.scrollContainer}>
+    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
       <View style={[styles.headerWithButton, justifyContentSpaceBetween, flexDirectionRow, alignItemsCenter]}>
         <View style={styles.titleSection}>
           <Text style={styles.yardTitle}>
@@ -1037,6 +1046,7 @@ const YardDetailScreen = ({ navigation, route }) => {
         keyExtractor={item => item.id}
         renderItem={renderVehicleCard}
         style={styles.vehicleList}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={() => (
           <View style={styles.noResultsContainer}>
             <Ionicons name="search-outline" size={60} color="#ccc" />
@@ -1714,7 +1724,7 @@ const styles = StyleSheet.create({
   },
   vehicleList: {
     flexGrow: 0,
-    marginBottom: hp(10),
+    marginBottom: hp(13),
   },
   addMoreButton: {
     backgroundColor: '#613EEA',
@@ -1802,7 +1812,7 @@ const styles = StyleSheet.create({
     fontSize: style.fontSizeNormal.fontSize,
     color: '#333',
     backgroundColor: '#f8f9fa',
-    padding: spacings.small2x,
+    padding: spacings.normalx,
     borderRadius: 8,
     borderLeftWidth: 4,
     borderLeftColor: '#613EEA',
@@ -1811,7 +1821,7 @@ const styles = StyleSheet.create({
     fontSize: style.fontSizeNormal.fontSize,
     color: '#333',
     backgroundColor: '#fff',
-    padding: spacings.small2x,
+    padding: spacings.large,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',

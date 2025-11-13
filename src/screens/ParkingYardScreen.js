@@ -163,7 +163,7 @@ import { supabase } from '../lib/supabaseClient';
 import { parkingYards } from '../constants/Constants';
 import useFacilityFetch from '../hooks/useFacilityFetch';
 import { heightPercentageToDP, heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
-import { redColor, whiteColor, blackColor, grayColor } from '../constants/Color';
+import { redColor, whiteColor, blackColor, grayColor, greenColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -179,6 +179,11 @@ const ParkingYardScreen = ({ navigation }) => {
   const [yardName, setYardName] = useState('');
   const [yardSlots, setYardSlots] = useState('');
   const [yardAddress, setYardAddress] = useState('');
+
+  // Search vehicles state
+  const [allVehicles, setAllVehicles] = useState([]);
+  const [filteredVehicles, setFilteredVehicles] = useState([]);
+  const [isSearchingVehicles, setIsSearchingVehicles] = useState(false);
 
   // Validation errors
   const [errors, setErrors] = useState({
@@ -231,7 +236,64 @@ const ParkingYardScreen = ({ navigation }) => {
   // Load yards from AsyncStorage
   useEffect(() => {
     loadYards();
+    loadAllVehicles();
   }, []);
+
+  // Load all vehicles for search
+  const loadAllVehicles = async () => {
+    try {
+      console.log('🔍 [ParkingYardScreen] Loading all vehicles for search...');
+      
+      // Get all vehicles from Supabase
+      const { data: vehicles, error } = await supabase
+        .from('cars')
+        .select('*')
+        .order('id', { ascending: false });
+
+      if (error) {
+        console.error('❌ [ParkingYardScreen] Error loading vehicles:', error);
+        setAllVehicles([]);
+        return;
+      }
+
+      // Fetch facility names for all vehicles
+      const facilityIds = [...new Set(vehicles.map(v => v.facilityId).filter(Boolean))];
+      const facilityMap = {};
+      if (facilityIds.length > 0) {
+        const { data: facilities } = await supabase
+          .from('facility')
+          .select('id, name')
+          .in('id', facilityIds);
+        if (facilities) {
+          facilities.forEach(f => {
+            facilityMap[f.id] = f.name;
+          });
+        }
+      }
+
+      // Transform to match app format
+      const allVehiclesData = vehicles.map(vehicle => ({
+        id: vehicle.id,
+        vin: vehicle.vin,
+        make: vehicle.make,
+        model: vehicle.model,
+        color: vehicle.color,
+        slotNo: vehicle.slotNo,
+        chipId: vehicle.chip,
+        chip: vehicle.chip,
+        facilityId: vehicle.facilityId,
+        parkingYard: facilityMap[vehicle.facilityId] || vehicle.facilityId || 'Unknown Yard',
+        yardId: vehicle.facilityId,
+        isActive: vehicle.chip ? true : false,
+      }));
+
+      console.log(`✅ [ParkingYardScreen] Loaded ${allVehiclesData.length} vehicles for search`);
+      setAllVehicles(allVehiclesData);
+    } catch (error) {
+      console.error('❌ [ParkingYardScreen] Error loading vehicles:', error);
+      setAllVehicles([]);
+    }
+  };
 
   const loadYards = async () => {
     try {
@@ -308,17 +370,41 @@ const ParkingYardScreen = ({ navigation }) => {
     }
   };
 
-  // Search filter
+  // Search filter - VIN, Chip, Yard search
   useEffect(() => {
     if (searchText.trim() === '') {
       setFilteredYards(yards);
+      setFilteredVehicles([]);
+      setIsSearchingVehicles(false);
     } else {
-      const filtered = yards.filter(yard =>
-        yard?.name?.toLowerCase().includes(searchText.toLowerCase()),
-      );
-      setFilteredYards(filtered);
+      const lowerText = searchText.toLowerCase();
+      
+      // Search in vehicles (VIN, Chip, Yard)
+      const filteredVeh = allVehicles?.filter(item => {
+        return (
+          item.vin?.toLowerCase().includes(lowerText) ||
+          item.chipId?.toLowerCase().includes(lowerText) ||
+          item.parkingYard?.toLowerCase().includes(lowerText) ||
+          item.make?.toLowerCase().includes(lowerText) ||
+          item.model?.toLowerCase().includes(lowerText)
+        );
+      });
+      
+      if (filteredVeh && filteredVeh.length > 0) {
+        setFilteredVehicles(filteredVeh);
+        setIsSearchingVehicles(true);
+        setFilteredYards([]);
+      } else {
+        // Fallback to yard search if no vehicles found
+        const filtered = yards.filter(yard =>
+          yard?.name?.toLowerCase().includes(lowerText),
+        );
+        setFilteredYards(filtered);
+        setFilteredVehicles([]);
+        setIsSearchingVehicles(false);
+      }
     }
-  }, [searchText, yards]);
+  }, [searchText, yards, allVehicles]);
 
   // Clear specific error
   const clearError = (field) => {
@@ -698,6 +784,43 @@ const ParkingYardScreen = ({ navigation }) => {
     );
   };
 
+  // Render vehicle item for search results
+  const renderVehicleItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.vehicleCard}
+      onPress={() =>
+        navigation.navigate('VehicleDetailsScreen', {
+          vehicle: item,
+          yardName: item.parkingYard,
+          yardId: item.yardId
+        })
+      }>
+      <View style={styles.vehicleCardHeader}>
+        <Text style={styles.vehicleVin}>{item.vin}</Text>
+        {item.isActive && (
+          <View style={styles.activeBadge}>
+            <Text style={styles.activeBadgeText}>Active</Text>
+          </View>
+        )}
+      </View>
+      <Text style={styles.vehicleInfo}>
+        {item.make} {item.model}
+      </Text>
+      {item.color && (
+        <Text style={styles.vehicleColorInfo}>Color: {item.color}</Text>
+      )}
+      <View style={styles.vehicleCardFooter}>
+        <Text style={styles.vehicleYardInfo}>📍 {item.parkingYard}</Text>
+        {item.slotNo && (
+          <Text style={styles.vehicleSlotInfo}>Slot: {item.slotNo}</Text>
+        )}
+      </View>
+      {item.chipId && (
+        <Text style={styles.vehicleChipInfo}>🔗 Chip: {item.chipId}</Text>
+      )}
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.contentContainer}>
@@ -721,39 +844,77 @@ const ParkingYardScreen = ({ navigation }) => {
           <Ionicons name="search-outline" size={20} color="#666" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search parking yard..."
+            placeholder="Search VIN, Chip, Yard, Make, Model..."
             placeholderTextColor="#999"
             value={searchText}
             onChangeText={setSearchText}
           />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <Ionicons name="close-circle" size={20} color="gray" />
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* 📝 List */}
-        {yards.length > 0 ? (
-          <FlatList
-            data={filteredYards}
-            keyExtractor={item => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.listContainer}
-            ListEmptyComponent={
-              <Text style={styles.noData}>No Parking Yard Found</Text>
-            }
-          />
+        {/* 📝 List - Vehicles or Yards */}
+        {searchText.trim() === '' ? (
+          // Default: Show yards
+          yards.length > 0 ? (
+            <FlatList
+              data={filteredYards}
+              keyExtractor={item => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContainer}
+              ListEmptyComponent={
+                <Text style={styles.noData}>No Parking Yard Found</Text>
+              }
+            />
+          ) : (
+            <View style={styles.emptyYardContainer}>
+              <Ionicons name="business-outline" size={80} color="#ccc" />
+              <Text style={styles.emptyYardText}>No Parking Yards Yet</Text>
+              <Text style={styles.emptyYardSubtext}>
+                Add your first parking yard to get started
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyAddButton}
+                onPress={() => setShowAddYardModal(true)}
+              >
+                <Ionicons name="add-circle" size={24} color="#fff" />
+                <Text style={styles.emptyAddButtonText}>Add Parking Yard</Text>
+              </TouchableOpacity>
+            </View>
+          )
+        ) : isSearchingVehicles ? (
+          // Search results: Show vehicles
+          filteredVehicles.length > 0 ? (
+            <FlatList
+              data={filteredVehicles}
+              keyExtractor={item => item.id.toString()}
+              renderItem={renderVehicleItem}
+              contentContainerStyle={styles.listContainer}
+            />
+          ) : (
+            <View style={styles.emptyYardContainer}>
+              <Ionicons name="search-outline" size={50} color="#ccc" />
+              <Text style={styles.emptyYardText}>No vehicles found</Text>
+            </View>
+          )
         ) : (
-          <View style={styles.emptyYardContainer}>
-            <Ionicons name="business-outline" size={80} color="#ccc" />
-            <Text style={styles.emptyYardText}>No Parking Yards Yet</Text>
-            <Text style={styles.emptyYardSubtext}>
-              Add your first parking yard to get started
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyAddButton}
-              onPress={() => setShowAddYardModal(true)}
-            >
-              <Ionicons name="add-circle" size={24} color="#fff" />
-              <Text style={styles.emptyAddButtonText}>Add Parking Yard</Text>
-            </TouchableOpacity>
-          </View>
+          // Fallback: Show filtered yards
+          filteredYards.length > 0 ? (
+            <FlatList
+              data={filteredYards}
+              keyExtractor={item => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContainer}
+            />
+          ) : (
+            <View style={styles.emptyYardContainer}>
+              <Ionicons name="search-outline" size={50} color="#ccc" />
+              <Text style={styles.emptyYardText}>No results found</Text>
+            </View>
+          )
         )}
 
         {/* Static Yards - Commented for future use */}
@@ -979,13 +1140,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   simpleYardName: {
-    fontSize: style.fontSizeSmall1x.fontSize,
+    fontSize: style.fontSizeSmall2x.fontSize,
     fontWeight: style.fontWeightMedium1x.fontWeight,
     color: '#1a1a1a',
     marginBottom: spacings.xxsmall,
   },
   simpleYardAddress: {
-    fontSize: style.fontSizeSmall.fontSize,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#666',
     marginBottom: spacings.xxsmall,
   },
@@ -1153,6 +1314,75 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 6,
     fontWeight: '500',
+  },
+  // Vehicle Card Styles (for search results) - Same as SearchScreen
+  vehicleCard: {
+    padding: spacings.large,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  vehicleCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacings.small,
+  },
+  vehicleVin: {
+    fontWeight: style.fontWeightThin1x.fontWeight,
+    fontSize: style.fontSizeNormal.fontSize,
+    color: '#333',
+  },
+  activeBadge: {
+    backgroundColor: greenColor,
+    paddingHorizontal: spacings.normal,
+    paddingVertical: spacings.xsmall,
+    borderRadius: 8,
+  },
+  activeBadgeText: {
+    fontWeight: style.fontWeightMedium.fontWeight,
+    fontSize: style.fontSizeSmall.fontSize,
+    color: '#fff',
+  },
+  vehicleInfo: {
+    fontSize: style.fontSizeSmall1x.fontSize,
+    color: '#666',
+    fontWeight: style.fontWeightMedium.fontWeight,
+    marginBottom: spacings.xxsmall,
+  },
+  vehicleColorInfo: {
+    fontSize: style.fontSizeSmall1x.fontSize,
+    color: '#888',
+    marginBottom: spacings.small,
+  },
+  vehicleCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  vehicleYardInfo: {
+    fontSize: style.fontSizeSmall2x.fontSize,
+    color: '#613EEA',
+    fontWeight: style.fontWeightMedium.fontWeight,
+  },
+  vehicleSlotInfo: {
+    fontSize: style.fontSizeSmall2x.fontSize,
+    color: '#FF6B35',
+    fontWeight: style.fontWeightMedium.fontWeight,
+  },
+  vehicleChipInfo: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: '#28a745',
+    fontWeight: style.fontWeightMedium.fontWeight,
+    marginTop: 4,
   },
 });
 

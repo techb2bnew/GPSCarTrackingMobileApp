@@ -18,7 +18,8 @@ const ActiveChipsMap = ({
   currentLocation, 
   onChipPress,
   onViewDetail,
-  style 
+  style,
+  hasLocationPermission = false 
 }) => {
   const [selectedChip, setSelectedChip] = useState(null);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -214,8 +215,8 @@ const ActiveChipsMap = ({
         ref={mapRef}
         style={styles.map}
         region={getMapRegion()}
-        showsUserLocation={true}
-        showsMyLocationButton={true}
+        showsUserLocation={hasLocationPermission && currentLocation ? true : false}
+        showsMyLocationButton={hasLocationPermission && currentLocation ? true : false}
         showsCompass={true}
         showsScale={true}
         loadingEnabled={true}

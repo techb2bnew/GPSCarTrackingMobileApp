@@ -260,7 +260,9 @@ export default function ScanScreen({ navigation, route }) {
           <View style={styles.notFoundModalContent}>
             <View style={styles.notFoundModalHeader}>
               <Text style={styles.notFoundQuestion}>
-                {notFoundData?.type === 'vin'
+                {notFoundData?.isNotAssigned
+                  ? 'This tracker chip is not assigned to any vehicle.'
+                  : notFoundData?.type === 'vin'
                   ? 'This VIN number is not found in any parking yard.'
                   : 'This tracker chip is not found in any parking yard.'
                 }
@@ -270,7 +272,10 @@ export default function ScanScreen({ navigation, route }) {
 
             <View style={styles.notFoundContent}>
               <Text style={styles.notFoundText}>
-                Would you like to add it to a yard?
+                {notFoundData?.isNotAssigned
+                  ? 'Please assign this chip to a vehicle first.'
+                  : 'Would you like to add it to a yard?'
+                }
               </Text>
             </View>
             <Pressable onPress={() => {
@@ -279,25 +284,29 @@ export default function ScanScreen({ navigation, route }) {
             }} style={{ position: 'absolute', top: 10, right: 10 }}>
               <Ionicons name="close" size={28} color="#666" />
             </Pressable>
-            <View style={styles.notFoundButtons}>
+            <View style={[styles.notFoundButtons, notFoundData?.isNotAssigned && styles.singleButtonContainer]}>
               <Pressable
-                style={[styles.notFoundButton, styles.noButton]}
+                style={[styles.notFoundButton, styles.noButton, notFoundData?.isNotAssigned && styles.singleButton]}
                 onPress={() => {
                   setShowNotFoundModal(false);
                   setNotFoundData(null);
                 }}>
-                <Text style={styles.noButtonText}>No</Text>
+                <Text style={styles.noButtonText}>
+                  {notFoundData?.isNotAssigned ? 'Close' : 'No'}
+                </Text>
               </Pressable>
 
-              <Pressable
-                style={[styles.notFoundButton, styles.yesButton]}
-                onPress={async () => {
-                  setShowNotFoundModal(false);
-                  await fetchYards(); // Fetch yards data
-                  setShowYardSelectionModal(true); // Show yard selection modal
-                }}>
-                <Text style={styles.yesButtonText}>Yes</Text>
-              </Pressable>
+              {!notFoundData?.isNotAssigned && (
+                <Pressable
+                  style={[styles.notFoundButton, styles.yesButton]}
+                  onPress={async () => {
+                    setShowNotFoundModal(false);
+                    await fetchYards(); // Fetch yards data
+                    setShowYardSelectionModal(true); // Show yard selection modal
+                  }}>
+                  <Text style={styles.yesButtonText}>Yes</Text>
+                </Pressable>
+              )}
             </View>
           </View>
         </View>
@@ -568,12 +577,20 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'space-between',
   },
+  singleButtonContainer: {
+    justifyContent: 'center',
+  },
   notFoundButton: {
     flex: 1,
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 5,
+  },
+  singleButton: {
+    flex: 0,
+    minWidth: 120,
+    maxWidth: 200,
   },
   noButton: {
     backgroundColor: '#f0f0f0',

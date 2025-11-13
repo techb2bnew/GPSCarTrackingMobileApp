@@ -1429,13 +1429,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   simpleYardName: {
-    fontSize: style.fontSizeSmall1x.fontSize,
+    fontSize: style.fontSizeSmall2x.fontSize,
     fontWeight: style.fontWeightMedium1x.fontWeight,
     color: '#1a1a1a',
     marginBottom: spacings.xsmall,
   },
   simpleYardAddress: {
-    fontSize: style.fontSizeSmall.fontSize,
+    fontSize: style.fontSizeSmall1x.fontSize,
     color: '#666',
     marginBottom: spacings.xsmall,
     lineHeight: 16,

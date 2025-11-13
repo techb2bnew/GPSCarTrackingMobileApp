@@ -8,6 +8,7 @@ import Animated, {
   LinearTransition,
 } from 'react-native-reanimated';
 import { spacings, style } from '../constants/Fonts';
+import { widthPercentageToDP } from '../utils';
 
 const AnimatedTouchableOpacity =
   Animated.createAnimatedComponent(TouchableOpacity);
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: "#613EEA",
-    width: Platform.OS === 'ios' ? "80%" : '90%',
+    width: Platform.OS === 'ios' ? widthPercentageToDP(85) : '90%',
     alignSelf: 'center',
     bottom: Platform.OS === 'ios' ? 40 : 10,
     borderRadius: 40,

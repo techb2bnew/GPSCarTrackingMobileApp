@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F5F5F5',
-    padding: spacings.small1x,
+    padding: spacings.small2x,
     borderRadius: 10,
     marginBottom: spacings.medium,
     borderWidth: 1,

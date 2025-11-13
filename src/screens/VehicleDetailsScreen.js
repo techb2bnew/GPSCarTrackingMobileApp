@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -27,6 +28,7 @@ import { addActiveChip, moveChipToInactive, moveChipToActive, removeInactiveChip
 import { supabase } from '../lib/supabaseClient';
 import Toast from 'react-native-simple-toast';
 import { useSelector } from 'react-redux';
+import { requestLocationPermission, checkLocationPermission, shouldRequestPermission } from '../utils/locationPermission';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -39,6 +41,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Get current user from Redux store
   const userData = useSelector(state => state.user.userData);
   const mapRef = useRef(null);
+  const mqttLocationCallbackRef = useRef(null); // For refresh button MQTT callback
+  const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
 
   // Location states
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -213,6 +217,43 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       console.error('Error loading chip location:', error);
     }
     return null;
+  };
+
+  // Helper function to parse database timestamp to UTC milliseconds
+  // Database stores timestamps in UTC format (without Z suffix)
+  const parseDatabaseTimestamp = (dbTimestamp) => {
+    if (!dbTimestamp) return Date.now();
+    
+    try {
+      // Database format: "2025-11-12T15:01:07.838" (UTC format, without Z)
+      // Or: "2025-11-12 15:01:07.838" (with space)
+      // Or: "2025-11-12T15:03:08.142Z" (with Z, already UTC)
+      
+      // If timestamp ends with Z, it's already UTC
+      if (dbTimestamp.endsWith('Z')) {
+        return new Date(dbTimestamp).getTime();
+      }
+      
+      // Normalize format: replace space with T if needed
+      const timestampStr = dbTimestamp.includes('T') ? dbTimestamp : dbTimestamp.replace(' ', 'T');
+      
+      // Add Z to make it explicit UTC, or parse directly as UTC
+      // Database timestamp is already in UTC format, just parse it directly
+      const utcTimestamp = new Date(timestampStr + 'Z').getTime();
+      
+      // Debug log
+      console.log('🔍 [PARSE TIMESTAMP]');
+      console.log(`   Input: ${dbTimestamp}`);
+      console.log(`   Normalized: ${timestampStr}Z`);
+      console.log(`   UTC Timestamp MS: ${utcTimestamp}`);
+      console.log(`   UTC Time: ${new Date(utcTimestamp).toISOString()}`);
+      
+      return utcTimestamp;
+    } catch (error) {
+      console.error('Error parsing database timestamp:', error);
+      // Fallback to simple parsing
+      return new Date(dbTimestamp).getTime();
+    }
   };
 
   // Calculate time ago from timestamp
@@ -440,6 +481,13 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                 timeAgo: 'Just now'
               });
 
+              // If refresh button callback is waiting, trigger it
+              if (mqttLocationCallbackRef.current) {
+                console.log('📍 [MQTT] 🔄 Triggering refresh callback with location:', nextCoords);
+                mqttLocationCallbackRef.current(nextCoords);
+                mqttLocationCallbackRef.current = null; // Clear callback after use
+              }
+
               // Recalculate distance if current location is available
               if (currentLocation) {
                 const distance = calculateDistance(currentLocation, nextCoords);
@@ -481,35 +529,33 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Request location permission
-  const requestLocationPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Permission',
-            message: 'This app needs access to your location to show your position on the map.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-          setLocationPermission(true);
-          return true;
-        } else {
-          setLocationPermission(false);
-          return false;
-        }
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    } else {
+  // Request location permission using utility
+  const requestLocationPermissionLocal = async () => {
+    const hasPermission = await checkLocationPermission();
+    if (hasPermission) {
       setLocationPermission(true);
       return true;
     }
+
+    const shouldRequest = await shouldRequestPermission();
+    if (!shouldRequest) {
+      setLocationPermission(false);
+      return false;
+    }
+
+    const granted = await requestLocationPermission({
+      title: 'Location Permission',
+      message: 'This app needs access to your location to show your position on the map.',
+      onGranted: () => {
+        setLocationPermission(true);
+      },
+      onDenied: () => {
+        setLocationPermission(false);
+      },
+    });
+
+    setLocationPermission(granted);
+    return granted;
   };
 
   // Calculate bearing (angle) from current location to car location
@@ -543,7 +589,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         { lat: point1.latitude, lng: point1.longitude },
         { lat: point2.latitude, lng: point2.longitude }
       );
-      return Math.round(distance); // Distance in meters
+      const roundedDistance = Math.round(distance); // Distance in meters
+      
+      // Console log for verification
+      console.log(`📏 [Distance Calculation]`);
+      console.log(`   Point 1 (Current): ${point1.latitude}, ${point1.longitude}`);
+      console.log(`   Point 2 (Car): ${point2.latitude}, ${point2.longitude}`);
+      console.log(`   Distance: ${roundedDistance} meters (${(roundedDistance / 1000).toFixed(2)} km)`);
+      
+      return roundedDistance;
     } catch (error) {
       console.log('Haversine error, using manual calculation:', error);
 
@@ -560,7 +614,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
       const distance = R * c; // Distance in meters
-      return Math.round(distance);
+      const roundedDistance = Math.round(distance);
+      
+      // Console log for verification
+      console.log(`📏 [Distance Calculation - Manual]`);
+      console.log(`   Point 1 (Current): ${point1.latitude}, ${point1.longitude}`);
+      console.log(`   Point 2 (Car): ${point2.latitude}, ${point2.longitude}`);
+      console.log(`   Distance: ${roundedDistance} meters (${(roundedDistance / 1000).toFixed(2)} km)`);
+      
+      return roundedDistance;
     }
   };
 
@@ -603,7 +665,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   const getCurrentLocationAlternative = () => {
     console.log('📍 [VEHICLE] Trying alternative location method...');
-    
+
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -629,7 +691,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       (error) => {
         console.error('❌ [VEHICLE] Alternative location also failed:', error);
         console.error('❌ [VEHICLE] Alternative error code:', error.code);
-        
+
         // Try one more time with even more relaxed settings
         if (error.code === 3) { // Still timeout
           console.log('🔄 [VEHICLE] Trying third attempt with very relaxed settings...');
@@ -651,7 +713,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Get current location
   const getCurrentLocation = () => {
     console.log('📍 [VEHICLE] Getting current location...');
-    
+
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -682,23 +744,24 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         console.error('❌ [VEHICLE] Error getting current location:', error);
         console.error('❌ [VEHICLE] Error code:', error.code);
         console.error('❌ [VEHICLE] Error message:', error.message);
-        
+
         // Handle different error types
         if (error.code === 3) { // TIMEOUT
           console.log('⏰ [VEHICLE] Location request timed out, trying alternative method...');
           getCurrentLocationAlternative();
         } else if (error.code === 1) { // PERMISSION_DENIED
-          console.log('🚫 [VEHICLE] Permission denied, requesting again...');
-          requestLocationPermission().then(() => {
-            // Retry after permission request
-            setTimeout(() => getCurrentLocation(), 1000);
-          });
+          console.log('🚫 [VEHICLE] Permission denied');
+          setLocationPermission(false);
+          setIsLoading(false);
+          setLastUpdateTime(new Date().toLocaleTimeString());
+          // Don't request again here, let the screen focus handler do it
         } else if (Platform.OS === 'android') {
           console.log('🔄 [VEHICLE] Trying alternative location method for Android...');
           getCurrentLocationAlternative();
         } else {
           console.log('⚠️ [VEHICLE] Location failed on iOS');
           setIsLoading(false);
+          setLocationPermission(false);
           setLastUpdateTime(new Date().toLocaleTimeString());
         }
       },
@@ -715,7 +778,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   const getCurrentLocationThirdAttempt = () => {
     console.log('📍 [VEHICLE] Third attempt with very relaxed settings...');
-    
+
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -777,7 +840,17 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               longitude: carData.longitude,
               last_update: carData.last_location_update
             });
-            const timestamp = carData.last_location_update ? new Date(carData.last_location_update).getTime() : Date.now();
+            // Parse database timestamp (IST format) to UTC milliseconds
+            const timestamp = parseDatabaseTimestamp(carData.last_location_update);
+            
+            // Console log for verification
+            console.log('🕐 [DATABASE TIMESTAMP]');
+            console.log(`   Raw from DB: ${carData.last_location_update}`);
+            console.log(`   Parsed UTC MS: ${timestamp}`);
+            console.log(`   UTC Time: ${new Date(timestamp).toISOString()}`);
+            console.log(`   Current Time MS: ${Date.now()}`);
+            console.log(`   Difference MS: ${Date.now() - timestamp}`);
+            console.log(`   Time Ago: ${getTimeAgo(timestamp)}`);
 
             setSavedLocation({
               latitude: carData.latitude,
@@ -833,12 +906,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         loadChipHistory();
       }
 
-      const hasPermission = await requestLocationPermission();
+      // Always set loading to false first so details can show
+      setIsLoading(false);
+      setLastUpdateTime(new Date().toLocaleTimeString());
+
+      // Check and request location permission (non-blocking)
+      const hasPermission = await checkLocationPermission();
       if (hasPermission) {
+        setLocationPermission(true);
         getCurrentLocation();
       } else {
-        setIsLoading(false);
-        setLastUpdateTime(new Date().toLocaleTimeString());
+        // Request permission if not already denied 3 times (don't block UI)
+        requestLocationPermissionLocal().then((granted) => {
+          if (granted) {
+            getCurrentLocation();
+          }
+        });
       }
     };
 
@@ -861,7 +944,131 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         setMqttConnected(false);
       }
     };
-  }, [locationPermission]);
+  }, []);
+
+  // Check permission when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkPermissionOnFocus = async () => {
+        // Don't block UI - always show details
+        setIsLoading(false);
+        
+        const hasPermission = await checkLocationPermission();
+        if (hasPermission) {
+          setLocationPermission(true);
+          if (!currentLocation) {
+            getCurrentLocation();
+          }
+        } else {
+          setLocationPermission(false);
+          // Request permission if not already denied 3 times (non-blocking)
+          const shouldRequest = await shouldRequestPermission();
+          if (shouldRequest) {
+            requestLocationPermissionLocal().then((granted) => {
+              if (granted && !currentLocation) {
+                getCurrentLocation();
+              }
+            });
+          }
+        }
+      };
+
+      checkPermissionOnFocus();
+    }, [])
+  );
+
+  // Handle refresh location button click
+  const handleRefreshLocation = async () => {
+    console.log('🔄 [REFRESH] Refresh location button clicked');
+    
+    const chipId = getChipId();
+    if (!chipId) {
+      console.log('No chip assigned');
+      return;
+    }
+
+    setIsRefreshingLocation(true);
+    // Toast.show('Fetching location from MQTT...', Toast.SHORT);
+
+    try {
+      // Step 1: Pehle MQTT se fetch (30 seconds timeout)
+      console.log('📍 [REFRESH] Step 1: Fetching from MQTT...');
+      
+      // Create promise to wait for MQTT location
+      const waitForMqttLocation = new Promise((resolve, reject) => {
+        // Set callback for when MQTT location is received
+        mqttLocationCallbackRef.current = (location) => {
+          resolve(location);
+        };
+
+        // Timeout after 15 seconds
+        setTimeout(() => {
+          if (mqttLocationCallbackRef.current) {
+            mqttLocationCallbackRef.current = null;
+            reject(new Error('MQTT timeout'));
+          }
+        }, 15000); // 15 seconds
+      });
+
+      // Disconnect existing MQTT if connected
+      if (mqttClient) {
+        console.log('📍 [REFRESH] Disconnecting existing MQTT connection...');
+        mqttClient.end();
+        setMqttClient(null);
+        setMqttConnected(false);
+      }
+
+      // Reconnect MQTT to get fresh data
+      console.log('📍 [REFRESH] Reconnecting MQTT to fetch location...');
+      initializeMqtt();
+
+      // Wait for MQTT location with timeout
+      try {
+        const location = await waitForMqttLocation;
+        console.log('📍 [REFRESH] ✅ Location received from MQTT:', location);
+        // Location already updated in MQTT message handler (UI + Database)
+        // Toast.show('Location refreshed from MQTT', Toast.SHORT);
+        setIsRefreshingLocation(false);
+        return;
+      } catch (error) {
+        console.log('📍 [REFRESH] ⏰ MQTT timeout, checking database...');
+        
+        // Step 2: MQTT se nahi mila, database se fetch
+        console.log('📍 [REFRESH] Step 2: Fetching from database...');
+        // Toast.show('Checking database...', Toast.SHORT);
+        
+        const { data: carData } = await supabase
+          .from('cars')
+          .select('latitude, longitude, last_location_update')
+          .eq('chip', chipId)
+          .single();
+
+        if (carData && carData.latitude && carData.longitude) {
+          // Parse database timestamp (IST format) to UTC milliseconds
+          const timestamp = parseDatabaseTimestamp(carData.last_location_update);
+          
+          setSavedLocation({
+            latitude: carData.latitude,
+            longitude: carData.longitude,
+            timestamp: timestamp,
+            lastUpdated: new Date(timestamp).toLocaleTimeString()
+          });
+          setChipLocation({ latitude: carData.latitude, longitude: carData.longitude });
+          setCarLocation({ latitude: carData.latitude, longitude: carData.longitude });
+          setMqttDataReceived(true);
+          setTimeAgo(getTimeAgo(timestamp));
+          // Toast.show('Location refreshed from database', Toast.SHORT);
+        } else {
+          // Toast.show('Location not available', Toast.SHORT);
+        }
+        setIsRefreshingLocation(false);
+      }
+    } catch (error) {
+      console.error('📍 [REFRESH] Error refreshing location:', error);
+      // Toast.show('Failed to refresh location', Toast.SHORT);
+      setIsRefreshingLocation(false);
+    }
+  };
 
   // Real-time time ago updates (every 1 minute)
   useEffect(() => {
@@ -874,6 +1081,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       return () => clearInterval(interval);
     }
   }, [savedLocation]);
+
+  // Calculate distance when both locations are available
+  useEffect(() => {
+    if (currentLocation && carLocation) {
+      const distance = calculateDistance(currentLocation, carLocation);
+      setDistanceToCar(distance);
+      console.log(`📏 [Distance Update] Distance to car: ${distance} meters`);
+    }
+  }, [currentLocation, carLocation]);
 
   // Handle initial zoom when both locations are available
   useEffect(() => {
@@ -1112,12 +1328,12 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         ref={mapRef}
         style={styles.map}
         mapType="standard"
-        showsUserLocation={true}
-        showsMyLocationButton={true}
+        showsUserLocation={locationPermission}
+        showsMyLocationButton={locationPermission}
         rotateEnabled={true}
         initialRegion={{
-          latitude: currentLocation?.latitude || 30.713452,
-          longitude: currentLocation?.longitude || 76.691131,
+          latitude: currentLocation?.latitude || carLocation?.latitude || 30.713452,
+          longitude: currentLocation?.longitude || carLocation?.longitude || 76.691131,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
@@ -1179,7 +1395,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
               {/* Car Icon */}
               <View style={styles.carLocationMarker}>
-                <Ionicons name="car" size={20} color="#fff" />
+                <Ionicons name="car" size={15} color="#fff" />
               </View>
             </View>
           </Marker>
@@ -1358,14 +1574,30 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, flexDirectionRow, alignItemsCenter]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={28} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Vehicle Details</Text>
+      <View style={[styles.header, flexDirectionRow, alignItemsCenter, justifyContentSpaceBetween]}>
+        <View style={[flexDirectionRow, alignItemsCenter]}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={28} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Vehicle Details</Text>
+        </View>
+        {/* Refresh Button - Only show if chip is assigned */}
+        {getChipId() && (
+          <TouchableOpacity
+            onPress={handleRefreshLocation}
+            style={styles.refreshButton}
+            disabled={isRefreshingLocation}
+          >
+            {isRefreshingLocation ? (
+              <ActivityIndicator size="small" color="#613EEA" />
+            ) : (
+              <Ionicons name="refresh" size={24} color="#613EEA" />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Map Section (30% of screen) */}
@@ -1458,6 +1690,10 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightThin1x.fontWeight,
     color: blackColor,
   },
+  refreshButton: {
+    padding: spacings.small,
+    marginLeft: spacings.medium,
+  },
   loadingText: {
     marginTop: spacings.large,
     fontSize: style.fontSizeNormal.fontSize,
@@ -1474,7 +1710,7 @@ const styles = StyleSheet.create({
     left: 10,
     right: 10,
     backgroundColor: '#FFF5F5',
-    padding: spacings.small1x,
+    padding: spacings.small2x,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FFE5E5',
@@ -1564,8 +1800,8 @@ const styles = StyleSheet.create({
   },
   carLocationMarker: {
     backgroundColor: '#FF6B6B',
-    width: 40,
-    height: 40,
+    width: 25,
+    height: 25,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1836,7 +2072,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    marginBottom: hp(10),
+    marginBottom: hp(13),
   },
   historyEntry: {
     marginBottom: spacings.medium,
