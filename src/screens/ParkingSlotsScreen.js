@@ -1,14 +1,17 @@
-import React, {useMemo, useRef, useEffect} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, Platform} from 'react-native';
-import MapView, {Marker, Polygon} from 'react-native-maps';
+import React, { useMemo, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import MapView, { Marker, Polygon } from 'react-native-maps';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {heightPercentageToDP as hp, widthPercentageToDP as wp} from '../utils';
-import {style, spacings} from '../constants/Fonts';
+import { heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
+import { style, spacings } from '../constants/Fonts';
 import {
-  manualParkingSlots,
   parkingSlotPolygons,
+  threeParkingSlots,
+  ParkingSlotsOne,
+  ParkingSlotsTwo,
   defaultSlotRegion,
 } from '../constants/ParkingSlotPolygons';
+import { blackColor, whiteColor } from '../constants/Color';
 
 const COLOR_PRIMARY = '#FF6F61';
 const COLOR_FILL = 'rgba(255, 111, 97, 0.25)';
@@ -19,12 +22,12 @@ const getSlotCentroid = coordinates => {
     return defaultSlotRegion;
   }
 
-  const {latitude, longitude} = coordinates.reduce(
+  const { latitude, longitude } = coordinates.reduce(
     (accumulator, point) => ({
       latitude: accumulator.latitude + point.latitude,
       longitude: accumulator.longitude + point.longitude,
     }),
-    {latitude: 0, longitude: 0},
+    { latitude: 0, longitude: 0 },
   );
 
   const count = coordinates.length;
@@ -75,7 +78,7 @@ const getRegionFromPolygons = (polygons, fallbackRegion) => {
   };
 };
 
-const ParkingSlotsScreen = ({navigation}) => {
+const ParkingSlotsScreen = ({ navigation }) => {
   const mapRef = useRef(null);
 
   const sortedPolygons = useMemo(
@@ -93,6 +96,7 @@ const ParkingSlotsScreen = ({navigation}) => {
       sortedPolygons.map(slot => ({
         label: slot?.name || (slot?.slot ? `${slot.slot}` : 'Polygon'),
         centroid: getSlotCentroid(slot.coordinates),
+        slot: slot,
       })),
     [sortedPolygons],
   );
@@ -118,18 +122,17 @@ const ParkingSlotsScreen = ({navigation}) => {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => navigation.goBack()}>
-        <Ionicons name="arrow-back" size={26} color="#000" />
-      </TouchableOpacity>
-
       <View style={styles.headerContainer}>
-        <Text style={styles.title}>Parking Slots Overview</Text>
-        <Text style={styles.subtitle}>
-          Slot polygons rendered from provided coordinates
-        </Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={30} color="#000" />
+        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>Parking Slots Overview</Text>
+        </View>
       </View>
+
 
       <MapView
         ref={mapRef}
@@ -145,7 +148,15 @@ const ParkingSlotsScreen = ({navigation}) => {
           }
         }}
         showsUserLocation={false}
-        showsMyLocationButton={false}>
+        showsMyLocationButton={false}
+        zoomEnabled={true}
+        zoomControlEnabled={true}
+        minZoomLevel={1}
+        maxZoomLevel={100}
+        scrollEnabled={true}
+        pitchEnabled={false}
+        rotateEnabled={false}
+      >
         {sortedPolygons.map(slot => (
           <Polygon
             key={slot.name ?? slot.slot}
@@ -156,13 +167,114 @@ const ParkingSlotsScreen = ({navigation}) => {
           />
         ))}
 
-        {slotMarkers.map(slot => (
-          <Marker key={slot.label} coordinate={slot.centroid} anchor={{x: 0.5, y: 0.5}}>
-            <View style={styles.slotBadge}>
-              {/* <Text style={styles.slotBadgeText}>{slot.label}</Text> */}
-            </View>
+        {/* Three Parking Slots - with blue color */}
+        {threeParkingSlots.map(slot => (
+          <Polygon
+            key={`three-slot-${slot.slot}`}
+            coordinates={slot.coordinates}
+            strokeColor="#0066FF"
+            fillColor="rgba(0, 102, 255, 0.4)"
+            strokeWidth={2}
+          />
+        ))}
+
+        {/* Single Parking Slots One */}
+        {ParkingSlotsOne.map((slot, index) => (
+          <Polygon
+            key={`single-slot-one-${index}`}
+            coordinates={slot.coordinates}
+            strokeColor="#FF6F61"
+            fillColor="rgba(255, 111, 97, 0.25)"
+            strokeWidth={2}
+          />
+        ))}
+
+        {/* Single Parking Slots Two */}
+        {ParkingSlotsTwo.map((slot, index) => (
+          <Polygon
+            key={`single-slot-two-${index}`}
+            coordinates={slot.coordinates}
+            strokeColor="#FF6F61"
+            fillColor="rgba(255, 111, 97, 0.25)"
+            strokeWidth={2}
+          />
+        ))}
+
+        {slotMarkers.map((slotMarker, index) => (
+          <Marker
+            key={slotMarker.label}
+            coordinate={slotMarker.centroid}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <TouchableOpacity
+              style={styles.slotBadge}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.slotBadgeText}>{slotMarker.label}</Text>
+            </TouchableOpacity>
           </Marker>
         ))}
+
+        {/* Three Parking Slots Markers */}
+        {threeParkingSlots.map(slot => {
+          const centroid = getSlotCentroid(slot.coordinates);
+          return (
+            <Marker
+              key={`three-marker-${slot.slot}`}
+              coordinate={centroid}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <TouchableOpacity
+                style={[styles.slotBadge, { backgroundColor: 'rgba(0, 102, 255, 0.3)' }]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.slotBadgeText]}>{slot.slot}</Text>
+              </TouchableOpacity>
+            </Marker>
+          );
+        })}
+
+        {/* Single Parking Slots One Markers */}
+        {ParkingSlotsOne.map((slot, index) => {
+          const centroid = getSlotCentroid(slot.coordinates);
+          return (
+            <Marker
+              key={`single-marker-one-${index}`}
+              coordinate={centroid}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <TouchableOpacity
+                style={[styles.slotBadge]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.slotBadgeText]}>
+                  {slot.name || `S1-${index + 1}`}
+                </Text>
+              </TouchableOpacity>
+            </Marker>
+          );
+        })}
+
+        {/* Single Parking Slots Two Markers */}
+        {ParkingSlotsTwo.map((slot, index) => {
+          const centroid = getSlotCentroid(slot.coordinates);
+          return (
+            <Marker
+              key={`single-marker-two-${index}`}
+              coordinate={centroid}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <TouchableOpacity
+                style={[styles.slotBadge]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.slotBadgeText]}>
+                  {slot.name || `S2-${index + 1}`}
+                </Text>
+              </TouchableOpacity>
+            </Marker>
+          );
+        })}
       </MapView>
     </View>
   );
@@ -173,45 +285,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  backButton: {
-    position: 'absolute',
-    left: wp(3),
-    top: Platform.OS === 'ios' ? hp(6) : hp(2),
-    zIndex: 10,
-    height: wp(12),
-    width: wp(12),
-    borderRadius: wp(6),
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
   headerContainer: {
-    paddingTop: Platform.OS === 'ios' ? hp(12) : hp(8),
-    paddingHorizontal: wp(6),
-    paddingBottom: spacings.large,
-    backgroundColor: '#fff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: whiteColor,
+    paddingTop: Platform.OS === 'ios' ? hp(6) : hp(3),
+    paddingHorizontal: spacings.large,
+    paddingBottom: spacings.medium,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
     zIndex: 5,
   },
+  backButton: {
+    padding: spacings.small,
+    marginRight: spacings.large,
+  },
+  headerContent: {
+    flex: 1,
+  },
   title: {
-    fontSize: style.fontSizeLarge2x.fontSize,
-    fontWeight: style.fontWeightBold.fontWeight,
+    fontSize: style.fontSizeLarge.fontSize,
+    fontWeight: style.fontWeightThin1x.fontWeight,
     color: '#111',
+    ...style,
   },
   subtitle: {
-    marginTop: spacings.small,
-    fontSize: style.fontSizeSmall1x.fontSize,
+    marginTop: spacings.xxsmall,
+    fontSize: style.fontSizeSmall.fontSize,
     color: '#666',
+    ...style,
   },
   map: {
     flex: 1,
   },
   slotBadge: {
-    backgroundColor: COLOR_PRIMARY,
+    // backgroundColor: COLOR_PRIMARY,
     paddingHorizontal: spacings.small,
     paddingVertical: 2,
     borderRadius: 12,
@@ -219,9 +327,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   slotBadgeText: {
-    color: '#fff',
+    color: blackColor,
     fontWeight: style.fontWeightBold.fontWeight,
-    fontSize: style.fontSizeSmall1x.fontSize,
+    fontSize: 6.5,
   },
 });
 

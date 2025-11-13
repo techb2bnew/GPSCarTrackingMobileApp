@@ -20,6 +20,8 @@ import { vinList } from '../constants/Constants';
 import { useFocusEffect } from '@react-navigation/native';
 import { getActiveChips, getInactiveChips, moveChipToActive, getBatteryStatus, getTimeAgo } from '../utils/chipManager';
 import { supabase } from '../lib/supabaseClient';
+import { checkChipOnlineStatusBatch } from '../utils/chipStatusAPI';
+import { getMQTTConfig } from '../constants/Constants';
 import mqtt from 'mqtt/dist/mqtt';
 import { style, spacings } from '../constants/Fonts';
 
@@ -45,14 +47,6 @@ const ActiveChipScreen = ({ navigation, route }) => {
   const [mqttConnected, setMqttConnected] = useState(false);
   const [batteryData, setBatteryData] = useState({}); // { chipId: { level: 90, timestamp: Date } }
 
-  // MQTT Configuration
-  const MQTT_CONFIG = {
-    host: "ws://sensecap-openstream.seeed.cc:8083/mqtt",
-    username: "org-449810146246400",
-    password: "9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3",
-    clientId: "org-449810146246400-lowbattery-" + Math.random().toString(16).substr(2, 8),
-    protocolVersion: 4,
-  };
 
   // Save battery data to local storage (for multiple chips)
   const saveBatteryDataToStorage = async (chipId, batteryLevel, timestamp) => {
@@ -103,6 +97,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
     console.log('🔄 Initializing MQTT for battery monitoring...');
 
+    const MQTT_CONFIG = getMQTTConfig('lowbattery');
     const client = mqtt.connect(MQTT_CONFIG.host, {
       username: MQTT_CONFIG.username,
       password: MQTT_CONFIG.password,
@@ -247,11 +242,37 @@ const ActiveChipScreen = ({ navigation, route }) => {
       let chipsData = [];
 
       if (type === 'active') {
-        // Active chips = cars with assigned chip (chip field has value)
-        const activeCars = carsData.filter(car => {
+        // Get all cars with assigned chips first
+        const carsWithChips = carsData.filter(car => {
           const chip = car.chip;
           return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
         });
+
+        console.log(`📋 Found ${carsWithChips.length} cars with assigned chips`);
+
+        // Extract chip IDs for API call
+        const chipIds = carsWithChips.map(car => car.chip).filter((chip, index, self) => self.indexOf(chip) === index);
+
+        // Check online status from API
+        let onlineStatusMap = {};
+        if (chipIds.length > 0) {
+          try {
+            console.log(`🔄 Calling API to check online status for ${chipIds.length} chips...`);
+            onlineStatusMap = await checkChipOnlineStatusBatch(chipIds);
+            console.log(`✅ API returned status for ${Object.keys(onlineStatusMap).length} chips`);
+          } catch (apiError) {
+            console.error('❌ Error calling chip status API:', apiError);
+          }
+        }
+
+        // Filter only active chips (online_status === 1)
+        const activeCars = carsWithChips.filter(car => {
+          const chipId = car.chip;
+          const status = onlineStatusMap[chipId];
+          return status && status.online_status === 1;
+        });
+
+        console.log(`✅ Active chips (online_status === 1): ${activeCars.length}`);
 
         // Get yard names for all unique facility IDs
         const uniqueFacilityIds = [...new Set(activeCars.map(car => car.facilityId))];
@@ -279,11 +300,37 @@ const ActiveChipScreen = ({ navigation, route }) => {
         console.log(`✅ Active chips (assigned): ${chipsData.length}`);
 
       } else if (type === 'inactive') {
-        // Inactive chips = cars without assigned chip (chip field is NULL)
-        const inactiveCars = carsData.filter(car => {
+        // Get all cars with assigned chips first
+        const carsWithChips = carsData.filter(car => {
           const chip = car.chip;
-          return !chip || chip === null || chip === 'NULL' || chip.toString().trim() === '' || chip.toString().trim() === 'null';
+          return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
         });
+
+        console.log(`📋 Found ${carsWithChips.length} cars with assigned chips`);
+
+        // Extract chip IDs for API call
+        const chipIds = carsWithChips.map(car => car.chip).filter((chip, index, self) => self.indexOf(chip) === index);
+
+        // Check online status from API
+        let onlineStatusMap = {};
+        if (chipIds.length > 0) {
+          try {
+            console.log(`🔄 Calling API to check online status for ${chipIds.length} chips...`);
+            onlineStatusMap = await checkChipOnlineStatusBatch(chipIds);
+            console.log(`✅ API returned status for ${Object.keys(onlineStatusMap).length} chips`);
+          } catch (apiError) {
+            console.error('❌ Error calling chip status API:', apiError);
+          }
+        }
+
+        // Filter only inactive chips (online_status === 0)
+        const inactiveCars = carsWithChips.filter(car => {
+          const chipId = car.chip;
+          const status = onlineStatusMap[chipId];
+          return status && status.online_status === 0;
+        });
+
+        console.log(`❌ Inactive chips (online_status === 0): ${inactiveCars.length}`);
 
         // Get yard names for all unique facility IDs
         const uniqueFacilityIds = [...new Set(inactiveCars.map(car => car.facilityId))];
@@ -294,7 +341,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         }
 
         chipsData = inactiveCars.map(car => ({
-          chipId: null,
+          chipId: car.chip,
           vin: car.vin,
           vehicleId: car.id || car.vin,
           make: car.make || 'N/A',
@@ -307,42 +354,70 @@ const ActiveChipScreen = ({ navigation, route }) => {
           unassignedAt: new Date().toISOString(),
         }));
 
-        console.log(`✅ Inactive chips (unassigned): ${chipsData.length}`);
+        console.log(`✅ Inactive chips (online_status === 0): ${chipsData.length}`);
 
       } else if (type === 'lowBattery') {
-        // For low battery page, get ALL active chips and sort by battery level
-        const activeCars = carsData.filter(car => {
+        // Get all cars with assigned chips first
+        const carsWithChips = carsData.filter(car => {
           const chip = car.chip;
           return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
         });
 
+        console.log(`📋 Found ${carsWithChips.length} cars with assigned chips`);
+
+        // Extract chip IDs for API call
+        const chipIds = carsWithChips.map(car => car.chip).filter((chip, index, self) => self.indexOf(chip) === index);
+
+        // Check online status from API
+        let onlineStatusMap = {};
+        if (chipIds.length > 0) {
+          try {
+            console.log(`🔄 Calling API to check online status for ${chipIds.length} chips...`);
+            onlineStatusMap = await checkChipOnlineStatusBatch(chipIds);
+            console.log(`✅ API returned status for ${Object.keys(onlineStatusMap).length} chips`);
+          } catch (apiError) {
+            console.error('❌ Error calling chip status API:', apiError);
+          }
+        }
+
+        // Get ALL chips (active + inactive) for battery monitoring
+        // Don't filter by online_status - show battery for all chips with assigned chip
+        console.log(`✅ All chips (active + inactive) for battery monitoring: ${carsWithChips.length}`);
+
         // Get yard names for all unique facility IDs
-        const uniqueFacilityIds = [...new Set(activeCars.map(car => car.facilityId))];
+        const uniqueFacilityIds = [...new Set(carsWithChips.map(car => car.facilityId))];
         const yardNamesMap = {};
 
         for (const facilityId of uniqueFacilityIds) {
           yardNamesMap[facilityId] = await getYardNameFromId(facilityId);
         }
 
-        chipsData = activeCars.map(car => ({
-          chipId: car.chip,
-          vin: car.vin,
-          vehicleId: car.id || car.vin,
-          make: car.make || 'N/A',
-          model: car.model || 'N/A',
-          year: car.year || 'N/A',
-          yardId: car.facilityId || 'Unknown',
-          yardName: yardNamesMap[car.facilityId] || 'Unknown Yard',
-          facility: yardNamesMap[car.facilityId] || 'Unknown Yard',
-          slotNo: car.slotNo || car.slot || '',
-          batteryLevel: car.battery_level || null, // Get from database first
-          lastBatteryUpdate: car.last_battery_update || null, // Get from database first
-          assignedAt: new Date().toISOString(),
-        }));
+        chipsData = carsWithChips.map(car => {
+          const chipId = car.chip;
+          const status = onlineStatusMap[chipId];
+          const isActive = status && status.online_status === 1;
+          
+          return {
+            chipId: car.chip,
+            vin: car.vin,
+            vehicleId: car.id || car.vin,
+            make: car.make || 'N/A',
+            model: car.model || 'N/A',
+            year: car.year || 'N/A',
+            yardId: car.facilityId || 'Unknown',
+            yardName: yardNamesMap[car.facilityId] || 'Unknown Yard',
+            facility: yardNamesMap[car.facilityId] || 'Unknown Yard',
+            slotNo: car.slotNo || car.slot || '',
+            batteryLevel: car.battery_level || null, // Get from database first
+            lastBatteryUpdate: car.last_battery_update || null, // Get from database first
+            assignedAt: new Date().toISOString(),
+            isActive: isActive, // Add active/inactive status from API
+          };
+        });
 
         // Load battery data from local storage as fallback
-        const chipIds = chipsData.map(c => c.chipId);
-        const storedBatteryData = await loadBatteryDataFromStorage(chipIds);
+        const chipIdsForBattery = chipsData.map(c => c.chipId);
+        const storedBatteryData = await loadBatteryDataFromStorage(chipIdsForBattery);
 
         // Merge battery data with chips (database first, then local storage fallback)
         chipsData = chipsData.map(chip => {
@@ -618,8 +693,9 @@ const ActiveChipScreen = ({ navigation, route }) => {
           <TouchableOpacity
             style={{ flex: 1 }}
             onPress={() => {
+              // Allow navigation for both active and inactive chips
               if (item?.vehicleId) {
-                // Navigate to vehicle details for active chips
+                // Navigate to vehicle details - status will be checked dynamically in VehicleDetailsScreen
                 navigation.navigate('VehicleDetailsScreen', {
                   vehicle: {
                     id: item?.vehicleId,
@@ -628,7 +704,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                     model: item?.model,
                     year: item?.year,
                     chipId: item?.chipId,
-                    isActive: true
+                    isActive: !isInactive // Pass current status, will be updated by API
                   },
                   yardName: item?.yardName,
                   yardId: item?.yardId
@@ -641,9 +717,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                 {displayMake} •  {displayModel}
               </Text>
               <Text style={styles.chipText}>
-                {isInactive ? (
-                  'Chip: Not Assigned'
-                ) : (
+                {item.chipId ? (
                   <>
                     Chip:{' '}
                     <Text>
@@ -653,6 +727,8 @@ const ActiveChipScreen = ({ navigation, route }) => {
                       </Text>
                     </Text>
                   </>
+                ) : (
+                  'Chip: Not Assigned'
                 )}
               </Text>
 
@@ -709,32 +785,54 @@ const ActiveChipScreen = ({ navigation, route }) => {
             //   <Text style={styles.reassignButtonText}>Assign Vehicle</Text>
             // </TouchableOpacity>
           ) : isLowBattery ? (
-            <View
-              style={[
-                styles.batteryStatusBadge,
-                {
-                  backgroundColor: batteryStatus.status === 'critical'
-                    ? 'rgba(242, 67, 105, 0.2)'
-                    : batteryStatus.status === 'normal'
-                      ? 'rgba(242, 137, 61, 0.2)'
-                      : 'rgba(69, 198, 79, 0.2)',
-                },
-              ]}>
-              <Icon
-                name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'normal' ? 'alert-circle' : 'checkmark-circle'}
-                size={14}
-                color={batteryStatus.color}
-              />
-              <Text
+            // For low battery screen, show active/inactive status along with battery badge
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              {/* Active/Inactive Status */}
+              <View
                 style={[
-                  styles.activeText,
+                  styles.activeTag,
                   {
-                    color: batteryStatus.color,
-                    marginLeft: 4,
+                    backgroundColor: item.isActive ? 'rgba(40, 167, 69, 0.2)' : 'rgba(242, 67, 105, 0.2)',
                   },
                 ]}>
-                {batteryStatus.label}
-              </Text>
+                <Text
+                  style={[
+                    styles.activeText,
+                    {
+                      color: item.isActive ? '#28a745' : '#F24369',
+                    },
+                  ]}>
+                  {item.isActive ? 'Active' : 'Inactive'}
+                </Text>
+              </View>
+              {/* Battery Badge */}
+              <View
+                style={[
+                  styles.batteryStatusBadge,
+                  {
+                    backgroundColor: batteryStatus.status === 'critical'
+                      ? 'rgba(242, 67, 105, 0.2)'
+                      : batteryStatus.status === 'normal'
+                        ? 'rgba(242, 137, 61, 0.2)'
+                        : 'rgba(69, 198, 79, 0.2)',
+                  },
+                ]}>
+                <Icon
+                  name={batteryStatus.status === 'critical' ? 'warning' : batteryStatus.status === 'normal' ? 'alert-circle' : 'checkmark-circle'}
+                  size={14}
+                  color={batteryStatus.color}
+                />
+                <Text
+                  style={[
+                    styles.activeText,
+                    {
+                      color: batteryStatus.color,
+                      marginLeft: 4,
+                    },
+                  ]}>
+                  {batteryStatus.label}
+                </Text>
+              </View>
             </View>
           ) : (
             <View

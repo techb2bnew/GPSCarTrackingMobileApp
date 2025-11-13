@@ -6,6 +6,7 @@ import AnimatedLottieView from 'lottie-react-native';
 import BleTesting from '../components/BleTesting';
 import { supabase } from '../lib/supabaseClient';
 import { spacings, style } from '../constants/Fonts';
+import { checkChipOnlineStatus } from '../utils/chipStatusAPI';
 
 export default function ScanScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
@@ -76,8 +77,39 @@ export default function ScanScreen({ navigation, route }) {
       console.log('route.params.foundVehicle>>', route.params.foundVehicle);
       console.log('route.params.foundYardName>>', route.params.foundYardName);
 
-      setFoundVehicle(route.params.foundVehicle);
+      const vehicle = route.params.foundVehicle;
+      setFoundVehicle(vehicle);
       setFoundYardName(route.params.foundYardName);
+      
+      // Check chip online status from API if chipId exists
+      const checkChipStatus = async () => {
+        if (vehicle?.chipId) {
+          try {
+            console.log(`🔄 Checking online status for chip: ${vehicle.chipId}`);
+            const statusMap = await checkChipOnlineStatus([vehicle.chipId]);
+            const chipStatus = statusMap[vehicle.chipId];
+            
+            if (chipStatus) {
+              const isActive = chipStatus.online_status === 1;
+              console.log(`✅ Chip ${vehicle.chipId} status: ${isActive ? 'Active' : 'Inactive'}`);
+              
+              // Update vehicle with actual status from API
+              setFoundVehicle({
+                ...vehicle,
+                isActive: isActive,
+                onlineStatus: chipStatus.online_status
+              });
+            } else {
+              console.log(`⚠️ No status returned for chip ${vehicle.chipId}`);
+            }
+          } catch (error) {
+            console.error('❌ Error checking chip status:', error);
+            // Keep existing isActive value if API fails
+          }
+        }
+      };
+
+      checkChipStatus();
       setShowDetailModal(true);
 
       // Get actual yard name from yardId
@@ -209,12 +241,21 @@ export default function ScanScreen({ navigation, route }) {
                 </View>
               </View>
 
-              {foundVehicle?.isActive && (
+              {foundVehicle?.chipId && (
                 <View style={styles.detailRow}>
-                  <Ionicons name="checkmark-circle" size={24} color="#28a745" />
+                  <Ionicons 
+                    name={foundVehicle?.isActive ? "checkmark-circle" : "close-circle"} 
+                    size={24} 
+                    color={foundVehicle?.isActive ? "#28a745" : "#F24369"} 
+                  />
                   <View style={styles.detailTextContainer}>
                     <Text style={styles.detailLabel}>Status</Text>
-                    <Text style={[styles.detailValue, { color: '#28a745' }]}>Active</Text>
+                    <Text style={[
+                      styles.detailValue, 
+                      { color: foundVehicle?.isActive ? '#28a745' : '#F24369' }
+                    ]}>
+                      {foundVehicle?.isActive ? 'Active' : 'Inactive'}
+                    </Text>
                   </View>
                 </View>
               )}

@@ -21,6 +21,8 @@ import Toast from 'react-native-simple-toast';
 import mqtt from 'mqtt/dist/mqtt';
 import { supabase } from '../lib/supabaseClient';
 import { getChipCounts, getCriticalBatteryChips, updateChipBatteryLevel, getActiveChips } from '../utils/chipManager';
+import { checkChipOnlineStatusBatch } from '../utils/chipStatusAPI';
+import { getMQTTConfig } from '../constants/Constants';
 import {
   ACTIVE,
   BATTERY,
@@ -71,6 +73,14 @@ const getCardData = (chipStats) => [
     count: chipStats.lowBatteryChips,
     type: 'lowBattery',
   },
+  {
+    id: 4,
+    icon: VEHICLE_REG,
+    text: 'Chip Assignment',
+    backgroundColor: '#6C63FF',
+    count: chipStats.totalVehicles,
+    type: 'assignment',
+  },
 ];
 export default function HomeScreen({ navigation, setCheckUser }) {
   const [isDrawerOpen, setDrawerOpen] = useState(false);
@@ -96,6 +106,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     activeChips: 0,
     inactiveChips: 0,
     lowBatteryChips: 0,
+    totalVehicles: 0,
   });
 
   // User state
@@ -109,17 +120,9 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   // Static chip ID for battery testing
   const STATIC_CHIP_ID = "2CF7F1C07190019F";
 
-  // MQTT Configuration
-  const MQTT_CONFIG = {
-    host: "ws://sensecap-openstream.seeed.cc:8083/mqtt",
-    username: "org-449810146246400",
-    password: "9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3",
-    clientId: "org-449810146246400-react-" + Math.random().toString(16).substr(2, 8),
-    protocolVersion: 4,
-  };
-
   // Initialize MQTT for battery monitoring
   const initializeMqtt = async () => {
+    const MQTT_CONFIG = getMQTTConfig('react');
     const client = mqtt.connect(MQTT_CONFIG.host, {
       username: MQTT_CONFIG.username,
       password: MQTT_CONFIG.password,
@@ -352,10 +355,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }
   };
 
-  // Load chip stats from Supabase database (same as ActiveChipScreen)
+  // Load chip stats from Supabase database and API (based on online_status)
   const loadChipStats = async () => {
     try {
-      console.log('🔄 Loading chip stats from Supabase...');
+      console.log('🔄 Loading chip stats from Supabase and API...');
 
       // Get all cars from Supabase
       const { data: carsData, error: carsError } = await supabase
@@ -369,37 +372,86 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
       console.log('✅ Fetched cars from Supabase:', carsData.length);
 
-      // Count assigned trackers (cars with chip) - these are Active Chips
-      const assignedTrackers = carsData.filter(car => {
+      // Get all cars with assigned chips (chip field has value)
+      const carsWithChips = carsData.filter(car => {
         const chip = car.chip;
         return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
       });
 
-      // Count unassigned trackers (cars without chip or NULL chip) - these are Inactive Chips
-      const unassignedTrackers = carsData.filter(car => {
-        const chip = car.chip;
-        return !chip || chip === null || chip === 'NULL' || chip.toString().trim() === '' || chip.toString().trim() === 'null';
+      console.log(`📋 Found ${carsWithChips.length} cars with assigned chips`);
+
+      // Extract chip IDs for API call
+      const chipIds = carsWithChips.map(car => car.chip).filter((chip, index, self) => self.indexOf(chip) === index); // Remove duplicates
+
+      // Check online status from API
+      let onlineStatusMap = {};
+      if (chipIds.length > 0) {
+        try {
+          console.log(`🔄 Calling API to check online status for ${chipIds.length} chips...`);
+          onlineStatusMap = await checkChipOnlineStatusBatch(chipIds);
+          console.log(`✅ API returned status for ${Object.keys(onlineStatusMap).length} chips`);
+        } catch (apiError) {
+          console.error('❌ Error calling chip status API:', apiError);
+          // Continue with fallback - will show all as active if API fails
+        }
+      }
+
+      // Count active chips (online_status === 1)
+      let activeChipsCount = 0;
+      let inactiveChipsCount = 0;
+
+      carsWithChips.forEach(car => {
+        const chipId = car.chip;
+        const status = onlineStatusMap[chipId];
+        
+        if (status) {
+          // API returned status for this chip
+          if (status.online_status === 1) {
+            activeChipsCount++;
+          } else if (status.online_status === 0) {
+            inactiveChipsCount++;
+          } else {
+            // Unknown status, treat as inactive
+            inactiveChipsCount++;
+          }
+        } else {
+          // API didn't return status for this chip (might be error or chip not found)
+          // Treat as inactive for safety
+          console.log(`⚠️ No API status for chip ${chipId}, treating as inactive`);
+          inactiveChipsCount++;
+        }
       });
 
-      // Count low battery chips (battery_level <= 20%) from assigned trackers
-      const lowBatteryChips = assignedTrackers.filter(car => {
+      // Count low battery chips (battery_level <= 20%) from ALL chips (active + inactive)
+      // Check battery for all cars with assigned chips, regardless of online status
+      const lowBatteryChips = carsWithChips.filter(car => {
         return car.battery_level !== null && car.battery_level !== undefined && car.battery_level <= 20;
       }).length;
 
+      // Count assigned and unassigned vehicles
+      const assignedVehicles = carsWithChips.length;
+      const unassignedVehicles = carsData.length - assignedVehicles;
+      const totalVehicles = carsData.length;
+
       console.log(`🔋 Low battery chips count: ${lowBatteryChips}`);
-      console.log(`✅ Active chips (assigned): ${assignedTrackers.length}`);
-      console.log(`✅ Inactive chips (unassigned): ${unassignedTrackers.length}`);
+      console.log(`✅ Active chips (online_status === 1): ${activeChipsCount}`);
+      console.log(`❌ Inactive chips (online_status === 0): ${inactiveChipsCount}`);
+      console.log(`📋 Assigned vehicles: ${assignedVehicles}`);
+      console.log(`📋 Unassigned vehicles: ${unassignedVehicles}`);
+      console.log(`📋 Total vehicles: ${totalVehicles}`);
 
       setChipStats({
-        activeChips: assignedTrackers.length,
-        inactiveChips: unassignedTrackers.length,
+        activeChips: activeChipsCount,
+        inactiveChips: inactiveChipsCount,
         lowBatteryChips: lowBatteryChips,
+        totalVehicles: totalVehicles,
       });
 
-      console.log('📊 Final chip stats from Supabase:', {
-        activeChips: assignedTrackers.length,
-        inactiveChips: unassignedTrackers.length,
+      console.log('📊 Final chip stats:', {
+        activeChips: activeChipsCount,
+        inactiveChips: inactiveChipsCount,
         lowBatteryChips: lowBatteryChips,
+        totalVehicles: totalVehicles,
       });
 
     } catch (error) {
@@ -937,9 +989,13 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           <TouchableOpacity
             key={item?.id}
             style={styles.beautifulCard}
-            onPress={() =>
-              navigation.navigate('ActiveChipScreen', { type: item.type })
-            }>
+            onPress={() => {
+              if (item.type === 'assignment') {
+                navigation.navigate('ChipAssignmentScreen');
+              } else {
+                navigation.navigate('ActiveChipScreen', { type: item.type });
+              }
+            }}>
             <View style={[styles.cardBackground, { backgroundColor: item.backgroundColor }]}>
               <View style={styles.cardContent}>
                 <View style={styles.cardLeft}>

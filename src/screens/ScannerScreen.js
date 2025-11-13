@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AnimatedLottieView from 'lottie-react-native';
 import { widthPercentageToDP as wp } from '../utils';
 import { supabase } from '../lib/supabaseClient';
+import { checkChipOnlineStatus } from '../utils/chipStatusAPI';
 
 const LICENSE = 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q=='
 const ScannerScreen = ({ navigation, route }) => {
@@ -68,6 +69,29 @@ const ScannerScreen = ({ navigation, route }) => {
         // Get yard name from facility ID
         const yardName = await getYardNameFromId(foundVehicle.facilityId);
 
+        // Check chip online status from API
+        let isActive = false;
+        if (foundVehicle.chip) {
+          try {
+            console.log(`🔄 Checking online status for chip: ${foundVehicle.chip}`);
+            const statusMap = await checkChipOnlineStatus([foundVehicle.chip]);
+            const chipStatus = statusMap[foundVehicle.chip];
+            
+            if (chipStatus) {
+              isActive = chipStatus.online_status === 1;
+              console.log(`✅ Chip ${foundVehicle.chip} status: ${isActive ? 'Active' : 'Inactive'}`);
+            } else {
+              console.log(`⚠️ No status returned for chip ${foundVehicle.chip}`);
+              // Default to false if no status
+              isActive = false;
+            }
+          } catch (error) {
+            console.error('❌ Error checking chip status:', error);
+            // Default to false if API fails
+            isActive = false;
+          }
+        }
+
         // Transform to match app format
         const vehicleWithYardId = {
           id: foundVehicle.id,
@@ -79,7 +103,7 @@ const ScannerScreen = ({ navigation, route }) => {
           color: foundVehicle.color,
           slotNo: foundVehicle.slotNo,
           facilityId: foundVehicle.facilityId,
-          isActive: foundVehicle.chip ? true : false,
+          isActive: isActive, // Set from API status
         };
 
         return { 
@@ -129,6 +153,29 @@ const ScannerScreen = ({ navigation, route }) => {
         // Get yard name from facility ID
         const yardName = await getYardNameFromId(foundVehicle.facilityId);
 
+        // Check chip online status from API
+        let isActive = false;
+        if (foundVehicle.chip) {
+          try {
+            console.log(`🔄 Checking online status for chip: ${foundVehicle.chip}`);
+            const statusMap = await checkChipOnlineStatus([foundVehicle.chip]);
+            const chipStatus = statusMap[foundVehicle.chip];
+            
+            if (chipStatus) {
+              isActive = chipStatus.online_status === 1;
+              console.log(`✅ Chip ${foundVehicle.chip} status: ${isActive ? 'Active' : 'Inactive'}`);
+            } else {
+              console.log(`⚠️ No status returned for chip ${foundVehicle.chip}`);
+              // Default to false if no status
+              isActive = false;
+            }
+          } catch (error) {
+            console.error('❌ Error checking chip status:', error);
+            // Default to false if API fails
+            isActive = false;
+          }
+        }
+
         // Transform to match app format
         const vehicleWithYardId = {
           id: foundVehicle.id,
@@ -140,7 +187,7 @@ const ScannerScreen = ({ navigation, route }) => {
           color: foundVehicle.color,
           slotNo: foundVehicle.slotNo,
           facilityId: foundVehicle.facilityId,
-          isActive: true, // Has chip, so active
+          isActive: isActive, // Set from API status
         };
 
         return { 
@@ -175,6 +222,27 @@ const ScannerScreen = ({ navigation, route }) => {
             const foundVehicle = retryData[0];
             const yardName = await getYardNameFromId(foundVehicle.facilityId);
             
+            // Check chip online status from API
+            let isActive = false;
+            if (foundVehicle.chip) {
+              try {
+                console.log(`🔄 Checking online status for chip: ${foundVehicle.chip}`);
+                const statusMap = await checkChipOnlineStatus([foundVehicle.chip]);
+                const chipStatus = statusMap[foundVehicle.chip];
+                
+                if (chipStatus) {
+                  isActive = chipStatus.online_status === 1;
+                  console.log(`✅ Chip ${foundVehicle.chip} status: ${isActive ? 'Active' : 'Inactive'}`);
+                } else {
+                  console.log(`⚠️ No status returned for chip ${foundVehicle.chip}`);
+                  isActive = false;
+                }
+              } catch (error) {
+                console.error('❌ Error checking chip status:', error);
+                isActive = false;
+              }
+            }
+            
             const vehicleWithYardId = {
               id: foundVehicle.id,
               vin: foundVehicle.vin,
@@ -185,7 +253,7 @@ const ScannerScreen = ({ navigation, route }) => {
               color: foundVehicle.color,
               slotNo: foundVehicle.slotNo,
               facilityId: foundVehicle.facilityId,
-              isActive: true,
+              isActive: isActive, // Set from API status
             };
 
             return { 

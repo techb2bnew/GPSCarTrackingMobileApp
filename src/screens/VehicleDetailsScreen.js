@@ -26,6 +26,8 @@ import { BaseStyle } from '../constants/Style';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addActiveChip, moveChipToInactive, moveChipToActive, removeInactiveChip } from '../utils/chipManager';
 import { supabase } from '../lib/supabaseClient';
+import { checkChipOnlineStatus } from '../utils/chipStatusAPI';
+import { getMQTTConfig } from '../constants/Constants';
 import Toast from 'react-native-simple-toast';
 import { useSelector } from 'react-redux';
 import { requestLocationPermission, checkLocationPermission, shouldRequestPermission } from '../utils/locationPermission';
@@ -71,14 +73,6 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   // Remove mock data - will use real MQTT data
 
-  // MQTT Configuration (same as ParkingMap1)
-  const MQTT_CONFIG = {
-    host: "ws://sensecap-openstream.seeed.cc:8083/mqtt",
-    username: "org-449810146246400",
-    password: "9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3",
-    clientId: "org-449810146246400-react-" + Math.random().toString(16).substr(2, 8),
-    protocolVersion: 4,
-  };
 
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
@@ -347,6 +341,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     try {
       console.log('Initializing MQTT for chip ID:', getChipId());
 
+      const MQTT_CONFIG = getMQTTConfig('react');
       const client = mqtt.connect(MQTT_CONFIG.host, {
         username: MQTT_CONFIG.username,
         password: MQTT_CONFIG.password,
@@ -815,6 +810,39 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       }
     );
   };
+
+  // Check chip online status from API when component loads or chipId changes
+  useEffect(() => {
+    const checkChipStatus = async () => {
+      const chipId = getChipId();
+      if (chipId) {
+        try {
+          console.log(`🔄 [VehicleDetails] Checking online status for chip: ${chipId}`);
+          const statusMap = await checkChipOnlineStatus([chipId]);
+          const chipStatus = statusMap[chipId];
+          
+          if (chipStatus) {
+            const isActive = chipStatus.online_status === 1;
+            console.log(`✅ [VehicleDetails] Chip ${chipId} status: ${isActive ? 'Active' : 'Inactive'}`);
+            
+            // Update vehicle state with actual status from API
+            setVehicle(prev => ({
+              ...prev,
+              isActive: isActive,
+              onlineStatus: chipStatus.online_status
+            }));
+          } else {
+            console.log(`⚠️ [VehicleDetails] No status returned for chip ${chipId}`);
+          }
+        } catch (error) {
+          console.error('❌ [VehicleDetails] Error checking chip status:', error);
+          // Keep existing status if API fails
+        }
+      }
+    };
+
+    checkChipStatus();
+  }, [vehicle?.chipId]);
 
   // Initialize location tracking and MQTT
   useEffect(() => {
@@ -1315,6 +1343,30 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  // Simple Direction Arrow Component - Separate function
+  const renderDirectionArrow = () => {
+    if (!getChipId() || !currentLocation || !carLocation) {
+      return null;
+    }
+
+    const bearing = calculateBearing(currentLocation, carLocation);
+
+    return (
+      <View style={styles.simpleArrowContainer}>
+        {/* White background circle for better visibility */}
+        <View style={[
+          styles.arrowBackgroundCircle,
+          {
+            transform: [{ rotate: `${bearing}deg` }]
+          }
+        ]}>
+          {/* Direction Arrow Icon */}
+          <Ionicons name="navigate" size={18} color="#FF6B6B" />
+        </View>
+      </View>
+    );
+  };
+
   const renderMap = () => (
     <View style={styles.mapContainer}>
       {/* Show note if no chip assigned */}
@@ -1347,27 +1399,12 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             anchor={{ x: 0.5, y: 0.5 }}
           >
             <View style={styles.currentLocationContainer}>
-              {/* Direction Arrow - Only show when car location is available */}
-              {/* {carLocation && getChipId() && (
-                <View
-                  style={[
-                    styles.directionArrowContainer,
-                    {
-                      transform: [{ rotate: `${calculateBearing(currentLocation, carLocation)}deg` }]
-                    }
-                  ]}
-                >
-                  Arrow Head (Triangle)
-                  <View style={styles.arrowHead} />
-                  Arrow Body (Rectangle)
-                  <View style={styles.arrowBody} />
-                </View>
-              )} */}
-
               {/* Current Location Marker */}
               <View style={styles.currentLocationMarker}>
                 <Ionicons name="person" size={20} color="#fff" />
               </View>
+              {/* Simple Direction Arrow - Separate function */}
+              {renderDirectionArrow()}
             </View>
           </Marker>
         )}
@@ -1469,7 +1506,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           <View style={styles.statusContainer}>
             <View style={[styles.statusDot, { backgroundColor: vehicle?.isActive ? greenColor : '#ff6b6b' }]} />
             <Text style={[styles.statusText, { color: vehicle?.isActive ? greenColor : '#ff6b6b' }]}>
-              {vehicle?.chipId ? 'Active' : 'Inactive'}
+              {vehicle?.chipId ? (vehicle?.isActive ? 'Active' : 'Inactive') : 'Inactive'}
             </Text>
           </View>
         </View>
@@ -1728,6 +1765,7 @@ const styles = StyleSheet.create({
   currentLocationContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   currentLocationMarker: {
     backgroundColor: '#007AFF',
@@ -1739,20 +1777,37 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  directionArrowContainer: {
+  simpleArrowContainer: {
     position: 'absolute',
-    top: -30,
+    top: -40,
     alignItems: 'center',
     justifyContent: 'center',
+    width: 32,
+    height: 32,
   },
-  arrowHead: {
+  arrowBackgroundCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: 2,
+    borderColor: '#FF6B6B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  arrowTriangle: {
     width: 0,
     height: 0,
     backgroundColor: 'transparent',
     borderStyle: 'solid',
-    borderLeftWidth: 12,
-    borderRightWidth: 12,
-    borderBottomWidth: 18,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderBottomWidth: 14,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: '#FF6B6B',

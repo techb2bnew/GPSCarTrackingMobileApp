@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, TouchableOpacity, View, ActivityIndicator,
 import React, { useEffect, useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import ParkingMap from '../components/ParkingMap';
-import { SingleVehInparkingYard, parkingYards } from '../constants/Constants';
+import { SingleVehInparkingYard, parkingYards, getMQTTConfig } from '../constants/Constants';
 import { heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
 import Fontisto from 'react-native-vector-icons/Fontisto';
 import Header from '../components/Header';
@@ -28,14 +28,6 @@ const MapViewScreen = ({ navigation }) => {
   const [mqttClient, setMqttClient] = useState(null);
   const [mqttConnected, setMqttConnected] = useState(false);
 
-  // MQTT Configuration for location data
-  const MQTT_CONFIG = {
-    host: "ws://sensecap-openstream.seeed.cc:8083/mqtt",
-    username: "org-449810146246400",
-    password: "9B1C6913197A4C56B5EC31F1CEBAECF9E7C7235B015B456DB0EC577BD7C167F3",
-    clientId: "org-449810146246400-map-" + Math.random().toString(16).substr(2, 8),
-    protocolVersion: 4,
-  };
 
   useEffect(() => {
     initializeMap();
@@ -272,6 +264,7 @@ const MapViewScreen = ({ navigation }) => {
     try {
       console.log('🔗 [MAP] Initializing MQTT for location updates...');
 
+      const MQTT_CONFIG = getMQTTConfig('map');
       const client = mqtt.connect(MQTT_CONFIG.host, {
         username: MQTT_CONFIG.username,
         password: MQTT_CONFIG.password,

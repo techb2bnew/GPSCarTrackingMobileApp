@@ -11,6 +11,7 @@ import LoginScreen from '../screens/LoginScreen';
 import ActivityHistoryScreen from '../screens/ActivityHistoryScreen';
 import SearchScreen from '../screens/SearchScreen';
 import ActiveChipScreen from '../screens/ActiveChipScreen';
+import ChipAssignmentScreen from '../screens/ChipAssignmentScreen';
 import ARNavigationScreen from '../screens/ARNavigationScreen';
 import YardDetailScreen from '../screens/YardDetailScreen';
 import ScannerScreen from '../screens/ScannerScreen';
@@ -40,6 +41,7 @@ export default function HomeStack({setCheckUser}) {
       />
       <Stack.Screen name="SearchScreen" component={SearchScreen} />
       <Stack.Screen name="ActiveChipScreen" component={ActiveChipScreen} />
+      <Stack.Screen name="ChipAssignmentScreen" component={ChipAssignmentScreen} />
       <Stack.Screen name="ARNavigationScreen" component={ARNavigationScreen} />
       <Stack.Screen name="YardDetailScreen" component={YardDetailScreen} />
       <Stack.Screen name="ScannerScreen" component={ScannerScreen} />
