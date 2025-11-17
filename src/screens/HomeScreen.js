@@ -22,7 +22,8 @@ import mqtt from 'mqtt/dist/mqtt';
 import { supabase } from '../lib/supabaseClient';
 import { getChipCounts, getCriticalBatteryChips, updateChipBatteryLevel, getActiveChips } from '../utils/chipManager';
 import { checkChipOnlineStatusBatch } from '../utils/chipStatusAPI';
-import { getMQTTConfig } from '../constants/Constants';
+import { getMQTTConfig, MQTT_BASE_CONFIG } from '../constants/Constants';
+import { listenMultipleChipMotionEvents } from '../utils/motionEventListener';
 import {
   ACTIVE,
   BATTERY,
@@ -116,6 +117,9 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   const [mqttClient, setMqttClient] = useState(null);
   const [mqttConnected, setMqttConnected] = useState(false);
   const [batteryLevel, setBatteryLevel] = useState(null);
+
+  // Motion event listeners state
+  const [motionClients, setMotionClients] = useState([]);
 
   // Static chip ID for battery testing
   const STATIC_CHIP_ID = "2CF7F1C07190019F";
@@ -250,6 +254,37 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     ]);
   };
 
+  // Initialize motion event listeners for all active chips
+  const initializeMotionListeners = async () => {
+    try {
+      console.log('🔔 HomeScreen: Initializing motion event listeners...');
+
+      // Static chip ID for testing
+      const STATIC_CHIP_ID = "2CF7F1C073100376";
+      const chipIds = [STATIC_CHIP_ID];
+
+      console.log(`🔔 Setting up motion monitoring for static chip: ${STATIC_CHIP_ID}`);
+
+      // Initialize motion listeners for static chip
+      const clients = await listenMultipleChipMotionEvents(
+        chipIds,
+        "449810146246400",
+        "org-449810146246400",
+        MQTT_BASE_CONFIG.password,
+        (motionData) => {
+          // Optional: Handle motion events here (e.g., show notifications, update UI)
+          console.log('📱 Motion event callback:', motionData);
+        }
+      );
+
+      setMotionClients(clients);
+      console.log(`✅ Motion event listeners initialized for ${clients.length} chip(s)`);
+
+    } catch (error) {
+      console.error('❌ Error initializing motion listeners:', error);
+    }
+  };
+
   // Load yards, chip stats, and user data from AsyncStorage
   useEffect(() => {
     console.log('🚀 HomeScreen: Initializing data loading...');
@@ -259,6 +294,9 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
     // Initialize MQTT for battery monitoring
     initializeMqtt();
+
+    // Initialize motion event listeners
+    initializeMotionListeners();
 
     // Don't set mock data - wait for real MQTT data
   }, []);
@@ -280,8 +318,22 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         setMqttClient(null);
         setMqttConnected(false);
       }
+
+      // Cleanup motion event listeners
+      if (motionClients && motionClients.length > 0) {
+        console.log(`Disconnecting ${motionClients.length} motion event listeners...`);
+        motionClients.forEach(({ chipId, client }) => {
+          try {
+            client.end();
+            console.log(`✅ Disconnected motion listener for chip ${chipId}`);
+          } catch (error) {
+            console.error(`❌ Error disconnecting motion listener for chip ${chipId}:`, error);
+          }
+        });
+        setMotionClients([]);
+      }
     };
-  }, [mqttClient]);
+  }, [mqttClient, motionClients]);
 
   const loadYards = async () => {
     try {

@@ -71,6 +71,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // History states
   const [chipHistory, setChipHistory] = useState([]);
 
+  // Current location visibility state - show user icon when clicked
+  const [showUserIcon, setShowUserIcon] = useState(false);
+
   // Remove mock data - will use real MQTT data
 
 
@@ -487,13 +490,21 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               if (currentLocation) {
                 const distance = calculateDistance(currentLocation, nextCoords);
                 setDistanceToCar(distance);
-                console.log('Distance calculated:', distance, 'meters');
+                console.log('📏 [DISTANCE] Distance calculated:', distance, 'meters');
               }
 
-              // Update map region to include new car location
+              // Update map region to include new car location and current location
               if (mapRef.current && currentLocation) {
                 const region = calculateMapRegion(currentLocation, nextCoords);
                 mapRef.current.animateToRegion(region, 1000);
+              } else if (mapRef.current) {
+                // If current location not available, just center on car location
+                mapRef.current.animateToRegion({
+                  latitude: nextCoords.latitude,
+                  longitude: nextCoords.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }, 1000);
               }
 
               // Reset coordinates for next update
@@ -716,24 +727,12 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         console.log('✅ [VEHICLE] Current location obtained:', { latitude, longitude });
         setCurrentLocation(newCurrentLocation);
 
-        // Car location will be set by MQTT data when available
-
-        // Calculate distance to car if car location is available
-        if (carLocation) {
-          const distance = calculateDistance(newCurrentLocation, carLocation);
-          setDistanceToCar(distance);
-        }
-
         // Set last update time
         setLastUpdateTime(new Date().toLocaleTimeString());
-
         setIsLoading(false);
 
-        // Calculate optimal region and animate to it if car location is available
-        if (mapRef.current && carLocation) {
-          const region = calculateMapRegion(newCurrentLocation, carLocation);
-          mapRef.current.animateToRegion(region, 1500);
-        }
+        // Distance calculation and map region update will be handled by useEffect
+        // when showCurrentLocation, currentLocation, or carLocation changes
       },
       (error) => {
         console.error('❌ [VEHICLE] Error getting current location:', error);
@@ -938,16 +937,16 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       setIsLoading(false);
       setLastUpdateTime(new Date().toLocaleTimeString());
 
-      // Check and request location permission (non-blocking)
+      // Automatically get current location when screen opens
       const hasPermission = await checkLocationPermission();
       if (hasPermission) {
         setLocationPermission(true);
-        getCurrentLocation();
+        getCurrentLocation(); // Automatically fetch location
       } else {
-        // Request permission if not already denied 3 times (don't block UI)
+        // Request permission if not already denied 3 times
         requestLocationPermissionLocal().then((granted) => {
           if (granted) {
-            getCurrentLocation();
+            getCurrentLocation(); // Fetch location after permission granted
           }
         });
       }
@@ -955,15 +954,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
     initializeLocation();
 
-    // Set up location updates every 30 seconds
-    const locationInterval = setInterval(() => {
-      if (locationPermission) {
-        getCurrentLocation();
-      }
-    }, 30000);
-
     return () => {
-      clearInterval(locationInterval);
       // Disconnect MQTT client on cleanup
       if (mqttClient) {
         console.log('Disconnecting MQTT client...');
@@ -973,6 +964,27 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       }
     };
   }, []);
+
+  // Set up location updates every 30 seconds
+  useEffect(() => {
+    if (!locationPermission) {
+      return; // Don't set up interval if no permission
+    }
+
+    console.log('📍 [LOCATION INTERVAL] Setting up location updates every 30 seconds');
+    
+    const locationInterval = setInterval(() => {
+      if (locationPermission) {
+        console.log('📍 [LOCATION INTERVAL] Updating current location...');
+        getCurrentLocation();
+      }
+    }, 30000); // 30 seconds
+
+    return () => {
+      console.log('📍 [LOCATION INTERVAL] Clearing location update interval');
+      clearInterval(locationInterval);
+    };
+  }, [locationPermission]);
 
   // Check permission when screen is focused
   useFocusEffect(
@@ -984,26 +996,24 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         const hasPermission = await checkLocationPermission();
         if (hasPermission) {
           setLocationPermission(true);
+          // Automatically get location if not already fetched
           if (!currentLocation) {
             getCurrentLocation();
           }
         } else {
           setLocationPermission(false);
-          // Request permission if not already denied 3 times (non-blocking)
-          const shouldRequest = await shouldRequestPermission();
-          if (shouldRequest) {
-            requestLocationPermissionLocal().then((granted) => {
-              if (granted && !currentLocation) {
-                getCurrentLocation();
-              }
-            });
-          }
         }
       };
 
       checkPermissionOnFocus();
     }, [])
   );
+
+  // Handle current location marker click - show/hide user icon
+  const handleCurrentLocationMarkerClick = () => {
+    console.log('📍 [CURRENT LOCATION] Current location marker clicked');
+    setShowUserIcon(!showUserIcon);
+  };
 
   // Handle refresh location button click
   const handleRefreshLocation = async () => {
@@ -1115,7 +1125,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     if (currentLocation && carLocation) {
       const distance = calculateDistance(currentLocation, carLocation);
       setDistanceToCar(distance);
-      console.log(`📏 [Distance Update] Distance to car: ${distance} meters`);
+      console.log(`📏 [DISTANCE UPDATE] Distance to car: ${distance} meters`);
     }
   }, [currentLocation, carLocation]);
 
@@ -1126,6 +1136,20 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       const timer = setTimeout(() => {
         const region = calculateMapRegion(currentLocation, carLocation);
         mapRef.current.animateToRegion(region, 1000);
+        console.log('🗺️ [MAP] Map region updated to show both locations');
+      }, 300);
+
+      return () => clearTimeout(timer);
+    } else if (carLocation && mapRef.current && !isLoading) {
+      // If current location not available, just center on car
+      const timer = setTimeout(() => {
+        mapRef.current.animateToRegion({
+          latitude: carLocation.latitude,
+          longitude: carLocation.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }, 1000);
+        console.log('🗺️ [MAP] Map region updated to show car location only');
       }, 300);
 
       return () => clearTimeout(timer);
@@ -1350,9 +1374,11 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
 
     const bearing = calculateBearing(currentLocation, carLocation);
+    // Adjust arrow position based on user icon visibility
+    const arrowTop = showUserIcon ? -75 : -40;
 
     return (
-      <View style={styles.simpleArrowContainer}>
+      <View style={[styles.simpleArrowContainer, { top: arrowTop }]}>
         {/* White background circle for better visibility */}
         <View style={[
           styles.arrowBackgroundCircle,
@@ -1380,8 +1406,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         ref={mapRef}
         style={styles.map}
         mapType="standard"
-        showsUserLocation={locationPermission}
-        showsMyLocationButton={locationPermission}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
         rotateEnabled={true}
         initialRegion={{
           latitude: currentLocation?.latitude || carLocation?.latitude || 30.713452,
@@ -1390,20 +1416,25 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           longitudeDelta: 0.01,
         }}
       >
-        {/* Current Location Marker */}
+        {/* Current Location Marker - Always show when location is available */}
         {currentLocation && (
           <Marker
             coordinate={currentLocation}
             title="Your Location"
             description="Current position"
             anchor={{ x: 0.5, y: 0.5 }}
+            onPress={handleCurrentLocationMarkerClick}
           >
             <View style={styles.currentLocationContainer}>
-              {/* Current Location Marker */}
-              <View style={styles.currentLocationMarker}>
-                <Ionicons name="person" size={20} color="#fff" />
-              </View>
-              {/* Simple Direction Arrow - Separate function */}
+              {/* Current Location Point - Always visible (blue dot) */}
+              <View style={styles.currentLocationPoint} />
+              {/* User Icon - Only show when marker is clicked */}
+              {showUserIcon && (
+                <View style={styles.currentLocationMarker}>
+                  <Ionicons name="person" size={20} color="#fff" />
+                </View>
+              )}
+              {/* Simple Direction Arrow - Always show if car location available */}
               {renderDirectionArrow()}
             </View>
           </Marker>
@@ -1438,9 +1469,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           </Marker>
         )}
 
-        {/* Directions - Only show if chip is assigned and both locations available */}
+        {/* Directions - Always show if chip is assigned and both locations available */}
         {getChipId() && currentLocation && carLocation && (
           <MapViewDirections
+            key={`route-${currentLocation.latitude}-${currentLocation.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
             origin={currentLocation}
             destination={carLocation}
             apikey="AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI"
@@ -1448,10 +1480,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             strokeColor="#f40d0dff"
             optimizeWaypoints={true}
             onReady={(result) => {
-              console.log('Directions ready:', result);
+              console.log('🗺️ [DIRECTIONS] Route updated:', result);
+              // Update map region to show both locations and route
+              if (mapRef.current && currentLocation && carLocation) {
+                const region = calculateMapRegion(currentLocation, carLocation);
+                mapRef.current.animateToRegion(region, 1000);
+              }
             }}
             onError={(errorMessage) => {
-              console.log('Directions error:', errorMessage);
+              console.log('❌ [DIRECTIONS] Error:', errorMessage);
             }}
           />
         )}
@@ -1767,19 +1804,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  currentLocationMarker: {
+  currentLocationPoint: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#007AFF',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    borderWidth: 3,
+    borderColor: '#fff',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  currentLocationMarker: {
+    position: 'absolute',
+    top: -40,
+    backgroundColor: '#007AFF',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#fff',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 6,
   },
   simpleArrowContainer: {
     position: 'absolute',
-    top: -40,
     alignItems: 'center',
     justifyContent: 'center',
     width: 32,

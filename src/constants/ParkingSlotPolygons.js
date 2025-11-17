@@ -514,3 +514,50 @@ export const defaultSlotRegion = {
   longitudeDelta: 0.0005,
 };
 
+// Indian Slot Region - Mohali, Punjab
+export const indianSlotRegion = [
+  {
+    slot_id: "slot_1",
+    slot: 1,
+    coordinates: [
+      { latitude: 30.71115, longitude: 76.69222 },
+      { latitude: 30.711113, longitude: 76.69226 },
+      { latitude: 30.711097, longitude: 76.692225 },
+      { latitude: 30.711127, longitude: 76.692185 },
+      { latitude: 30.71115, longitude: 76.69222 },
+    ],
+  },
+  {
+    slot_id: "slot_2",
+    slot: 2,
+    coordinates: [
+      { latitude: 30.711124, longitude: 76.692185 },
+      { latitude: 30.711097, longitude: 76.692217 },
+      { latitude: 30.711074, longitude: 76.692199 },
+      { latitude: 30.711104, longitude: 76.69215 },
+      { latitude: 30.711124, longitude: 76.692185 },
+    ],
+  },
+  {
+    slot_id: "slot_3",
+    slot: 3,
+    coordinates: [
+      { latitude: 30.711106, longitude: 76.692145 },
+      { latitude: 30.711071, longitude: 76.692193 },
+      { latitude: 30.711058, longitude: 76.692158 },
+      { latitude: 30.711085, longitude: 76.69211 },
+      { latitude: 30.711106, longitude: 76.692145 },
+    ],
+  },
+];
+
+// Indian Default Region - Mohali, Punjab
+export const indianDefaultSlotRegion = {
+  latitude: 30.711106,
+  longitude: 76.69215,
+  latitudeDelta: 0.00015,
+  longitudeDelta: 0.00015,
+};
+
+
+

@@ -10,6 +10,8 @@ import {
   ParkingSlotsOne,
   ParkingSlotsTwo,
   defaultSlotRegion,
+  indianSlotRegion,
+  indianDefaultSlotRegion,
 } from '../constants/ParkingSlotPolygons';
 import { blackColor, whiteColor } from '../constants/Color';
 
@@ -81,15 +83,27 @@ const getRegionFromPolygons = (polygons, fallbackRegion) => {
 const ParkingSlotsScreen = ({ navigation }) => {
   const mapRef = useRef(null);
 
+  // Use Indian Slot Region instead of default polygons
   const sortedPolygons = useMemo(
     () =>
-      [...parkingSlotPolygons].sort((a, b) => {
+      [...indianSlotRegion].sort((a, b) => {
         const slotA = typeof a?.slot === 'number' ? a.slot : Number(a?.slot || 0);
         const slotB = typeof b?.slot === 'number' ? b.slot : Number(b?.slot || 0);
         return slotA - slotB;
       }),
     [],
   );
+
+  // Commented out old polygons - using Indian region instead
+  // const sortedPolygons = useMemo(
+  //   () =>
+  //     [...parkingSlotPolygons].sort((a, b) => {
+  //       const slotA = typeof a?.slot === 'number' ? a.slot : Number(a?.slot || 0);
+  //       const slotB = typeof b?.slot === 'number' ? b.slot : Number(b?.slot || 0);
+  //       return slotA - slotB;
+  //     }),
+  //   [],
+  // );
 
   const slotMarkers = useMemo(
     () =>
@@ -103,10 +117,10 @@ const ParkingSlotsScreen = ({ navigation }) => {
 
   const firstSlotRegion = useMemo(() => {
     if (!sortedPolygons.length) {
-      return defaultSlotRegion;
+      return indianDefaultSlotRegion;
     }
 
-    return getRegionFromPolygons(sortedPolygons, defaultSlotRegion);
+    return getRegionFromPolygons(sortedPolygons, indianDefaultSlotRegion);
   }, [sortedPolygons]);
 
   // Zoom to fit all polygons when map is ready
@@ -157,7 +171,19 @@ const ParkingSlotsScreen = ({ navigation }) => {
         pitchEnabled={false}
         rotateEnabled={false}
       >
+        {/* Indian Slot Region - Active */}
         {sortedPolygons.map(slot => (
+          <Polygon
+            key={slot.slot_id ?? slot.slot}
+            coordinates={slot.coordinates}
+            strokeColor={COLOR_STROKE}
+            fillColor={COLOR_FILL}
+            strokeWidth={2}
+          />
+        ))}
+
+        {/* Commented out - Old parking slots */}
+        {/* {sortedPolygons.map(slot => (
           <Polygon
             key={slot.name ?? slot.slot}
             coordinates={slot.coordinates}
@@ -165,10 +191,10 @@ const ParkingSlotsScreen = ({ navigation }) => {
             fillColor={COLOR_FILL}
             strokeWidth={1}
           />
-        ))}
+        ))} */}
 
-        {/* Three Parking Slots - with blue color */}
-        {threeParkingSlots.map(slot => (
+        {/* Three Parking Slots - with blue color - COMMENTED */}
+        {/* {threeParkingSlots.map(slot => (
           <Polygon
             key={`three-slot-${slot.slot}`}
             coordinates={slot.coordinates}
@@ -176,10 +202,10 @@ const ParkingSlotsScreen = ({ navigation }) => {
             fillColor="rgba(0, 102, 255, 0.4)"
             strokeWidth={2}
           />
-        ))}
+        ))} */}
 
-        {/* Single Parking Slots One */}
-        {ParkingSlotsOne.map((slot, index) => (
+        {/* Single Parking Slots One - COMMENTED */}
+        {/* {ParkingSlotsOne.map((slot, index) => (
           <Polygon
             key={`single-slot-one-${index}`}
             coordinates={slot.coordinates}
@@ -187,10 +213,10 @@ const ParkingSlotsScreen = ({ navigation }) => {
             fillColor="rgba(255, 111, 97, 0.25)"
             strokeWidth={2}
           />
-        ))}
+        ))} */}
 
-        {/* Single Parking Slots Two */}
-        {ParkingSlotsTwo.map((slot, index) => (
+        {/* Single Parking Slots Two - COMMENTED */}
+        {/* {ParkingSlotsTwo.map((slot, index) => (
           <Polygon
             key={`single-slot-two-${index}`}
             coordinates={slot.coordinates}
@@ -198,8 +224,9 @@ const ParkingSlotsScreen = ({ navigation }) => {
             fillColor="rgba(255, 111, 97, 0.25)"
             strokeWidth={2}
           />
-        ))}
+        ))} */}
 
+        {/* Indian Slot Region Markers - Active */}
         {slotMarkers.map((slotMarker, index) => (
           <Marker
             key={slotMarker.label}
@@ -215,8 +242,24 @@ const ParkingSlotsScreen = ({ navigation }) => {
           </Marker>
         ))}
 
-        {/* Three Parking Slots Markers */}
-        {threeParkingSlots.map(slot => {
+        {/* Commented out - Old markers */}
+        {/* {slotMarkers.map((slotMarker, index) => (
+          <Marker
+            key={slotMarker.label}
+            coordinate={slotMarker.centroid}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <TouchableOpacity
+              style={styles.slotBadge}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.slotBadgeText}>{slotMarker.label}</Text>
+            </TouchableOpacity>
+          </Marker>
+        ))} */}
+
+        {/* Three Parking Slots Markers - COMMENTED */}
+        {/* {threeParkingSlots.map(slot => {
           const centroid = getSlotCentroid(slot.coordinates);
           return (
             <Marker
@@ -232,10 +275,10 @@ const ParkingSlotsScreen = ({ navigation }) => {
               </TouchableOpacity>
             </Marker>
           );
-        })}
+        })} */}
 
-        {/* Single Parking Slots One Markers */}
-        {ParkingSlotsOne.map((slot, index) => {
+        {/* Single Parking Slots One Markers - COMMENTED */}
+        {/* {ParkingSlotsOne.map((slot, index) => {
           const centroid = getSlotCentroid(slot.coordinates);
           return (
             <Marker
@@ -253,10 +296,10 @@ const ParkingSlotsScreen = ({ navigation }) => {
               </TouchableOpacity>
             </Marker>
           );
-        })}
+        })} */}
 
-        {/* Single Parking Slots Two Markers */}
-        {ParkingSlotsTwo.map((slot, index) => {
+        {/* Single Parking Slots Two Markers - COMMENTED */}
+        {/* {ParkingSlotsTwo.map((slot, index) => {
           const centroid = getSlotCentroid(slot.coordinates);
           return (
             <Marker
@@ -274,7 +317,7 @@ const ParkingSlotsScreen = ({ navigation }) => {
               </TouchableOpacity>
             </Marker>
           );
-        })}
+        })} */}
       </MapView>
     </View>
   );

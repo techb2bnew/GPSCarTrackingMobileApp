@@ -12,7 +12,7 @@ export const checkChipOnlineStatus = async (deviceEuis) => {
       return {};
     }
 
-    console.log(`🔄 [CHIP_STATUS_API] Checking online status for ${deviceEuis.length} chips...`);
+    // console.log(`🔄 [CHIP_STATUS_API] Checking online status for ${deviceEuis.length} chips...`);
 
     const response = await fetch(CHIP_STATUS_API_URL, {
       method: 'POST',
@@ -54,12 +54,12 @@ export const checkChipOnlineStatus = async (deviceEuis) => {
       });
     }
 
-    console.log(`✅ [CHIP_STATUS_API] Successfully checked ${Object.keys(statusMap).length} chips`);
+    // console.log(`✅ [CHIP_STATUS_API] Successfully checked ${Object.keys(statusMap).length} chips`);
     
     // Log status summary
     const activeCount = Object.values(statusMap).filter(s => s.online_status === 1).length;
     const inactiveCount = Object.values(statusMap).filter(s => s.online_status === 0).length;
-    console.log(`📊 [CHIP_STATUS_API] Active: ${activeCount}, Inactive: ${inactiveCount}`);
+    // console.log(`📊 [CHIP_STATUS_API] Active: ${activeCount}, Inactive: ${inactiveCount}`);
 
     return statusMap;
   } catch (error) {
@@ -86,7 +86,7 @@ export const checkChipOnlineStatusBatch = async (deviceEuis, batchSize = 100) =>
     // Split into batches
     for (let i = 0; i < deviceEuis.length; i += batchSize) {
       const batch = deviceEuis.slice(i, i + batchSize);
-      console.log(`🔄 [CHIP_STATUS_API] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(deviceEuis.length / batchSize)} (${batch.length} chips)`);
+      // console.log(`🔄 [CHIP_STATUS_API] Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(deviceEuis.length / batchSize)} (${batch.length} chips)`);
       
       const batchStatus = await checkChipOnlineStatus(batch);
       Object.assign(allStatusMap, batchStatus);
