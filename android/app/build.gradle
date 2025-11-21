@@ -117,6 +117,15 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Fix duplicate classes issue with react-native-push-notification
+configurations.all {
+    exclude group: 'com.android.support', module: 'support-compat'
+    exclude group: 'com.android.support', module: 'support-v4'
+    resolutionStrategy {
+        force 'androidx.core:core:1.16.0'
+    }
+}
 project.ext.vectoricons = [
     iconFontNames: [ 'Entypo.ttf','Ionicons.ttf','AntDesign.ttf','FontAwesome.ttf','MaterialCommunityIcons.ttf','MaterialIcons.ttf','SimpleLineIcons.ttf','Feather.ttf',
     'Fontisto.ttf','Octicons.ttf' ] 

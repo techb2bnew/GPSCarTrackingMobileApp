@@ -60,7 +60,14 @@
 	<string>This app uses Bluetooth to connect to external GPS device.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to the photo library to allow users to upload and select images related to vehicles.</string>
-
+<key>UIUserNotificationSettings</key>
+<string>YES</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>This app uses notifications.</string>
+<key>NSUserNotificationUsageDescription</key>
+<string>We need permission for notifications.</string>
+<key>UNUserNotificationCenter</key>
+<string>YES</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>AntDesign.ttf</string>
@@ -91,8 +98,10 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>

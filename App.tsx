@@ -11,6 +11,8 @@ import { whiteColor } from './src/constants/Color';
 import { BaseStyle } from './src/constants/Style';
 import InternetChecker from './src/components/InternetChecker';
 import { requestLocationPermission } from './src/utils/locationPermission';
+import { listenAllChipsMotionEvents } from './src/utils/motionEventListener';
+import { requestNotificationPermissions } from './src/utils/notificationService';
 
 const { flex, alignItemsCenter, alignJustifyCenter } = BaseStyle;
 
@@ -40,6 +42,22 @@ console.log("userDatauserData",userData);
     return () => clearTimeout(permissionTimeout);
   }, []);
 
+  // Request notification permission on app startup (with delay to avoid Firebase error)
+  useEffect(() => {
+    // Delay notification service initialization to avoid Firebase error on Android
+    const notificationTimeout = setTimeout(() => {
+      console.log('📱 [APP] Requesting notification permissions...');
+      try {
+        requestNotificationPermissions();
+      } catch (error) {
+        console.warn('⚠️ [APP] Notification permission request warning:', error?.message || error);
+        // Continue even if there's an error - local notifications will still work
+      }
+    }, 2000); // 2 second delay
+
+    return () => clearTimeout(notificationTimeout);
+  }, []);
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowSplash(false);
@@ -50,6 +68,31 @@ console.log("userDatauserData",userData);
   useEffect(() => {
     setCheckUser(userData);
   }, [userData]);
+
+  // Start monitoring all chips motion events when user is logged in
+  useEffect(() => {
+    let mqttClient: any = null;
+
+    if (userData && !showSplash) {
+      console.log('🚀 [APP] Starting all chips motion monitoring...');
+      listenAllChipsMotionEvents()
+        .then((client) => {
+          mqttClient = client;
+          console.log('✅ [APP] All chips motion monitoring started');
+        })
+        .catch((error) => {
+          console.error('❌ [APP] Error starting motion monitoring:', error);
+        });
+    }
+
+    // Cleanup on unmount or when user logs out
+    return () => {
+      if (mqttClient) {
+        console.log('🛑 [APP] Stopping all chips motion monitoring...');
+        mqttClient.end();
+      }
+    };
+  }, [userData, showSplash]);
 
   return (
     <View style={styles.container}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Pressable,
+  AppState,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
@@ -23,7 +24,6 @@ import { supabase } from '../lib/supabaseClient';
 import { getChipCounts, getCriticalBatteryChips, updateChipBatteryLevel, getActiveChips } from '../utils/chipManager';
 import { checkChipOnlineStatusBatch } from '../utils/chipStatusAPI';
 import { getMQTTConfig, MQTT_BASE_CONFIG } from '../constants/Constants';
-import { listenMultipleChipMotionEvents } from '../utils/motionEventListener';
 import {
   ACTIVE,
   BATTERY,
@@ -120,6 +120,8 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
   // Motion event listeners state
   const [motionClients, setMotionClients] = useState([]);
+  const appState = useRef(AppState.currentState);
+  const motionClientsRef = useRef([]);
 
   // Static chip ID for battery testing
   const STATIC_CHIP_ID = "2CF7F1C07190019F";
@@ -254,36 +256,6 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     ]);
   };
 
-  // Initialize motion event listeners for all active chips
-  const initializeMotionListeners = async () => {
-    try {
-      console.log('🔔 HomeScreen: Initializing motion event listeners...');
-
-      // Static chip ID for testing
-      const STATIC_CHIP_ID = "2CF7F1C073100376";
-      const chipIds = [STATIC_CHIP_ID];
-
-      console.log(`🔔 Setting up motion monitoring for static chip: ${STATIC_CHIP_ID}`);
-
-      // Initialize motion listeners for static chip
-      const clients = await listenMultipleChipMotionEvents(
-        chipIds,
-        "449810146246400",
-        "org-449810146246400",
-        MQTT_BASE_CONFIG.password,
-        (motionData) => {
-          // Optional: Handle motion events here (e.g., show notifications, update UI)
-          console.log('📱 Motion event callback:', motionData);
-        }
-      );
-
-      setMotionClients(clients);
-      console.log(`✅ Motion event listeners initialized for ${clients.length} chip(s)`);
-
-    } catch (error) {
-      console.error('❌ Error initializing motion listeners:', error);
-    }
-  };
 
   // Load yards, chip stats, and user data from AsyncStorage
   useEffect(() => {
@@ -292,11 +264,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     loadChipStats();
     loadUserData();
 
-    // Initialize MQTT for battery monitoring
+    // Initialize MQTT for battery monitoring first
     initializeMqtt();
 
-    // Initialize motion event listeners
-    initializeMotionListeners();
+ 
 
     // Don't set mock data - wait for real MQTT data
   }, []);
@@ -309,35 +280,49 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }, [])
   );
 
-  // Cleanup MQTT connection
+  // Handle app state changes (foreground/background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        console.log('📱 [MOTION] App has come to the foreground');
+        // Motion listeners are already active, no need to reinitialize
+      } else if (nextAppState.match(/inactive|background/)) {
+        console.log('📱 [MOTION] App has gone to the background');
+        console.log('📱 [MOTION] Motion detection will continue in background');
+      }
+
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  // Cleanup MQTT connection (only on unmount, not on navigation)
   useEffect(() => {
     return () => {
+      // Only cleanup if component is actually unmounting
+      // Don't cleanup motion listeners - they should persist
       if (mqttClient) {
-        console.log('Disconnecting MQTT client from HomeScreen...');
+        // console.log('Disconnecting MQTT client from HomeScreen...');
         mqttClient.end();
         setMqttClient(null);
         setMqttConnected(false);
       }
 
-      // Cleanup motion event listeners
-      if (motionClients && motionClients.length > 0) {
-        console.log(`Disconnecting ${motionClients.length} motion event listeners...`);
-        motionClients.forEach(({ chipId, client }) => {
-          try {
-            client.end();
-            console.log(`✅ Disconnected motion listener for chip ${chipId}`);
-          } catch (error) {
-            console.error(`❌ Error disconnecting motion listener for chip ${chipId}:`, error);
-          }
-        });
-        setMotionClients([]);
-      }
+      // NOTE: Motion listeners are NOT cleaned up here
+      // They should persist across navigation and app state changes
+      // Only cleanup on app termination (handled by OS)
     };
-  }, [mqttClient, motionClients]);
+  }, [mqttClient]);
 
   const loadYards = async () => {
     try {
-      console.log('🔄 Loading yards from Supabase (real-time)...');
+      // console.log('🔄 Loading yards from Supabase (real-time)...');
 
       // Fetch from Supabase - Primary source
       const { data: supabaseYards, error } = await supabase
@@ -350,7 +335,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         // Fallback to local storage backup if Supabase fails (network issue)
         const savedYards = await AsyncStorage.getItem('parking_yards');
         if (savedYards) {
-          console.log('⚠️ Using local backup data (Supabase unavailable)');
+          // console.log('⚠️ Using local backup data (Supabase unavailable)');
           setYards(JSON.parse(savedYards));
         } else {
           setYards([]); // Show empty state
@@ -358,7 +343,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         return;
       }
 
-      console.log('✅ Fetched from Supabase:', supabaseYards.length, 'yards');
+      // console.log('✅ Fetched from Supabase:', supabaseYards.length, 'yards');
 
       // Map Supabase data to app format
       const mappedYards = supabaseYards.map(yard => ({
@@ -376,7 +361,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       // Save to local storage as backup only
       await AsyncStorage.setItem('parking_yards', JSON.stringify(mappedYards));
 
-      console.log('📊 Real-time yards from Supabase:', mappedYards.length);
+      // console.log('📊 Real-time yards from Supabase:', mappedYards.length);
       if (mappedYards.length === 0) {
         console.log('📭 No yards found - Show Add Yard option');
       }
@@ -386,7 +371,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       // Fallback to local storage backup
       const savedYards = await AsyncStorage.getItem('parking_yards');
       if (savedYards) {
-        console.log('⚠️ Using local backup data (Error occurred)');
+        // console.log('⚠️ Using local backup data (Error occurred)');
         setYards(JSON.parse(savedYards));
       } else {
         setYards([]); // Show empty state
@@ -410,7 +395,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   // Load chip stats from Supabase database and API (based on online_status)
   const loadChipStats = async () => {
     try {
-      console.log('🔄 Loading chip stats from Supabase and API...');
+      // console.log('🔄 Loading chip stats from Supabase and API...');
 
       // Get all cars from Supabase
       const { data: carsData, error: carsError } = await supabase
@@ -422,7 +407,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         return;
       }
 
-      console.log('✅ Fetched cars from Supabase:', carsData.length);
+      // console.log('✅ Fetched cars from Supabase:', carsData.length);
 
       // Get all cars with assigned chips (chip field has value)
       const carsWithChips = carsData.filter(car => {
@@ -430,7 +415,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         return chip && chip !== null && chip !== 'NULL' && chip.toString().trim() !== '' && chip.toString().trim() !== 'null';
       });
 
-      console.log(`📋 Found ${carsWithChips.length} cars with assigned chips`);
+      // console.log(`📋 Found ${carsWithChips.length} cars with assigned chips`);
 
       // Extract chip IDs for API call
       const chipIds = carsWithChips.map(car => car.chip).filter((chip, index, self) => self.indexOf(chip) === index); // Remove duplicates
@@ -439,9 +424,9 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       let onlineStatusMap = {};
       if (chipIds.length > 0) {
         try {
-          console.log(`🔄 Calling API to check online status for ${chipIds.length} chips...`);
+          // console.log(`🔄 Calling API to check online status for ${chipIds.length} chips...`);
           onlineStatusMap = await checkChipOnlineStatusBatch(chipIds);
-          console.log(`✅ API returned status for ${Object.keys(onlineStatusMap).length} chips`);
+          // console.log(`✅ API returned status for ${Object.keys(onlineStatusMap).length} chips`);
         } catch (apiError) {
           console.error('❌ Error calling chip status API:', apiError);
           // Continue with fallback - will show all as active if API fails
@@ -455,7 +440,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       carsWithChips.forEach(car => {
         const chipId = car.chip;
         const status = onlineStatusMap[chipId];
-        
+
         if (status) {
           // API returned status for this chip
           if (status.online_status === 1) {
@@ -485,12 +470,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       const unassignedVehicles = carsData.length - assignedVehicles;
       const totalVehicles = carsData.length;
 
-      console.log(`🔋 Low battery chips count: ${lowBatteryChips}`);
-      console.log(`✅ Active chips (online_status === 1): ${activeChipsCount}`);
-      console.log(`❌ Inactive chips (online_status === 0): ${inactiveChipsCount}`);
-      console.log(`📋 Assigned vehicles: ${assignedVehicles}`);
-      console.log(`📋 Unassigned vehicles: ${unassignedVehicles}`);
-      console.log(`📋 Total vehicles: ${totalVehicles}`);
+      // console.log(`🔋 Low battery chips count: ${lowBatteryChips}`);
+      // console.log(`✅ Active chips (online_status === 1): ${activeChipsCount}`);
+      // console.log(`❌ Inactive chips (online_status === 0): ${inactiveChipsCount}`);
+      // console.log(`📋 Assigned vehicles: ${assignedVehicles}`);
+      // console.log(`📋 Unassigned vehicles: ${unassignedVehicles}`);
+      // console.log(`📋 Total vehicles: ${totalVehicles}`);
 
       setChipStats({
         activeChips: activeChipsCount,
@@ -499,12 +484,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         totalVehicles: totalVehicles,
       });
 
-      console.log('📊 Final chip stats:', {
-        activeChips: activeChipsCount,
-        inactiveChips: inactiveChipsCount,
-        lowBatteryChips: lowBatteryChips,
-        totalVehicles: totalVehicles,
-      });
+      // console.log('📊 Final chip stats:', {
+      //   activeChips: activeChipsCount,
+      //   inactiveChips: inactiveChipsCount,
+      //   lowBatteryChips: lowBatteryChips,
+      //   totalVehicles: totalVehicles,
+      // });
 
     } catch (error) {
       console.error('❌ Error loading chip stats:', error);
@@ -571,7 +556,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }
 
     try {
-      console.log('🔄 Adding yard to Supabase...');
+      // console.log('🔄 Adding yard to Supabase...');
 
       // Generate unique ID
       const newId = Date.now();
@@ -599,7 +584,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         return;
       }
 
-      console.log('✅ Added to Supabase:', data);
+      // console.log('✅ Added to Supabase:', data);
 
       // 2. Prepare data for local storage
       const newYard = {
@@ -616,7 +601,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       setYards(updatedYards);
       await saveYards(updatedYards);
 
-      console.log('✅ Added to local storage');
+      // console.log('✅ Added to local storage');
 
       // Reset form and close modal
       clearFormData();
@@ -662,7 +647,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }
 
     try {
-      console.log('🔄 Updating yard in Supabase...');
+      // console.log('🔄 Updating yard in Supabase...');
 
       // 1. Update in Supabase first
       const { data, error } = await supabase
@@ -681,7 +666,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         return;
       }
 
-      console.log('✅ Updated in Supabase:', data);
+      // console.log('✅ Updated in Supabase:', data);
 
       // 2. Update local storage
       const updatedYards = yards.map(y =>
@@ -693,7 +678,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       setYards(updatedYards);
       await saveYards(updatedYards);
 
-      console.log('✅ Updated in local storage');
+      // console.log('✅ Updated in local storage');
 
       // Reset form and close modal
       clearFormData();
@@ -724,7 +709,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       }
 
       const vehicleCount = vehicles ? vehicles.length : 0;
-      console.log(`🔍 Yard "${yard.name}" has ${vehicleCount} vehicles`);
+      // console.log(`🔍 Yard "${yard.name}" has ${vehicleCount} vehicles`);
 
       // Determine confirmation message based on vehicle count
       const confirmationMessage = vehicleCount > 0
@@ -741,7 +726,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
             style: 'destructive',
             onPress: async () => {
               try {
-                console.log('🔄 Deleting yard and vehicles from Supabase...');
+                // console.log('🔄 Deleting yard and vehicles from Supabase...');
 
                 // 1. First delete all vehicles in this yard
                 if (vehicleCount > 0) {
@@ -755,7 +740,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                     Alert.alert('Error', `Failed to delete vehicles: ${vehiclesDeleteError.message}`);
                     return;
                   }
-                  console.log(`✅ Deleted ${vehicleCount} vehicles from yard`);
+                  // console.log(`✅ Deleted ${vehicleCount} vehicles from yard`);
                 }
 
                 // 2. Delete the yard itself
@@ -770,7 +755,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                   return;
                 }
 
-                console.log('✅ Deleted yard from Supabase');
+                // console.log('✅ Deleted yard from Supabase');
 
                 // 3. Update local storage
                 const updatedYards = yards.filter(y => y.id !== yard.id);
@@ -781,7 +766,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                 const storageKey = `yard_${yard.id}_vehicles`;
                 await AsyncStorage.removeItem(storageKey);
 
-                console.log('✅ Deleted from local storage');
+                // console.log('✅ Deleted from local storage');
 
                 Toast.show(`✅ Yard and ${vehicleCount} vehicles deleted successfully!`, Toast.LONG);
 
@@ -802,7 +787,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   // Helper function to get slot information for a yard
   const getSlotInfo = async (yardId) => {
     try {
-      console.log(`🔍 Getting slot info for yard ID: ${yardId}`);
+      // console.log(`🔍 Getting slot info for yard ID: ${yardId}`);
 
       // Get yard info from yards state (dynamic yards from Supabase)
       let yard = yards.find(y => y.id === yardId);
@@ -827,7 +812,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       const vehicleCount = vehicles?.length || 0;
       const availableSlots = Math.max(0, totalSlots - vehicleCount);
 
-      console.log(`✅ Slot info for ${yardName}: ${vehicleCount}/${totalSlots} (${availableSlots} available)`);
+      // console.log(`✅ Slot info for ${yardName}: ${vehicleCount}/${totalSlots} (${availableSlots} available)`);
 
       return {
         total: totalSlots,
@@ -1016,10 +1001,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       <Modal
         visible={isDrawerOpen}
         transparent
-        animationType="none"       
+        animationType="none"
         onRequestClose={closeDrawer}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={closeDrawer}
@@ -1346,7 +1331,7 @@ const styles = StyleSheet.create({
   searchArrow: {
     marginLeft: spacings.large,
   },
-  
+
   input: {
     flex: 1,
     fontSize: 16,

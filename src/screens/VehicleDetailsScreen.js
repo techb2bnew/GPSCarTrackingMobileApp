@@ -457,20 +457,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
               // Update saved location state with current timestamp
               const currentTime = Date.now();
-              setSavedLocation({
+              const updatedLocation = {
                 latitude,
                 longitude,
                 timestamp: currentTime, // Use current time for UI
                 lastUpdated: new Date(currentTime).toLocaleTimeString()
-              });
+              };
+              setSavedLocation(updatedLocation);
 
               // Set both chip location and car location to same coordinates
               setChipLocation(nextCoords);
               setCarLocation(nextCoords);
               setMqttDataReceived(true);
 
-              // Update last update time
+              // Update last update time and timeAgo immediately
               setLastUpdateTime(new Date().toLocaleTimeString());
+              setTimeAgo(getTimeAgo(currentTime)); // Update timeAgo immediately
 
               console.log('📍 [MQTT] ✅ Location updated in UI successfully:', {
                 chipId: targetChipId,
@@ -1095,6 +1097,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           setCarLocation({ latitude: carData.latitude, longitude: carData.longitude });
           setMqttDataReceived(true);
           setTimeAgo(getTimeAgo(timestamp));
+          setLastUpdateTime(new Date().toLocaleTimeString()); // Update refresh time
           // Toast.show('Location refreshed from database', Toast.SHORT);
         } else {
           // Toast.show('Location not available', Toast.SHORT);
@@ -1108,13 +1111,19 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Real-time time ago updates (every 1 minute)
+  // Real-time time ago updates (every 10 seconds for more frequent updates)
   useEffect(() => {
     if (savedLocation) {
+      // Update immediately
+      setTimeAgo(getTimeAgo(savedLocation.timestamp));
+      
+      // Then update every 10 seconds
       const interval = setInterval(() => {
-        const updatedTime = getTimeAgo(savedLocation.timestamp);
-        setTimeAgo(updatedTime);
-      }, 60000); // 1 minute = 60000ms
+        if (savedLocation && savedLocation.timestamp) {
+          const updatedTime = getTimeAgo(savedLocation.timestamp);
+          setTimeAgo(updatedTime);
+        }
+      }, 10000); // 10 seconds for more frequent updates
 
       return () => clearInterval(interval);
     }
@@ -1560,6 +1569,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             }
           </Text>
         </View>
+        {savedLocation && (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Last Location Updated:</Text>
+            <Text style={styles.infoValue}>
+              {timeAgo || getTimeAgo(savedLocation.timestamp)}
+            </Text>
+          </View>
+        )}
+        {lastUpdateTime && (
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Last Refresh Time:</Text>
+            <Text style={styles.infoValue}>
+              {lastUpdateTime}
+            </Text>
+          </View>
+        )}
       </View>}
 
       {/* Chip Assignment/Unassignment Buttons */}

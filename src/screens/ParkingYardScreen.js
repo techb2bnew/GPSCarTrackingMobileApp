@@ -195,7 +195,7 @@ const ParkingYardScreen = ({ navigation }) => {
   // Helper function to get slot information for a yard
   const getSlotInfo = async (yardId) => {
     try {
-      console.log(`🔍 Getting slot info for yard ID: ${yardId}`);
+      // console.log(`🔍 Getting slot info for yard ID: ${yardId}`);
 
       // Get yard info from yards state (dynamic yards from Supabase)
       let yard = yards.find(y => y.id === yardId);
@@ -220,7 +220,7 @@ const ParkingYardScreen = ({ navigation }) => {
       const vehicleCount = vehicles?.length || 0;
       const availableSlots = Math.max(0, totalSlots - vehicleCount);
 
-      console.log(`✅ Slot info for ${yardName}: ${vehicleCount}/${totalSlots} (${availableSlots} available)`);
+      // console.log(`✅ Slot info for ${yardName}: ${vehicleCount}/${totalSlots} (${availableSlots} available)`);
 
       return {
         total: totalSlots,

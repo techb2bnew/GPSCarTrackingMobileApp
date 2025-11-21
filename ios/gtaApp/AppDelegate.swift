@@ -3,9 +3,10 @@ import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import GoogleMaps
+import UserNotifications
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
   var window: UIWindow?
 
   var reactNativeDelegate: ReactNativeDelegate?
@@ -31,7 +32,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       launchOptions: launchOptions
     )
 
+    // Setup notification center delegate for foreground notifications
+    let center = UNUserNotificationCenter.current()
+    center.delegate = self
+
     return true
+  }
+
+  // MARK: - UNUserNotificationCenterDelegate
+  
+  // Called when a notification is delivered to a foreground app
+  // This allows notifications to show even when app is in foreground
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    // Show notification even when app is in foreground
+    completionHandler([.banner, .sound, .badge])
+  }
+
+  // Called when user taps on notification
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    completionHandler()
+  }
+  
+  // MARK: - Orientation Lock
+  // Lock orientation to portrait only
+  func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+    return .portrait
   }
 }
 
