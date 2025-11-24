@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, FlatList, Platform } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { widthPercentageToDP } from '../utils';
+import { widthPercentageToDP, heightPercentageToDP as hp } from '../utils';
 import AnimatedLottieView from 'lottie-react-native';
 import BleTesting from '../components/BleTesting';
 import { supabase } from '../lib/supabaseClient';
 import { spacings, style } from '../constants/Fonts';
 import { checkChipOnlineStatus } from '../utils/chipStatusAPI';
+import Header from '../components/Header';
 
 export default function ScanScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
@@ -125,8 +126,19 @@ export default function ScanScreen({ navigation, route }) {
 
     // Check if we're returning from ScannerScreen with not found data
     if (route?.params?.notFoundData) {
-      setNotFoundData(route.params.notFoundData);
-      setShowNotFoundModal(true);
+      const notFound = route.params.notFoundData;
+      setNotFoundData(notFound);
+      
+      // If isAddingVehicle flag is true, skip popup and directly show yard selection
+      if (notFound?.isAddingVehicle) {
+        fetchYards().then(() => {
+          setShowYardSelectionModal(true);
+        });
+        setShowNotFoundModal(false);
+      } else {
+        setShowNotFoundModal(true);
+      }
+      
       // Clear the params so the modal doesn't show again
       navigation.setParams({ notFoundData: null });
     }
@@ -142,29 +154,141 @@ export default function ScanScreen({ navigation, route }) {
   };
   return (
     <View style={styles.container}>
+      {/* Header */}
+      {/* <Header title="Scan Options" backArrow={false} showSearch={false} /> */}
 
-      {/* <BleTesting/> */}
-      <Text style={styles.title}>Scan Options</Text>
+      {/* Content Container */}
+      <View style={styles.contentContainer}>
+        {/* Welcome Text */}
+        <View style={styles.welcomeSection}>
+          <View style={styles.titleWrapper}>
+            <Text style={styles.welcomeTitle}>Scan & Search</Text>
+          </View>
+          <Text style={styles.welcomeSubtitle}>
+            Add new vehicle or search existing vehicles by scanning VIN or tracker chip
+          </Text>
+        </View>
 
+        {/* Buttons Container */}
+        <View style={styles.buttonsContainer}>
+          {/* Add Vehicle Card */}
+          <TouchableOpacity
+            style={styles.addVehicleCard}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ScannerScreen', { scanType: 'vin', isAddingVehicle: true })}
+          >
+            <View style={styles.cardInner}>
+              {/* Icon Container */}
+              <View style={[styles.iconContainer, styles.addVehicleIconContainer]}>
+                <Ionicons
+                  name="add-circle"
+                  size={32}
+                  color="#613EEA"
+                  style={styles.cardIcon}
+                />
+              </View>
+
+              {/* Content */}
+              <View style={styles.cardContent}>
+                <Text style={styles.addVehicleTitle}>Add New Vehicle</Text>
+                <Text style={styles.addVehicleDescription}>
+                  Scan VIN to add new vehicle. Select yard after scanning.
+                </Text>
+              </View>
+
+              {/* Arrow Icon */}
+              <View style={styles.arrowContainer}>
+                <Ionicons name="chevron-forward" size={20} color="#613EEA" />
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>Search Options</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* VIN Scan Card */}
+          <TouchableOpacity
+            style={styles.scanCard}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ScannerScreen', { scanType: 'vin' })}
+          >
+            <View style={styles.cardInner}>
+              {/* Icon Container */}
+              <View style={[styles.iconContainer, styles.vinIconContainer]}>
+                <Ionicons
+                  name="car-sport"
+                  size={30}
+                  color="#613EEA"
+                  style={styles.cardIcon}
+                />
+              </View>
+
+              {/* Content */}
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>Search by VIN Scan</Text>
+                <Text style={styles.cardDescription}>
+                  Scan VIN to search and view vehicle details
+                </Text>
+              </View>
+
+              {/* Arrow Icon */}
+              <View style={styles.arrowContainer}>
+                <Ionicons name="chevron-forward" size={20} color="#613EEA" />
+              </View>
+            </View>
+
+            {/* Decorative Background */}
+            {/* <View style={[styles.cardBackground, styles.vinCardBackground]} /> */}
+          </TouchableOpacity>
+
+          {/* Chip Scan Card */}
+          <TouchableOpacity
+            style={styles.scanCard}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('ScannerScreen', { scanType: 'chip' })}
+          >
+            <View style={styles.cardInner}>
+              {/* Icon Container */}
+              <View style={[styles.iconContainer, styles.chipIconContainer]}>
+                <Ionicons
+                  name="hardware-chip"
+                  size={30}
+                  color="#28a745"
+                  style={styles.cardIcon}
+                />
+              </View>
+
+              {/* Content */}
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>Search by Chip Scan</Text>
+                <Text style={styles.cardDescription}>
+                  Scan tracker chip to search and view vehicle details
+                </Text>
+              </View>
+
+              {/* Arrow Icon */}
+              <View style={styles.arrowContainer}>
+                <Ionicons name="chevron-forward" size={20} color="#28a745" />
+              </View>
+            </View>
+
+            {/* Decorative Background */}
+            {/* <View style={[styles.cardBackground, styles.chipCardBackground]} /> */}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Floating Search Button */}
       <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('ScannerScreen', { scanType: 'vin' })}
+        style={styles.floatingSearchButton}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate("SearchScreen")}
       >
-        <Ionicons
-          name="car-sport"
-          size={24}
-          color="white"
-          style={styles.icon}
-        />
-        <Text style={styles.buttonText}>Scan VIN</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => navigation.navigate('ScannerScreen', { scanType: 'chip' })}
-      >
-        <Ionicons name="barcode" size={24} color="white" style={styles.icon} />
-        <Text style={styles.buttonText}>Scan Tracker Chip</Text>
+        <Ionicons name="search" size={26} color="white" />
       </TouchableOpacity>
 
       <Modal visible={showModal} transparent animationType="fade">
@@ -423,39 +547,204 @@ export default function ScanScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacings.large,
+    backgroundColor: '#FAFAFA',
   },
-  title: {
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: spacings.Large1x,
+    paddingTop: hp(6),
+    zIndex: 1,
+  },
+  welcomeSection: {
+    marginBottom: hp(4),
+    alignItems: 'center',
+    paddingHorizontal: spacings.medium,
+  },
+  titleWrapper: {
+    marginBottom: spacings.xsmall,
+  },
+  welcomeTitle: {
     fontSize: style.fontSizeLarge.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    marginBottom: 40,
+    color: '#252837',
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
-  button: {
-    flexDirection: 'row',
-    backgroundColor: '#613EEA',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 20,
-
-    // Shadow
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+  welcomeSubtitle: {
+    fontSize: style.fontSizeSmall2x.fontSize,
+    color: '#646E77',
+    textAlign: 'center',
+    paddingHorizontal: spacings.large,
+    lineHeight: 20,
+    marginTop: spacings.xxsmall,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: style.fontSizeNormal.fontSize,
-    marginLeft: 12,
+  buttonsContainer: {
+    width: '100%',
+    gap: spacings.xLarge,
+    paddingBottom: hp(6),
+  },
+  addVehicleCard: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    marginBottom: 0,
+    overflow: 'visible',
+    position: 'relative',
+    minHeight: hp(13),
+    // Enhanced Shadow for prominence
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(97, 62, 234, 0.15)',
+  },
+  addVehicleIconContainer: {
+    backgroundColor: 'rgba(97, 62, 234, 0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(97, 62, 234, 0.3)',
+  },
+  addVehicleTitle: {
+    fontSize: style.fontSizeMedium1x.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
+    color: '#252837',
+    marginBottom: spacings.xxsmall,
+    letterSpacing: -0.2,
   },
-  icon: {},
+  addVehicleDescription: {
+    fontSize: style.fontSizeSmall2x.fontSize,
+    color: '#646E77',
+    lineHeight: 19,
+    marginTop: 2,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacings.xLarge,
+    paddingHorizontal: spacings.small,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  dividerText: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: '#646E77',
+    marginHorizontal: spacings.medium,
+    fontWeight: style.fontWeightMedium.fontWeight,
+  },
+  scanCard: {
+    width: '100%',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    marginBottom: 0,
+    overflow: 'visible',
+    position: 'relative',
+    minHeight: hp(12),
+    // Enhanced Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  cardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacings.Large1x,
+    zIndex: 2,
+    position: 'relative',
+  },
+  iconContainer: {
+    width: hp(9),
+    height: hp(9),
+    borderRadius: hp(4.5),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacings.large,
+    // Subtle shadow for depth
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  vinIconContainer: {
+    backgroundColor: 'rgba(97, 62, 234, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(97, 62, 234, 0.2)',
+  },
+  chipIconContainer: {
+    backgroundColor: 'rgba(40, 167, 69, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(40, 167, 69, 0.2)',
+  },
+  cardIcon: {
+    // Icon styling handled in iconContainer
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardTitle: {
+    fontSize: style.fontSizeMedium.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
+    color: '#252837',
+    marginBottom: spacings.xxsmall,
+    letterSpacing: -0.1,
+  },
+  cardDescription: {
+    fontSize: style.fontSizeSmall1x.fontSize,
+    color: '#646E77',
+    lineHeight: 18,
+    marginTop: 1,
+  },
+  arrowContainer: {
+    marginLeft: spacings.medium,
+    padding: spacings.xsmall,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+  },
+  cardBackground: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: '70%',
+    height: '100%',
+    opacity: 0.05,
+    borderTopLeftRadius: 100,
+  },
+  vinCardBackground: {
+    backgroundColor: '#613EEA',
+  },
+  chipCardBackground: {
+    backgroundColor: '#28a745',
+  },
+  floatingSearchButton: {
+    position: 'absolute',
+    bottom: hp(15),
+    right: spacings.Large1x,
+    width: hp(7.5),
+    height: hp(7.5),
+    borderRadius: hp(3.75),
+    backgroundColor: '#613EEA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Enhanced Shadow
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 1000,
+    // Border for better definition
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
   modalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

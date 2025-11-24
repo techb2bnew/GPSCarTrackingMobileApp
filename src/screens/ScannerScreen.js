@@ -19,6 +19,7 @@ const ScannerScreen = ({ navigation, route }) => {
   const returnTo = route?.params?.returnTo;
   const yardId = route?.params?.yardId;
   const scanType = route?.params?.scanType; // 'vin' or 'chip'
+  const isAddingVehicle = route?.params?.isAddingVehicle; // Flag for Add Vehicle flow
   
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -307,26 +308,45 @@ const ScannerScreen = ({ navigation, route }) => {
           else if (scanType === 'vin') {
             const found = await findVehicleByVin(vin);
             
-            if (found) {
-              // Show success animation then navigate back to ScanScreen with data
-              setShowSuccessModal(true);
-              
-              // After 2 seconds, navigate back to ScanScreen with vehicle data
-              setTimeout(() => {
-                setShowSuccessModal(false);
+            // Handle Add Vehicle flow
+            if (isAddingVehicle) {
+              if (found) {
+                // Vehicle already exists - show message and go back
+                Toast.show('Vehicle already exists with this VIN number', Toast.LONG);
+                navigation.goBack();
+              } else {
+                // Vehicle not found - navigate directly to yard selection
                 navigation.navigate('ScanScreen', {
-                  foundVehicle: found.vehicle,
-                  foundYardName: found.yardName
+                  notFoundData: {
+                    type: 'vin',
+                    scannedValue: vin,
+                    isAddingVehicle: true // Flag to show yard selection for Add Vehicle
+                  }
                 });
-              }, 2000);
+              }
             } else {
-              // Navigate back to ScanScreen with not found data
-              navigation.navigate('ScanScreen', {
-                notFoundData: {
-                  type: 'vin',
-                  scannedValue: vin
-                }
-              });
+              // Regular scan flow
+              if (found) {
+                // Show success animation then navigate back to ScanScreen with data
+                setShowSuccessModal(true);
+                
+                // After 2 seconds, navigate back to ScanScreen with vehicle data
+                setTimeout(() => {
+                  setShowSuccessModal(false);
+                  navigation.navigate('ScanScreen', {
+                    foundVehicle: found.vehicle,
+                    foundYardName: found.yardName
+                  });
+                }, 2000);
+              } else {
+                // Navigate back to ScanScreen with not found data
+                navigation.navigate('ScanScreen', {
+                  notFoundData: {
+                    type: 'vin',
+                    scannedValue: vin
+                  }
+                });
+              }
             }
           } else {
             navigation.navigate('YardDetailScreen', { vinNumber: vin });
