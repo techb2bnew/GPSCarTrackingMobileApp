@@ -1,15 +1,20 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Modal, Dimensions, Image } from 'react-native';
 import MapView, { Marker, Polygon } from 'react-native-maps';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { supabase } from '../lib/supabaseClient';
 import { heightPercentageToDP as hp } from '../utils';
 import { spacings, style } from '../constants/Fonts';
 import { blackColor, whiteColor } from '../constants/Color';
+import mqtt from "mqtt/dist/mqtt";
+import { getMQTTConfig } from '../constants/Constants';
+import { useFocusEffect } from '@react-navigation/native';
 
 const COLOR_PRIMARY = '#FF6F61';
 const COLOR_FILL = 'rgba(255, 111, 97, 0.25)';
 const COLOR_STROKE = '#FF6F61';
+
+const { width, height } = Dimensions.get('window');
 
 // Get centroid of polygon for marker placement
 const getPolygonCentroid = (coordinates) => {
@@ -148,6 +153,17 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
     });
+
+    // Vehicle states
+    const [vehicles, setVehicles] = useState([]);
+    const [vehicleLocations, setVehicleLocations] = useState({}); // { chipId: { latitude, longitude, lastUpdate } }
+    const [selectedVehicle, setSelectedVehicle] = useState(null);
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [mqttClient, setMqttClient] = useState(null);
+    const [mqttConnected, setMqttConnected] = useState(false);
+    
+    // Buffer for MQTT lat/lon data per chip
+    const mqttBufferRef = useRef({}); // { chipId: { lat: null, lon: null } }
 
     // Fetch polygons from facility_polygons table
     const loadPolygons = async () => {
@@ -289,9 +305,316 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
         }
     };
 
+    // Load vehicles from database for this facility
+    const loadVehicles = async () => {
+        try {
+            if (!yardId) return;
+
+            console.log('🚗 [YardPolygonsMapScreen] Loading vehicles for facility:', yardId);
+            const facilityIdInt = parseInt(yardId, 10);
+
+            const { data, error } = await supabase
+                .from('cars')
+                .select('*')
+                .eq('facilityId', facilityIdInt);
+
+            if (error) {
+                console.error('❌ [YardPolygonsMapScreen] Error loading vehicles:', error);
+                return;
+            }
+
+            console.log(`✅ [YardPolygonsMapScreen] Loaded ${data?.length || 0} vehicles`);
+
+            // Filter vehicles that have chips assigned
+            const vehiclesWithChips = (data || []).filter(v => v.chip && v.chip.trim() !== '');
+            
+            // Set vehicles
+            setVehicles(vehiclesWithChips);
+
+            // Initialize locations from database for vehicles that have location data
+            const initialLocations = {};
+            vehiclesWithChips.forEach(vehicle => {
+                if (vehicle.latitude && vehicle.longitude && vehicle.chip) {
+                    initialLocations[vehicle.chip] = {
+                        latitude: parseFloat(vehicle.latitude),
+                        longitude: parseFloat(vehicle.longitude),
+                        lastUpdate: vehicle.last_location_update || null,
+                        vin: vehicle.vin,
+                        chipId: vehicle.chip
+                    };
+                }
+            });
+            setVehicleLocations(initialLocations);
+            console.log(`📍 [YardPolygonsMapScreen] Initialized ${Object.keys(initialLocations).length} vehicle locations from database`);
+
+        } catch (error) {
+            console.error('❌ [YardPolygonsMapScreen] Error loading vehicles:', error);
+        }
+    };
+
+    // Initialize MQTT for all chips in the facility
+    const initializeMqtt = () => {
+        try {
+            if (vehicles.length === 0) {
+                console.log('⚠️ [YardPolygonsMapScreen] No vehicles with chips to monitor');
+                return;
+            }
+
+            // Get all chip IDs
+            const chipIds = vehicles
+                .filter(v => v.chip && v.chip.trim() !== '')
+                .map(v => v.chip);
+
+            if (chipIds.length === 0) {
+                console.log('⚠️ [YardPolygonsMapScreen] No chip IDs found');
+                return;
+            }
+
+            console.log(`🔌 [YardPolygonsMapScreen] Initializing MQTT for ${chipIds.length} chips:`, chipIds);
+
+            const MQTT_CONFIG = getMQTTConfig('yard-polygons-map');
+            const client = mqtt.connect(MQTT_CONFIG.host, {
+                username: MQTT_CONFIG.username,
+                password: MQTT_CONFIG.password,
+                clientId: MQTT_CONFIG.clientId,
+                protocolVersion: MQTT_CONFIG.protocolVersion,
+            });
+
+            // Initialize buffer for each chip
+            chipIds.forEach(chipId => {
+                mqttBufferRef.current[chipId] = { lat: null, lon: null };
+            });
+
+            client.on("connect", () => {
+                console.log("✅ [YardPolygonsMapScreen] Connected to MQTT");
+                setMqttConnected(true);
+
+                // Subscribe to topics for all chips
+                chipIds.forEach(chipId => {
+                    const latitudeTopic = `/device_sensor_data/449810146246400/${chipId}/+/vs/4198`;
+                    const longitudeTopic = `/device_sensor_data/449810146246400/${chipId}/+/vs/4197`;
+
+                    client.subscribe(latitudeTopic, (err) => {
+                        if (err) {
+                            console.error(`❌ [YardPolygonsMapScreen] MQTT Subscribe error (latitude) for ${chipId}:`, err);
+                        } else {
+                            console.log(`✅ [YardPolygonsMapScreen] Subscribed to latitude topic for chip ${chipId}`);
+                        }
+                    });
+
+                    client.subscribe(longitudeTopic, (err) => {
+                        if (err) {
+                            console.error(`❌ [YardPolygonsMapScreen] MQTT Subscribe error (longitude) for ${chipId}:`, err);
+                        } else {
+                            console.log(`✅ [YardPolygonsMapScreen] Subscribed to longitude topic for chip ${chipId}`);
+                        }
+                    });
+                });
+            });
+
+            client.on("message", async (topic, message) => {
+                try {
+                    const payload = JSON.parse(message.toString());
+
+                    // Extract chip ID from topic
+                    // Topic format: /device_sensor_data/449810146246400/2CF7F1C07190019F/0/vs/4197
+                    const topicParts = topic.split('/');
+                    const chipId = topicParts[3];
+
+                    if (!chipId || !mqttBufferRef.current[chipId]) {
+                        return; // Not a chip we're monitoring
+                    }
+
+                    // Store latitude or longitude
+                    if (topic.includes("4197")) {
+                        mqttBufferRef.current[chipId].lon = payload.value; // Longitude
+                    } else if (topic.includes("4198")) {
+                        mqttBufferRef.current[chipId].lat = payload.value; // Latitude
+                    }
+
+                    // Update location when both lat & lon are available
+                    const buffer = mqttBufferRef.current[chipId];
+                    if (buffer.lat !== null && buffer.lon !== null) {
+                        const latitude = parseFloat(buffer.lat);
+                        const longitude = parseFloat(buffer.lon);
+
+                        if (!isNaN(latitude) && !isNaN(longitude)) {
+                            console.log(`🚗 [YardPolygonsMapScreen] MQTT location update for chip ${chipId}:`, { latitude, longitude });
+
+                            // Update state
+                            setVehicleLocations(prev => ({
+                                ...prev,
+                                [chipId]: {
+                                    ...prev[chipId],
+                                    latitude,
+                                    longitude,
+                                    lastUpdate: new Date().toISOString(),
+                                }
+                            }));
+
+                            // Update database
+                            try {
+                                const currentTimestamp = new Date().toISOString();
+                                const { error: updateError } = await supabase
+                                    .from('cars')
+                                    .update({
+                                        latitude: latitude,
+                                        longitude: longitude,
+                                        last_location_update: currentTimestamp
+                                    })
+                                    .eq('chip', chipId);
+
+                                if (updateError) {
+                                    console.error(`❌ [YardPolygonsMapScreen] Error updating location in database for chip ${chipId}:`, updateError);
+                                } else {
+                                    console.log(`✅ [YardPolygonsMapScreen] Updated location in database for chip ${chipId}`);
+                                }
+                            } catch (dbError) {
+                                console.error(`❌ [YardPolygonsMapScreen] Database update error for chip ${chipId}:`, dbError);
+                            }
+
+                            // Reset buffer
+                            buffer.lat = null;
+                            buffer.lon = null;
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ [YardPolygonsMapScreen] Error parsing MQTT message:', error);
+                }
+            });
+
+            client.on("error", (error) => {
+                console.error("❌ [YardPolygonsMapScreen] MQTT Error:", error);
+                setMqttConnected(false);
+            });
+
+            client.on("close", () => {
+                console.log("🔌 [YardPolygonsMapScreen] MQTT Connection closed");
+                setMqttConnected(false);
+            });
+
+            setMqttClient(client);
+
+        } catch (error) {
+            console.error("❌ [YardPolygonsMapScreen] MQTT Initialization error:", error);
+            setMqttConnected(false);
+        }
+    };
+
+    // Helper function to parse database timestamp to UTC milliseconds
+    const parseDatabaseTimestamp = (dbTimestamp) => {
+        if (!dbTimestamp) return null;
+        
+        try {
+            // Database format: "2025-11-12T15:01:07.838" (UTC format, without Z)
+            // Or: "2025-11-12 15:01:07.838" (with space)
+            // Or: "2025-11-12T15:03:08.142Z" (with Z, already UTC)
+            
+            // If timestamp ends with Z, it's already UTC
+            if (dbTimestamp.endsWith('Z')) {
+                return new Date(dbTimestamp).getTime();
+            }
+            
+            // Normalize format: replace space with T if needed
+            const timestampStr = dbTimestamp.includes('T') ? dbTimestamp : dbTimestamp.replace(' ', 'T');
+            
+            // Add Z to make it explicit UTC
+            const utcTimestamp = new Date(timestampStr + 'Z').getTime();
+            
+            return utcTimestamp;
+        } catch (error) {
+            console.error('Error parsing database timestamp:', error);
+            // Fallback to simple parsing
+            return new Date(dbTimestamp).getTime();
+        }
+    };
+
+    // Format last update time
+    const formatLastUpdate = (timestamp) => {
+        if (!timestamp) return 'Unknown';
+        
+        try {
+            // Parse timestamp to milliseconds (handles both ISO strings and milliseconds)
+            let timestampMs;
+            if (typeof timestamp === 'string') {
+                timestampMs = parseDatabaseTimestamp(timestamp);
+            } else if (typeof timestamp === 'number') {
+                timestampMs = timestamp;
+            } else {
+                timestampMs = new Date(timestamp).getTime();
+            }
+
+            if (!timestampMs || isNaN(timestampMs)) {
+                return 'Unknown';
+            }
+
+            const now = Date.now();
+            const diffMs = now - timestampMs;
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMin = Math.floor(diffSec / 60);
+            const diffHour = Math.floor(diffMin / 60);
+            const diffDay = Math.floor(diffHour / 24);
+            
+            if (diffSec < 60) return `${diffSec}s ago`;
+            if (diffMin < 60) return `${diffMin}m ago`;
+            if (diffHour < 24) return `${diffHour}h ago`;
+            if (diffDay < 7) return `${diffDay}d ago`;
+            
+            // For older dates, show formatted date
+            const updateDate = new Date(timestampMs);
+            return updateDate.toLocaleDateString() + ' ' + updateDate.toLocaleTimeString();
+        } catch (error) {
+            console.error('Error formatting last update:', error);
+            return 'Unknown';
+        }
+    };
+
+    // Handle vehicle marker click
+    const handleVehicleClick = (vehicle) => {
+        setSelectedVehicle(vehicle);
+        setShowTooltip(true);
+    };
+
+    // Close tooltip
+    const closeTooltip = () => {
+        setShowTooltip(false);
+        setSelectedVehicle(null);
+    };
+
     useEffect(() => {
         loadPolygons();
+        loadVehicles();
     }, [yardId]);
+
+    // Initialize MQTT when vehicles are loaded
+    useEffect(() => {
+        if (vehicles.length > 0) {
+            initializeMqtt();
+        }
+
+        // Cleanup MQTT on unmount
+        return () => {
+            if (mqttClient) {
+                console.log('🔌 [YardPolygonsMapScreen] Disconnecting MQTT...');
+                mqttClient.end();
+                setMqttClient(null);
+            }
+        };
+    }, [vehicles.length]);
+
+    // Reconnect MQTT when screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            if (vehicles.length > 0 && !mqttClient) {
+                console.log('🔄 [YardPolygonsMapScreen] Screen focused, reconnecting MQTT...');
+                initializeMqtt();
+            }
+
+            return () => {
+                // Don't disconnect on blur, keep connection alive
+            };
+        }, [vehicles.length])
+    );
 
     // Calculate map region from polygons or use facility location
     const mapRegion = useMemo(() => {
@@ -397,6 +720,33 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                             <Text style={styles.slotBadgeText}>{marker.slotNum}</Text>
                         </Marker>
                     ))}
+
+                    {/* Render Vehicle Markers */}
+                    {vehicles.map((vehicle) => {
+                        if (!vehicle.chip) return null;
+                        
+                        const location = vehicleLocations[vehicle.chip];
+                        if (!location || !location.latitude || !location.longitude) {
+                            return null; // Don't show vehicles without location
+                        }
+
+                        return (
+                            <Marker
+                                key={vehicle.id}
+                                coordinate={{
+                                    latitude: location.latitude,
+                                    longitude: location.longitude,
+                                }}
+                                onPress={() => handleVehicleClick(vehicle)}
+                            >
+                                <View style={styles.vehicleMarkerContainer}>
+                                    <View style={styles.carLocationMarker}>
+                                        <Ionicons name="car" size={15} color="#fff" />
+                                    </View>
+                                </View>
+                            </Marker>
+                        );
+                    })}
                 </MapView>
 
                 {/* Loading Overlay */}
@@ -418,7 +768,70 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                         </Text>
                     </View>
                 )}
+
+                {/* Vehicle Count Badge */}
+                {Object.keys(vehicleLocations).length > 0 && (
+                    <View style={styles.vehicleCountBadge}>
+                        <Ionicons name="car" size={16} color={COLOR_PRIMARY} />
+                        <Text style={styles.vehicleCountText}>
+                            {Object.keys(vehicleLocations).length} vehicles
+                        </Text>
+                    </View>
+                )}
             </View>
+
+            {/* Vehicle Tooltip Modal */}
+            <Modal
+                transparent={true}
+                visible={showTooltip}
+                animationType="fade"
+                onRequestClose={closeTooltip}
+            >
+                <TouchableOpacity 
+                    style={styles.tooltipOverlay} 
+                    activeOpacity={1} 
+                    onPress={closeTooltip}
+                >
+                    <View style={styles.tooltipContainer}>
+                        <TouchableOpacity activeOpacity={1}>
+                            <View style={styles.tooltipHeader}>
+                                <Text style={styles.tooltipTitle}>Vehicle Details</Text>
+                                <TouchableOpacity onPress={closeTooltip}>
+                                    <Ionicons name="close" size={24} color="#666" />
+                                </TouchableOpacity>
+                            </View>
+                            
+                            {selectedVehicle && (
+                                <View style={styles.tooltipContent}>
+                                    <View style={styles.tooltipRow}>
+                                        <Ionicons name="car" size={20} color="#007AFF" />
+                                        <Text style={styles.tooltipLabel}>VIN:</Text>
+                                        <Text style={styles.tooltipValue}>{selectedVehicle.vin || 'N/A'}</Text>
+                                    </View>
+                                    
+                                    <View style={styles.tooltipRow}>
+                                        <Ionicons name="hardware-chip" size={20} color="#34C759" />
+                                        <Text style={styles.tooltipLabel}>Chip ID:</Text>
+                                        <Text style={styles.tooltipValue}>{selectedVehicle.chip || 'N/A'}</Text>
+                                    </View>
+                                    
+                                    <View style={styles.tooltipRow}>
+                                        <Ionicons name="time" size={20} color="#FF3B30" />
+                                        <Text style={styles.tooltipLabel}>Last Update:</Text>
+                                        <Text style={styles.tooltipValue}>
+                                            {formatLastUpdate(
+                                                vehicleLocations[selectedVehicle.chip]?.lastUpdate || 
+                                                selectedVehicle.last_location_update ||
+                                                null
+                                            )}
+                                        </Text>
+                                    </View>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </View>
     );
 };
@@ -521,6 +934,101 @@ const styles = StyleSheet.create({
         color: blackColor,
         fontWeight: style.fontWeightBold.fontWeight,
         fontSize: 10,
+    },
+    vehicleMarkerContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    carLocationMarker: {
+        backgroundColor: '#FF6B6B',
+        width: 25,
+        height: 25,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#fff',
+        shadowColor: '#FF6B6B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    vehicleCountBadge: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        zIndex: 1000,
+    },
+    vehicleCountText: {
+        marginLeft: 6,
+        fontSize: style.fontSizeSmall1x.fontSize,
+        fontWeight: style.fontWeightBold.fontWeight,
+        color: '#333',
+    },
+    tooltipOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    tooltipContainer: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        margin: spacings.large,
+        minWidth: width * 0.8,
+        maxWidth: width * 0.9,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+    },
+    tooltipHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: spacings.large,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E5EA',
+    },
+    tooltipTitle: {
+        fontSize: style.fontSizeMedium1x.fontSize,
+        fontWeight: style.fontWeightBold.fontWeight,
+        color: '#000',
+    },
+    tooltipContent: {
+        padding: spacings.large,
+    },
+    tooltipRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    tooltipLabel: {
+        fontSize: style.fontSizeSmall1x.fontSize,
+        fontWeight: style.fontWeightMedium.fontWeight,
+        color: '#666',
+        marginLeft: 8,
+        marginRight: 8,
+        minWidth: 80,
+    },
+    tooltipValue: {
+        fontSize: 14,
+        color: '#000',
+        flex: 1,
+        fontWeight: '500',
     },
 });
 

@@ -22,7 +22,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-simple-toast';
 import { supabase } from '../lib/supabaseClient';
-import { addActiveChip, moveChipToInactive, removeInactiveChip } from '../utils/chipManager';
+import { addActiveChip, moveChipToInactive, removeInactiveChip, getTimeAgo } from '../utils/chipManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
 import CustomButton from '../components/CustomButton';
@@ -54,6 +54,34 @@ const YardDetailScreen = ({ navigation, route }) => {
   const [editYardSlots, setEditYardSlots] = useState('');
   const [vehicleSlotNo, setVehicleSlotNo] = useState('');
   const [vehicleColor, setVehicleColor] = useState('');
+
+  // Helper function to parse database timestamp to UTC milliseconds
+  const parseDatabaseTimestamp = (dbTimestamp) => {
+    if (!dbTimestamp) return null;
+    
+    try {
+      // Database format: "2025-11-12T15:01:07.838" (UTC format, without Z)
+      // Or: "2025-11-12 15:01:07.838" (with space)
+      // Or: "2025-11-12T15:03:08.142Z" (with Z, already UTC)
+      
+      // If timestamp ends with Z, it's already UTC
+      if (dbTimestamp.endsWith('Z')) {
+        return new Date(dbTimestamp).getTime();
+      }
+      
+      // Normalize format: replace space with T if needed
+      const timestampStr = dbTimestamp.includes('T') ? dbTimestamp : dbTimestamp.replace(' ', 'T');
+      
+      // Add Z to make it explicit UTC
+      const utcTimestamp = new Date(timestampStr + 'Z').getTime();
+      
+      return utcTimestamp;
+    } catch (error) {
+      console.error('Error parsing database timestamp:', error);
+      // Fallback to simple parsing
+      return new Date(dbTimestamp).getTime();
+    }
+  };
 
   // Get current user info for history
   const getCurrentUser = () => {
@@ -255,7 +283,8 @@ const YardDetailScreen = ({ navigation, route }) => {
         trackerNo: vehicle.trackerNo || null,
         isActive: vehicle.chip ? true : false,
         status: vehicle.status || 'Assigned',
-        assignedDate: vehicle.assignedDate
+        assignedDate: vehicle.assignedDate,
+        lastLocationUpdate: vehicle.last_location_update || null,
       }));
 
       setVehicles(parsedVehicles);
@@ -933,6 +962,19 @@ const YardDetailScreen = ({ navigation, route }) => {
         <View style={styles.vehicleTitleContainer}>
           <Text style={styles.vinNumber}>{item?.vin}</Text>
           <Text style={styles.vehicleSpecs}>{item?.model?.charAt(0).toUpperCase() + item?.model?.slice(1)} • {item?.make?.charAt(0).toUpperCase() + item?.make?.slice(1)} </Text>
+          {/* Last Location Update Display */}
+          {item.isActive && item.chipId && item.lastLocationUpdate && (() => {
+            const timestamp = parseDatabaseTimestamp(item.lastLocationUpdate);
+            if (!timestamp) return null;
+            return (
+              <View style={styles.lastUpdateRow}>
+                <Ionicons name="time-outline" size={12} color={blackColor} />
+                <Text style={styles.lastUpdateText}>
+                  Last location: {getTimeAgo(timestamp)}
+                </Text>
+              </View>
+            );
+          })()}
         </View>
 
 
@@ -1696,7 +1738,19 @@ const styles = StyleSheet.create({
   },
   vehicleSpecs: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: grayColor,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    color: blackColor,
+  },
+  lastUpdateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  lastUpdateText: {
+    fontSize: style.fontSizeExtraSmall.fontSize,
+    color: blackColor,
+    fontStyle: 'italic',
   },
   activeTag: {
     backgroundColor: '#d4edda',

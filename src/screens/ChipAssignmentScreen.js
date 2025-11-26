@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabaseClient';
 import { style, spacings } from '../constants/Fonts';
 import { whiteColor, grayColor, darkgrayColor, blackColor, greenColor } from '../constants/Color';
+import { getTimeAgo } from '../utils/chipManager';
 
 const ChipAssignmentScreen = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('assigned'); // 'assigned' or 'unassigned'
@@ -30,6 +31,34 @@ const ChipAssignmentScreen = ({ navigation }) => {
     unassigned: 0,
     total: 0,
   });
+
+  // Helper function to parse database timestamp to UTC milliseconds
+  const parseDatabaseTimestamp = (dbTimestamp) => {
+    if (!dbTimestamp) return null;
+    
+    try {
+      // Database format: "2025-11-12T15:01:07.838" (UTC format, without Z)
+      // Or: "2025-11-12 15:01:07.838" (with space)
+      // Or: "2025-11-12T15:03:08.142Z" (with Z, already UTC)
+      
+      // If timestamp ends with Z, it's already UTC
+      if (dbTimestamp.endsWith('Z')) {
+        return new Date(dbTimestamp).getTime();
+      }
+      
+      // Normalize format: replace space with T if needed
+      const timestampStr = dbTimestamp.includes('T') ? dbTimestamp : dbTimestamp.replace(' ', 'T');
+      
+      // Add Z to make it explicit UTC
+      const utcTimestamp = new Date(timestampStr + 'Z').getTime();
+      
+      return utcTimestamp;
+    } catch (error) {
+      console.error('Error parsing database timestamp:', error);
+      // Fallback to simple parsing
+      return new Date(dbTimestamp).getTime();
+    }
+  };
 
   // Function to get yard name from facility ID
   const getYardNameFromId = async (facilityId) => {
@@ -98,6 +127,7 @@ const ChipAssignmentScreen = ({ navigation }) => {
           yardId: car.facilityId || 'Unknown',
           yardName: yardNamesMap[car.facilityId] || 'Unknown Yard',
           isAssigned: hasChip,
+          lastLocationUpdate: car.last_location_update || null,
         };
       });
 
@@ -276,6 +306,19 @@ const ChipAssignmentScreen = ({ navigation }) => {
                 <Text style={styles.detailText}>Slot: {displaySlot}</Text>
               </View>
             )}
+            {/* Last Location Update Display */}
+            {item.isAssigned && item.lastLocationUpdate && (() => {
+              const timestamp = parseDatabaseTimestamp(item.lastLocationUpdate);
+              if (!timestamp) return null;
+              return (
+                <View style={styles.detailRow}>
+                  <Icon name="time-outline" size={14} color={grayColor} />
+                  <Text style={styles.detailText}>
+                    Last location: {getTimeAgo(timestamp)}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
       </TouchableOpacity>
@@ -617,7 +660,8 @@ const styles = StyleSheet.create({
   },
   vehicleInfo: {
     fontSize: style.fontSizeSmall1x.fontSize,
-    color: '#555',
+    fontWeight: style.fontWeightMedium.fontWeight,
+    color: blackColor,
     marginTop: spacings.xxsmall,
     ...style,
   },

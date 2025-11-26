@@ -24,6 +24,7 @@ import { checkChipOnlineStatusBatch } from '../utils/chipStatusAPI';
 import { getMQTTConfig } from '../constants/Constants';
 import mqtt from 'mqtt/dist/mqtt';
 import { style, spacings } from '../constants/Fonts';
+import { blackColor } from '../constants/Color';
 
 
 const ActiveChipScreen = ({ navigation, route }) => {
@@ -195,6 +196,34 @@ const ActiveChipScreen = ({ navigation, route }) => {
     setMqttClient(client);
   };
 
+  // Helper function to parse database timestamp to UTC milliseconds
+  const parseDatabaseTimestamp = (dbTimestamp) => {
+    if (!dbTimestamp) return null;
+    
+    try {
+      // Database format: "2025-11-12T15:01:07.838" (UTC format, without Z)
+      // Or: "2025-11-12 15:01:07.838" (with space)
+      // Or: "2025-11-12T15:03:08.142Z" (with Z, already UTC)
+      
+      // If timestamp ends with Z, it's already UTC
+      if (dbTimestamp.endsWith('Z')) {
+        return new Date(dbTimestamp).getTime();
+      }
+      
+      // Normalize format: replace space with T if needed
+      const timestampStr = dbTimestamp.includes('T') ? dbTimestamp : dbTimestamp.replace(' ', 'T');
+      
+      // Add Z to make it explicit UTC
+      const utcTimestamp = new Date(timestampStr + 'Z').getTime();
+      
+      return utcTimestamp;
+    } catch (error) {
+      console.error('Error parsing database timestamp:', error);
+      // Fallback to simple parsing
+      return new Date(dbTimestamp).getTime();
+    }
+  };
+
   // Function to get yard name from facility ID
   const getYardNameFromId = async (facilityId) => {
     try {
@@ -295,6 +324,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
           slotNo: car.slotNo || car.slot || '',
           batteryLevel: null,
           assignedAt: new Date().toISOString(),
+          lastLocationUpdate: car.last_location_update || null,
         }));
 
         console.log(`✅ Active chips (assigned): ${chipsData.length}`);
@@ -352,6 +382,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
           facility: yardNamesMap[car.facilityId] || 'Unknown Yard',
           slotNo: car.slotNo || car.slot || '',
           unassignedAt: new Date().toISOString(),
+          lastLocationUpdate: car.last_location_update || null,
         }));
 
         console.log(`✅ Inactive chips (online_status === 0): ${chipsData.length}`);
@@ -412,6 +443,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
             lastBatteryUpdate: car.last_battery_update || null, // Get from database first
             assignedAt: new Date().toISOString(),
             isActive: isActive, // Add active/inactive status from API
+            lastLocationUpdate: car.last_location_update || null,
           };
         });
 
@@ -735,6 +767,20 @@ const ActiveChipScreen = ({ navigation, route }) => {
               <Text style={styles.yardText}>
                 {isInactive ? 'Current Yard: ' : 'Yard: '}{displayYardName}
               </Text>
+
+              {/* Last Location Update Display */}
+              {item.lastLocationUpdate && (() => {
+                const timestamp = parseDatabaseTimestamp(item.lastLocationUpdate);
+                if (!timestamp) return null;
+                return (
+                  <View style={styles.lastUpdateContainer}>
+                    <Icon name="time-outline" size={14} color="#999" />
+                    <Text style={styles.lastUpdateText}>
+                      Last location: {getTimeAgo(timestamp)}
+                    </Text>
+                  </View>
+                );
+              })()}
 
               {/* Battery Level Display for Low Battery Page */}
               {isLowBattery && item.batteryLevel !== null && item.batteryLevel !== undefined && (
@@ -1114,7 +1160,8 @@ const styles = StyleSheet.create({
   },
   subText: {
     fontSize: style.fontSizeSmall1x.fontSize,
-    color: '#555',
+    fontWeight: style.fontWeightMedium.fontWeight,
+    color:blackColor,
     marginTop: spacings.xxsmall,
   },
   activeTag: {

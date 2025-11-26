@@ -12,6 +12,7 @@ import {
   PermissionsAndroid,
   Platform,
   Modal,
+  Animated,
 } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
@@ -31,6 +32,7 @@ import { getMQTTConfig } from '../constants/Constants';
 import Toast from 'react-native-simple-toast';
 import { useSelector } from 'react-redux';
 import { requestLocationPermission, checkLocationPermission, shouldRequestPermission } from '../utils/locationPermission';
+import CompassHeading from 'react-native-compass-heading';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -73,6 +75,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   // Current location visibility state - show user icon when clicked
   const [showUserIcon, setShowUserIcon] = useState(false);
+
+  // Arrow rotation - will point to car location
+  const arrowRotation = useRef(new Animated.Value(0)).current;
+  
+  // Device heading from compass
+  const [deviceHeading, setDeviceHeading] = useState(0);
+  
+  // Bearing to car (for compass box display)
+  const [bearingToCar, setBearingToCar] = useState(0);
 
   // Remove mock data - will use real MQTT data
 
@@ -587,6 +598,14 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     return bearingDegrees;
   };
 
+  // Normalize angle to -180 to 180 range
+  const normalizeAngle = (angle) => {
+    let a = angle;
+    while (a > 180) a -= 360;
+    while (a < -180) a += 360;
+    return a;
+  };
+
   // Calculate distance between two points using Haversine formula
   const calculateDistance = (point1, point2) => {
     if (!point1 || !point2) return null;
@@ -988,6 +1007,96 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     };
   }, [locationPermission]);
 
+  // Setup compass heading listener
+  useEffect(() => {
+    const degree_update_rate = 3; // Update rate in degrees
+
+    CompassHeading.start(degree_update_rate, (heading) => {
+      // Ensure heading is a valid number
+      const headingValue = typeof heading === 'number' ? heading : (heading?.heading || 0);
+      if (!isNaN(headingValue) && isFinite(headingValue)) {
+        setDeviceHeading(headingValue);
+      }
+    });
+
+    return () => {
+      CompassHeading.stop();
+    };
+  }, []);
+
+  // Animate arrow rotation to always point to car location (iPhone Maps style - based on phone heading)
+  useEffect(() => {
+    if (!currentLocation || !carLocation) {
+      return;
+    }
+
+    // Ensure deviceHeading is a valid number
+    const heading = typeof deviceHeading === 'number' && !isNaN(deviceHeading) ? deviceHeading : 0;
+
+    // Calculate bearing from user location to car location (0-360 degrees, 0 = North)
+    const bearing = calculateBearing(currentLocation, carLocation);
+    
+    // Store bearing for compass box display
+    setBearingToCar(bearing);
+    
+    // Calculate rotation: (bearing - deviceHeading + 360) % 360
+    // This makes the arrow point to car relative to phone orientation (iPhone Maps style)
+    let rotation = (bearing - heading + 360) % 360;
+
+    // Animate arrow rotation to point to car
+    Animated.timing(arrowRotation, {
+      toValue: rotation,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+
+    console.log('🧭 [ARROW] Arrow pointing to car (phone heading based):', {
+      bearing: bearing.toFixed(1) + '°',
+      deviceHeading: heading.toFixed(1) + '°',
+      rotation: rotation.toFixed(1) + '°',
+      userLocation: `${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}`,
+      carLocation: `${carLocation.latitude.toFixed(4)}, ${carLocation.longitude.toFixed(4)}`
+    });
+  }, [currentLocation, carLocation, deviceHeading]);
+
+  // Rotate map based on device heading (like phone rotates)
+  useEffect(() => {
+    if (!mapRef.current) {
+      return;
+    }
+
+    // Ensure deviceHeading is a valid number
+    const heading = typeof deviceHeading === 'number' && !isNaN(deviceHeading) ? deviceHeading : 0;
+
+    // Determine center point - prefer current location, fallback to car location
+    const centerLocation = currentLocation || carLocation;
+    if (!centerLocation) {
+      return;
+    }
+
+    // Update map camera with device heading to rotate map as phone rotates
+    try {
+      // Use animateToCamera for smooth rotation
+      mapRef.current.animateToCamera(
+        {
+          center: {
+            latitude: centerLocation.latitude,
+            longitude: centerLocation.longitude,
+          },
+          heading: heading, // Rotate map based on device heading
+          // pitch: 0,
+          // altitude: 1000,
+          // zoom: 15,
+        },
+        { duration: 150 } // Fast smooth rotation
+      );
+      
+      console.log('🗺️ [MAP ROTATION] Map rotated to heading:', heading.toFixed(1) + '°');
+    } catch (error) {
+      console.log('🗺️ [MAP ROTATION] Error rotating map:', error);
+    }
+  }, [deviceHeading, currentLocation, carLocation]);
+
   // Check permission when screen is focused
   useFocusEffect(
     React.useCallback(() => {
@@ -1376,28 +1485,64 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Simple Direction Arrow Component - Separate function
+  // Get direction text from bearing
+  const getDirectionText = (bearing) => {
+    if (bearing === null || bearing === undefined) return '';
+    
+    const normalizedBearing = ((bearing % 360) + 360) % 360;
+    
+    if (normalizedBearing >= 337.5 || normalizedBearing < 22.5) return 'North';
+    if (normalizedBearing >= 22.5 && normalizedBearing < 67.5) return 'Northeast';
+    if (normalizedBearing >= 67.5 && normalizedBearing < 112.5) return 'East';
+    if (normalizedBearing >= 112.5 && normalizedBearing < 157.5) return 'Southeast';
+    if (normalizedBearing >= 157.5 && normalizedBearing < 202.5) return 'South';
+    if (normalizedBearing >= 202.5 && normalizedBearing < 247.5) return 'Southwest';
+    if (normalizedBearing >= 247.5 && normalizedBearing < 292.5) return 'West';
+    if (normalizedBearing >= 292.5 && normalizedBearing < 337.5) return 'Northwest';
+    return '';
+  };
+
+  // Direction Arrow Component - Points to car location
   const renderDirectionArrow = () => {
     if (!getChipId() || !currentLocation || !carLocation) {
       return null;
     }
 
-    const bearing = calculateBearing(currentLocation, carLocation);
-    // Adjust arrow position based on user icon visibility
-    const arrowTop = showUserIcon ? -75 : -40;
+    return (
+      <Animated.View 
+        style={[
+          styles.directionArrowContainer,
+          {
+            transform: [{
+              rotate: arrowRotation.interpolate({
+                inputRange: [0, 360],
+                outputRange: ['0deg', '360deg'],
+              })
+            }]
+          }
+        ]}
+      >
+        {/* Navigation arrow pointing to car - Blue color matching current location */}
+        <Ionicons name="navigate" size={32} color="#007AFF" style={{ transform: [{ rotate: '0deg' }] }} />
+      </Animated.View>
+    );
+  };
+
+  // Compass Direction Box Component
+  const renderCompassBox = () => {
+    if (!getChipId() || !currentLocation || !carLocation) {
+      return null;
+    }
+
+    // Calculate arrow rotation for compass box
+    const heading = typeof deviceHeading === 'number' && !isNaN(deviceHeading) ? deviceHeading : 0;
+    const arrowRotationDeg = (bearingToCar - heading + 360) % 360;
 
     return (
-      <View style={[styles.simpleArrowContainer, { top: arrowTop }]}>
-        {/* White background circle for better visibility */}
-        <View style={[
-          styles.arrowBackgroundCircle,
-          {
-            transform: [{ rotate: `${bearing}deg` }]
-          }
-        ]}>
-          {/* Direction Arrow Icon */}
-          <Ionicons name="navigate" size={18} color="#FF6B6B" />
-        </View>
+      <View style={styles.compassBox}>
+        <Text style={styles.compassLabel}>Direction To Car:</Text>
+        
+        <Text style={styles.compassDeg}>{arrowRotationDeg.toFixed(0)}°</Text>
       </View>
     );
   };
@@ -1410,6 +1555,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           <Text style={styles.noChipText}>📍 Please assign a chip to track vehicle location</Text>
         </View>
       )}
+
+      {/* Compass Direction Box */}
+      {/* {renderCompassBox()} */}
 
       <MapView
         ref={mapRef}
@@ -1424,6 +1572,16 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
+        camera={{
+          center: {
+            latitude: currentLocation?.latitude || carLocation?.latitude || 30.713452,
+            longitude: currentLocation?.longitude || carLocation?.longitude || 76.691131,
+          },
+          heading: typeof deviceHeading === 'number' && !isNaN(deviceHeading) ? deviceHeading : 0,
+          pitch: 0,
+          altitude: 1000,
+          zoom: 15,
+        }}
       >
         {/* Current Location Marker - Always show when location is available */}
         {currentLocation && (
@@ -1435,6 +1593,24 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             onPress={handleCurrentLocationMarkerClick}
           >
             <View style={styles.currentLocationContainer}>
+              {/* Direction Arrow - Above current location, pointing to car */}
+              {getChipId() && carLocation && (
+                <Animated.View 
+                  style={[
+                    styles.arrowAboveLocation,
+                    {
+                      transform: [{
+                        rotate: arrowRotation.interpolate({
+                          inputRange: [0, 360],
+                          outputRange: ['0deg', '360deg'],
+                        })
+                      }]
+                    }
+                  ]}
+                >
+                  <Ionicons name="arrow-up" size={40} color="#007AFF" />
+                </Animated.View>
+              )}
               {/* Current Location Point - Always visible (blue dot) */}
               <View style={styles.currentLocationPoint} />
               {/* User Icon - Only show when marker is clicked */}
@@ -1443,8 +1619,6 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                   <Ionicons name="person" size={20} color="#fff" />
                 </View>
               )}
-              {/* Simple Direction Arrow - Always show if car location available */}
-              {renderDirectionArrow()}
             </View>
           </Marker>
         )}
@@ -1464,9 +1638,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                   <Text style={styles.tooltipText}>
                     Last updated: {timeAgo || getTimeAgo(savedLocation.timestamp)}
                   </Text>
-                  {/* <Text style={styles.tooltipText}>
-                    Location: {carLocation.latitude.toFixed(6)}, {carLocation.longitude.toFixed(6)}
-                  </Text> */}
+                  
                 </View>
               )}
 
@@ -1799,7 +1971,7 @@ const styles = StyleSheet.create({
     color: grayColor,
   },
   mapContainer: {
-    height: height * 0.28, // 30% of screen height
+    height: height * 0.35, // 30% of screen height
     width: '100%',
     position: 'relative',
   },
@@ -1828,6 +2000,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  arrowAboveLocation: {
+    position: 'absolute',
+    // top: -42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 50,
+    height: 40,
+    zIndex: 1000,
   },
   currentLocationPoint: {
     width: 18,
@@ -1859,27 +2040,71 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
   },
+  directionArrowContainer: {
+    position: 'absolute',
+    top: -40,
+    left: -16,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  directionWedge: {
+    position: 'absolute',
+    top: -12, // Start from top edge of blue circle (circle is 18px + 3px border = 21px radius, so -12px from center)
+    left: -30,
+    width: 60,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    zIndex: 1,
+  },
+  wedgeShape: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 28,
+    borderRightWidth: 28,
+    borderTopWidth: 50,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: 'rgba(0, 122, 255, 0.25)', // Light blue semi-transparent (exact like image)
+  },
   simpleArrowContainer: {
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 32,
-    height: 32,
+    width: 40,
+    height: 40,
   },
   arrowBackgroundCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderWidth: 2,
-    borderColor: '#FF6B6B',
+    borderColor: '#007AFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 4,
     elevation: 5,
+  },
+  arrowDirectionText: {
+    marginTop: 4,
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#007AFF',
+    textAlign: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   arrowTriangle: {
     width: 0,
@@ -2251,6 +2476,40 @@ const styles = StyleSheet.create({
     fontSize: style.fontSizeSmall.fontSize,
     color: grayColor,
     fontStyle: 'italic',
+  },
+  // Compass Box Styles
+  compassBox: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 999,
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 15,
+    elevation: 5,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  compassLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 5,
+    color: blackColor,
+  },
+  compassArrowContainer: {
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  compassDeg: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: 5,
+    color: blackColor,
   },
 });
 
