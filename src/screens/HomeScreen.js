@@ -47,6 +47,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import ParkingYardScreen from './ParkingYardScreen';
 import { blackColor, blackOpacity5, darkgrayColor, grayColor, redColor, whiteColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
+import messaging from '@react-native-firebase/messaging';
 
 // Dynamic card data function - Keep original 3 cards, just update terminology
 const getCardData = (chipStats) => [
@@ -267,7 +268,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     // Initialize MQTT for battery monitoring first
     initializeMqtt();
 
- 
+
 
     // Don't set mock data - wait for real MQTT data
   }, []);
@@ -282,6 +283,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
   // Handle app state changes (foreground/background)
   useEffect(() => {
+    // getFcmToken();
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (
         appState.current.match(/inactive|background/) &&
@@ -300,6 +302,8 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     return () => {
       subscription?.remove();
     };
+
+    
   }, []);
 
   // Cleanup MQTT connection (only on unmount, not on navigation)
@@ -953,6 +957,20 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       word?.charAt(0).toUpperCase() + word?.slice(1).toLowerCase()
     ).join(' ')
     : 'User';
+
+
+  const getFcmToken = async () => {
+    try {
+      const token = await messaging().getToken();
+      if (token) {
+        console.log('FCM Token:', token); // Console me token show hoga
+      } else {
+        console.log('Failed to get FCM token');
+      }
+    } catch (error) {
+      console.log('Error getting FCM token:', error);
+    }
+  };
 
   return (
     <View style={[styles.container, { marginBottom: 0 }]}>

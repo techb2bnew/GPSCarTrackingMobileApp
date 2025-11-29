@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "147131251104",
+    "project_id": "gpstraker-a2cff",
+    "storage_bucket": "gpstraker-a2cff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:147131251104:android:c042430b0578d926ca4cc5",
+        "android_client_info": {
+          "package_name": "com.gtaapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAA6CEGx9mA3rsjCpBTeB1261gUOKlWi_k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

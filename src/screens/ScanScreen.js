@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     paddingHorizontal: spacings.Large1x,
-    paddingTop: hp(6),
+    paddingTop: Platform.OS === 'ios' ? hp(6) : hp(2),
     zIndex: 1,
   },
   welcomeSection: {

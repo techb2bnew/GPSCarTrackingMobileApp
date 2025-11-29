@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
     vehicleCountBadge: {
         position: 'absolute',
         top: 10,
-        right: 10,
+        left: 10,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         paddingHorizontal: 12,
         paddingVertical: 8,

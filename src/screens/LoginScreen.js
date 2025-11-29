@@ -20,6 +20,7 @@ import { MAIN_LOGO } from '../assests/images';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../redux/userSlice';
 import { spacings, style } from '../constants/Fonts';
+import { getAndSaveFCMToken } from '../utils/fcmTokenManager';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -126,6 +127,16 @@ const LoginScreen = ({ navigation }) => {
       console.log('Login successful:', data);
       dispatch(setUser(data));
       await AsyncStorage.setItem('user', JSON.stringify(data));
+      
+      // Save FCM token to database after successful login
+      try {
+        console.log('📱 [LOGIN] Saving FCM token for user:', data.id);
+        await getAndSaveFCMToken(data.id.toString());
+      } catch (fcmError) {
+        console.error('⚠️ [LOGIN] Error saving FCM token (non-blocking):', fcmError);
+        // Don't block login if FCM token save fails
+      }
+      
       setLoading(false);
 
       // Navigate to main screens

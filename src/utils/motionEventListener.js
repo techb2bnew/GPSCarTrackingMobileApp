@@ -1,9 +1,7 @@
 import mqtt from "mqtt/dist/mqtt";
-import { Alert } from 'react-native';
 import Geolocation from '@react-native-community/geolocation';
 import { supabase } from '../lib/supabaseClient';
 import { getMQTTConfig } from '../constants/Constants';
-import { showChipMotionNotification } from './notificationService';
 
 /**
  * Format timestamp to readable date
@@ -286,18 +284,10 @@ console.log("RAW TOPIC:", topic, "RAW DATA:", msg.toString());
           alertMessage += `⚠️ Chip details not found in database`;
         }
 
-        // Show notification instead of alert
-        showChipMotionNotification({
-          chipId,
-          chipDetails,
-          location: currentLocation,
-          timestamp: data?.time || data?.timestamp || Date.now(),
-        });
-
-        // Commented alert - now using notification
-        // Alert.alert(alertTitle, alertMessage, [
-        //   { text: 'OK', style: 'default' }
-        // ]);
+        // Log motion detection to console only (no alert, no notification)
+        console.log(`\n📋 [MOTION] Alert Message (Console Only):`);
+        console.log(`   ${alertTitle}`);
+        console.log(`   ${alertMessage}`);
 
         // Call callback if provided
         if (onMotionEvent) {
@@ -632,18 +622,10 @@ export const listenAllChipsMotionEvents = async (
           alertMessage += `⚠️ Location not available\n`;
         }
 
-        // Show notification instead of alert
-        showChipMotionNotification({
-          chipId,
-          chipDetails,
-          location: currentLocation,
-          timestamp: data?.timestamp || Date.now(),
-        });
-
-        // Commented alert - now using notification
-        // Alert.alert(alertTitle, alertMessage, [
-        //   { text: 'OK', style: 'default' }
-        // ]);
+        // Log motion detection to console only (no alert, no notification)
+        console.log(`\n📋 [ALL_CHIPS] Alert Message (Console Only):`);
+        console.log(`   ${alertTitle}`);
+        console.log(`   ${alertMessage}`);
 
         // Call callback if provided
         if (onMotionEvent) {

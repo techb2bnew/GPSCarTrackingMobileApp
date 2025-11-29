@@ -1,62 +1,35 @@
 import PushNotification from 'react-native-push-notification';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 
-// Configure push notification
-// IMPORTANT: We're only using LOCAL notifications, not Firebase/FCM
-// Android: Skip configure to avoid Firebase error - local notifications work without configure
-// iOS: Configure is needed for proper notification handling
-if (Platform.OS === 'ios') {
-  try {
-    const notificationConfig = {
-      // Disable Firebase/FCM since we're only using local notifications
-      onRegister: function (token) {
-        console.log('📱 [NOTIFICATION] Device Token:', token);
-      },
-      onNotification: function (notification) {
-        console.log('📱 [NOTIFICATION] Notification received:', notification);
-        // Handle notification tap if needed
-        // Fix for iOS: Check if notification exists and has properties
-        if (notification && notification.userInteraction) {
-          console.log('📱 [NOTIFICATION] User tapped notification');
-        }
-      },
-      onAction: function (notification) {
-        // Fix for iOS: Check if notification exists
-        if (notification && notification.action) {
-          console.log('📱 [NOTIFICATION] Action:', notification.action);
-        }
-      },
-      onRegistrationError: function (err) {
-        console.error('❌ [NOTIFICATION] Registration error:', err);
-      },
-      permissions: {
-        alert: true,
-        badge: true,
-        sound: true,
-      },
-      popInitialNotification: true,
-      requestPermissions: true, // iOS needs permission request
-    };
+/**
+ * Initialize PushNotification configuration
+ * This should be called once at app startup
+ */
+export const configurePushNotifications = () => {
+  PushNotification.configure({
+    // Called when a notification is received
+    onNotification: function (notification) {
+      console.log('📨 [NOTIFICATION] Notification received:', notification);
+    },
 
-    PushNotification.configure(notificationConfig);
-    console.log('✅ [NOTIFICATION] Configured successfully for iOS');
-  } catch (error) {
-    console.warn('⚠️ [NOTIFICATION] Configure warning:', error?.message || error);
-  }
-} else {
-  // Android: Don't call configure - it tries to initialize Firebase
-  // Local notifications work without configure on Android
-  console.log('✅ [NOTIFICATION] Android - Using local notifications without configure (Firebase not needed)');
-}
+    // Android specific
+    permissions: {
+      alert: true,
+      badge: true,
+      sound: true,
+    },
 
-// Create notification channel for Android 8+ (only on Android)
-if (Platform.OS === 'android') {
-  try {
+    // Request permissions on iOS
+    requestPermissions: Platform.OS === 'ios',
+  });
+
+  // Create default channel for Android (required for Android 8.0+)
+  if (Platform.OS === 'android') {
     PushNotification.createChannel(
       {
-        channelId: 'chip_motion_channel',
-        channelName: 'Chip Motion Alerts',
-        channelDescription: 'Notifications for chip movement detection',
+        channelId: 'default-channel-id',
+        channelName: 'Default Channel',
+        channelDescription: 'Default notification channel',
         playSound: true,
         soundName: 'default',
         importance: 4, // High importance
@@ -64,249 +37,170 @@ if (Platform.OS === 'android') {
       },
       (created) => console.log(`📱 [NOTIFICATION] Channel created: ${created}`)
     );
-  } catch (error) {
-    console.warn('⚠️ [NOTIFICATION] Channel creation warning:', error?.message || error);
   }
-}
+};
+
+// Store retry timeout ID to prevent multiple retries
+let retryTimeoutId = null;
 
 /**
- * Show chip motion notification
- * @param {Object} chipData - { chipId, chipDetails, location, timestamp }
+ * Cancel any pending notification permission retry
  */
-export const showChipMotionNotification = (chipData) => {
-  try {
-    const { chipId, chipDetails, location, timestamp } = chipData;
-    
-    // Format timestamp
-    const formatTimestamp = (ts) => {
-      if (!ts) return "No time available";
-      try {
-        const date = typeof ts === 'number'
-          ? (ts < 10000000000 ? new Date(ts * 1000) : new Date(ts))
-          : new Date(ts);
-        return date.toLocaleString();
-      } catch (error) {
-        return "Invalid timestamp";
-      }
-    };
-    
-    // Build notification message (same as alert)
-    let message = '';
-    if (chipDetails) {
-      // Chip found in database - show full details (same as alert)
-      message = `Chip ID: ${chipId}\n`;
-      message += `Status: Movement Started\n`;
-      message += `Time: ${formatTimestamp(timestamp)}\n\n`;
-      
-      message += `📋 Vehicle Details:\n`;
-      message += `VIN: ${chipDetails.vin}\n`;
-      message += `Make: ${chipDetails.make}\n`;
-      message += `Model: ${chipDetails.model}\n`;
-      message += `Year: ${chipDetails.year}\n`;
-      message += `Yard: ${chipDetails.yardName}\n`;
-      if (chipDetails.batteryLevel !== 'N/A') {
-        message += `Battery: ${chipDetails.batteryLevel}%\n`;
-      }
-    } else {
-      // Chip not found - show basic info (same as alert)
-      message = `Chip ID: ${chipId}\n`;
-      message += `Status: Movement Started\n`;
-      message += `Time: ${formatTimestamp(timestamp)}\n\n`;
-      message += `⚠️ New chip detected - not found in database\n`;
-    }
-    
-    // Add location if available (same as alert)
-    if (location && location.latitude && location.longitude) {
-      message += `\n📍 Location:\n`;
-      message += `Latitude: ${location.latitude.toFixed(6)}\n`;
-      message += `Longitude: ${location.longitude.toFixed(6)}\n`;
-      if (location.source) {
-        message += `Source: ${location.source === 'chip_gps' ? 'Chip GPS' : 'Device GPS'}`;
-      }
-    } else {
-      message += `\n⚠️ Location not available`;
-    }
-
-    // Build notification config
-    // Generate unique ID for notification (so multiple notifications can be saved)
-    const notificationId = `chip_motion_${chipId}_${timestamp || Date.now()}`;
-    
-    const notificationConfig = {
-      id: notificationId, // Unique ID so notification persists in tray
-      title: '🚨 Chip Movement Detected!',
-      message: message,
-      playSound: true,
-      soundName: 'default',
-      userInfo: {
-        chipId: chipId,
-        timestamp: timestamp || Date.now(),
-        type: 'chip_motion',
-      },
-    };
-
-    // Android specific config
-    if (Platform.OS === 'android') {
-      notificationConfig.channelId = 'chip_motion_channel';
-      notificationConfig.importance = 'high';
-      notificationConfig.priority = 'high';
-      notificationConfig.vibrate = true;
-      notificationConfig.vibration = 300;
-      notificationConfig.visibility = 'public';
-      notificationConfig.color = '#613EEA';
-      notificationConfig.autoCancel = false; // Keep notification in tray until user dismisses
-      notificationConfig.ongoing = false; // Not ongoing, but persistent
-    }
-
-    // iOS specific config
-    if (Platform.OS === 'ios') {
-      notificationConfig.alert = true;
-      notificationConfig.badge = true;
-      notificationConfig.sound = 'default';
-      notificationConfig.category = 'chip_motion'; // Category for grouping
-    }
-
-    // Show notification
-    console.log(`\n📱 [NOTIFICATION] Showing chip motion notification...`);
-    console.log(`   Title: ${notificationConfig.title}`);
-    console.log(`   Message length: ${message.length} characters`);
-    console.log(`   Platform: ${Platform.OS}`);
-    console.log(`   Config:`, JSON.stringify(notificationConfig, null, 2));
-    
-    try {
-      PushNotification.localNotification(notificationConfig);
-      console.log('✅ [NOTIFICATION] Chip motion notification shown successfully');
-    } catch (notifError) {
-      console.error('❌ [NOTIFICATION] Error in localNotification call:', notifError);
-      console.error('❌ [NOTIFICATION] Error details:', JSON.stringify(notifError, null, 2));
-    }
-  } catch (error) {
-    console.error('❌ [NOTIFICATION] Error showing notification:', error);
+export const cancelNotificationPermissionRetry = () => {
+  if (retryTimeoutId) {
+    clearTimeout(retryTimeoutId);
+    retryTimeoutId = null;
+    console.log('🛑 [NOTIFICATION] Cancelled pending permission retry');
   }
 };
 
 /**
- * Test notification function
+ * Request notification permissions with retry mechanism
+ * If permission is denied, automatically retries after 1 minute
+ * Only requests permission - no actual notifications are sent
  */
-export const showTestNotification = () => {
-  try {
-    // Helper function to show notification
-    const showNotification = () => {
-      const notificationConfig = {
-        title: '🧪 Test Notification',
-        message: 'This is a test notification to check if notifications are working!',
-        playSound: true,
-        soundName: 'default',
-        userInfo: {
-          type: 'test',
-          timestamp: Date.now(),
-        },
-      };
-
-      // Android specific config
-      if (Platform.OS === 'android') {
-        notificationConfig.channelId = 'chip_motion_channel';
-        notificationConfig.importance = 'high';
-        notificationConfig.priority = 'high';
-        notificationConfig.vibrate = true;
-        notificationConfig.vibration = 300;
-        // Android notification visibility
-        notificationConfig.visibility = 'public';
-        // Android notification color (optional)
-        notificationConfig.color = '#613EEA';
-        // Android notification auto cancel
-        notificationConfig.autoCancel = true;
-      }
-
-      // iOS specific config
-      if (Platform.OS === 'ios') {
-        notificationConfig.alert = true;
-        notificationConfig.badge = true;
-        notificationConfig.sound = 'default';
-        // iOS needs these for foreground notifications
-        notificationConfig.userInteraction = false;
-      }
-
-      PushNotification.localNotification(notificationConfig);
-      console.log('✅ [NOTIFICATION] Test notification shown');
-      console.log('📱 [NOTIFICATION] Platform:', Platform.OS);
-      console.log('📱 [NOTIFICATION] Config:', JSON.stringify(notificationConfig, null, 2));
-    };
-
-    // First check permissions
-    PushNotification.checkPermissions((permissions) => {
-      console.log('📱 [NOTIFICATION] Current permissions:', JSON.stringify(permissions, null, 2));
-      
-      // Check if permissions are granted
-      const hasPermission = Platform.OS === 'ios' 
-        ? permissions?.alert === 1 || permissions?.alert === true
-        : permissions?.alert === true;
-
-      if (!hasPermission) {
-        console.warn('⚠️ [NOTIFICATION] Permission not granted! Requesting...');
-        PushNotification.requestPermissions().then((newPermissions) => {
-          console.log('📱 [NOTIFICATION] New permissions:', JSON.stringify(newPermissions, null, 2));
-          // Try again after permission request
-          showNotification();
-        });
-        return;
-      }
-
-      // Show notification
-      showNotification();
-    });
-  } catch (error) {
-    console.error('❌ [NOTIFICATION] Error showing test notification:', error);
-    console.error('❌ [NOTIFICATION] Error details:', JSON.stringify(error, null, 2));
-  }
-};
-
-/**
- * Request notification permissions
- * Only for local notifications - no Firebase/FCM needed
- */
-export const requestNotificationPermissions = () => {
-  console.log('📱 [NOTIFICATION] Requesting permissions for LOCAL notifications only...');
+export const requestNotificationPermissions = async (isRetry = false) => {
+  console.log('📱 [NOTIFICATION] Requesting notification permissions...', isRetry ? '(Retry)' : '(Initial)');
   
-  // Android: Permissions are handled automatically, no need to request
   if (Platform.OS === 'android') {
-    console.log('📱 [NOTIFICATION] Android - Permissions handled automatically');
+    // Android 13+ (API 33+) requires explicit permission request
+    if (Platform.Version >= 33) {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          {
+            title: 'Notification Permission',
+            message: 'This app needs notification permission to send you important updates.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('✅ [NOTIFICATION] Android notification permission granted');
+          // Clear any pending retry if permission is granted
+          if (retryTimeoutId) {
+            clearTimeout(retryTimeoutId);
+            retryTimeoutId = null;
+          }
+        } else if (granted === PermissionsAndroid.RESULTS.DENIED) {
+          console.log('❌ [NOTIFICATION] Android notification permission denied');
+          // Schedule retry after 1 minute (60000 milliseconds) if not already scheduled
+          if (!isRetry && !retryTimeoutId) {
+            console.log('⏰ [NOTIFICATION] Scheduling retry after 1 minute...');
+            retryTimeoutId = setTimeout(() => {
+              retryTimeoutId = null;
+              requestNotificationPermissions(true);
+            }, 60000); // 1 minute = 60000 milliseconds
+          }
+        } else {
+          // "Ask Me Later" or other response - also retry
+          console.log('⏸️ [NOTIFICATION] Android notification permission deferred');
+          if (!isRetry && !retryTimeoutId) {
+            console.log('⏰ [NOTIFICATION] Scheduling retry after 1 minute...');
+            retryTimeoutId = setTimeout(() => {
+              retryTimeoutId = null;
+              requestNotificationPermissions(true);
+            }, 60000);
+          }
+        }
+      } catch (error) {
+        console.error('❌ [NOTIFICATION] Error requesting Android notification permission:', error);
+      }
+    } else {
+      // Android 12 and below - permissions are granted automatically
+      console.log('📱 [NOTIFICATION] Android < 13 - Permissions granted automatically');
+    }
     return;
   }
   
   // iOS: Request permissions
   try {
-    PushNotification.requestPermissions().then((permissions) => {
-      console.log('📱 [NOTIFICATION] Permission result:', JSON.stringify(permissions, null, 2));
-    }).catch((error) => {
-      console.error('❌ [NOTIFICATION] Permission request error:', error);
-    });
+    const permissions = await PushNotification.requestPermissions();
+    console.log('📱 [NOTIFICATION] iOS Permission result:', JSON.stringify(permissions, null, 2));
+    
+    // Check if permission was denied
+    const isDenied = permissions?.alert === false && permissions?.badge === false && permissions?.sound === false;
+    
+    if (isDenied) {
+      console.log('❌ [NOTIFICATION] iOS notification permission denied');
+      // Schedule retry after 1 minute if not already scheduled
+      if (!isRetry && !retryTimeoutId) {
+        console.log('⏰ [NOTIFICATION] Scheduling retry after 1 minute...');
+        retryTimeoutId = setTimeout(() => {
+          retryTimeoutId = null;
+          requestNotificationPermissions(true);
+        }, 60000); // 1 minute = 60000 milliseconds
+      }
+    } else {
+      console.log('✅ [NOTIFICATION] iOS notification permission granted');
+      // Clear any pending retry if permission is granted
+      if (retryTimeoutId) {
+        clearTimeout(retryTimeoutId);
+        retryTimeoutId = null;
+      }
+    }
   } catch (error) {
-    console.warn('⚠️ [NOTIFICATION] Permission request warning:', error?.message || error);
+    console.error('❌ [NOTIFICATION] Permission request error:', error);
+    // Also retry on error
+    if (!isRetry && !retryTimeoutId) {
+      console.log('⏰ [NOTIFICATION] Scheduling retry after 1 minute due to error...');
+      retryTimeoutId = setTimeout(() => {
+        retryTimeoutId = null;
+        requestNotificationPermissions(true);
+      }, 60000);
+    }
   }
 };
 
 /**
  * Check current notification permissions
  */
-export const checkCurrentPermissions = () => {
-  PushNotification.checkPermissions((permissions) => {
-    console.log('📱 [NOTIFICATION] Current permissions:', JSON.stringify(permissions, null, 2));
-  });
-};
-
-/**
- * Cancel all notifications
- */
-export const cancelAllNotifications = () => {
-  PushNotification.cancelAllLocalNotifications();
-};
-
-/**
- * Get notification permissions status
- */
 export const checkNotificationPermissions = (callback) => {
   PushNotification.checkPermissions(callback);
 };
 
-export default PushNotification;
+/**
+ * Display foreground notification when app is open
+ * This is called from FCM onMessage handler
+ * @param {Object} remoteMessage - FCM remote message object
+ */
+export const displayForegroundNotification = (remoteMessage) => {
+  try {
+    const notification = remoteMessage.notification || {};
+    const data = remoteMessage.data || {};
+    
+    const title = notification.title || data.title || 'Notification';
+    const body = notification.body || data.body || data.message || 'You have a new notification';
+    
+    console.log('🔔 [NOTIFICATION] Displaying foreground notification:', { title, body });
+
+    if (Platform.OS === 'android') {
+      PushNotification.localNotification({
+        channelId: 'default-channel-id',
+        title: title,
+        message: body,
+        playSound: true,
+        soundName: 'default',
+        vibrate: true,
+        vibration: 300,
+        priority: 'high',
+        importance: 'high',
+        data: data, // Pass custom data
+      });
+    } else {
+      // iOS
+      PushNotification.localNotification({
+        title: title,
+        message: body,
+        playSound: true,
+        soundName: 'default',
+        userInfo: data, // Pass custom data
+      });
+    }
+  } catch (error) {
+    console.error('❌ [NOTIFICATION] Error displaying foreground notification:', error);
+  }
+};
 

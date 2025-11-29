@@ -52,5 +52,19 @@
         <meta-data
      android:name="com.google.android.geo.API_KEY"
      android:value="AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI"/>
+    <service
+    android:name="io.invertase.firebase.messaging.ReactNativeFirebaseMessagingService"
+    android:exported="false">
+    <intent-filter>
+        <action android:name="com.google.firebase.MESSAGING_EVENT" />
+    </intent-filter>
+   </service>
+
+   <service
+    android:name="io.invertase.firebase.messaging.ReactNativeFirebaseMessagingHeadlessService"
+    android:permission="android.permission.BIND_JOB_SERVICE"
+    android:exported="false" 
+    />
+   
     </application>
 </manifest>

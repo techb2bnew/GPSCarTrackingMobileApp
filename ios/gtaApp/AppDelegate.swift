@@ -4,11 +4,13 @@ import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import GoogleMaps
 import UserNotifications
+import Firebase
+import FirebaseMessaging
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-  var window: UIWindow?
 
+  var window: UIWindow?
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
 
@@ -16,7 +18,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+
+    // Firebase initialize
+    FirebaseApp.configure()
+
+    // Google Maps key
     GMSServices.provideAPIKey("AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI")
+
+    // React Native setup
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -25,34 +34,58 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     reactNativeFactory = factory
 
     window = UIWindow(frame: UIScreen.main.bounds)
-
     factory.startReactNative(
       withModuleName: "gtaApp",
       in: window,
       launchOptions: launchOptions
     )
 
-    // Setup notification center delegate for foreground notifications
+    // 🔥 Step 1: Set Notification Delegate
     let center = UNUserNotificationCenter.current()
     center.delegate = self
+    
+    // 🔥 Step 2: Request permission (Foreground notifications)
+    center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+      if let error = error {
+        print("❌ Notification permission error:", error)
+      }
+      print("📌 Permission granted:", granted)
+    }
+
+    // 🔥 Step 3: Register for APNs (THIS IS MOST IMPORTANT)
+    DispatchQueue.main.async {
+      application.registerForRemoteNotifications()
+    }
 
     return true
   }
 
+  // MARK: - APNs Token
+
+  // 🔥 Step 4: Get APNs Token from Apple
+  func application(_ application: UIApplication,
+                   didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    Messaging.messaging().apnsToken = deviceToken
+    print("📲 APNs Token:", deviceToken)
+  }
+
+  func application(_ application: UIApplication,
+                   didFailToRegisterForRemoteNotificationsWithError error: Error) {
+    print("❌ Failed to register for remote notifications:", error)
+  }
+
   // MARK: - UNUserNotificationCenterDelegate
-  
-  // Called when a notification is delivered to a foreground app
-  // This allows notifications to show even when app is in foreground
+
+  // 🔥 Step 5: Show notification in foreground
   func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
-    // Show notification even when app is in foreground
     completionHandler([.banner, .sound, .badge])
   }
 
-  // Called when user taps on notification
+  // When user taps notification
   func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     didReceive response: UNNotificationResponse,
@@ -60,14 +93,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
   ) {
     completionHandler()
   }
-  
+
   // MARK: - Orientation Lock
-  // Lock orientation to portrait only
   func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
     return .portrait
   }
 }
 
+// React Native Delegate
 class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     self.bundleURL()
