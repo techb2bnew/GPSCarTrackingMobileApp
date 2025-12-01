@@ -3638,10 +3638,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>Chip Number:</Text>
           <View style={styles.statusContainer}>
-            {vehicle?.chipId ? (
+            {getChipId() ? (
               <View style={styles.statusContainer}>
                 <View style={[styles.statusDot, { backgroundColor: greenColor }]} />
-                <Text style={[styles.infoValue, { color: greenColor }]}>{vehicle?.chipId}</Text>
+                <Text style={[styles.infoValue, { color: greenColor }]}>{getChipId()}</Text>
               </View>
             ) : (
               <View style={styles.statusContainer}>

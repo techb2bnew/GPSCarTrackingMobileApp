@@ -48,6 +48,7 @@ import ParkingYardScreen from './ParkingYardScreen';
 import { blackColor, blackOpacity5, darkgrayColor, grayColor, redColor, whiteColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
 import messaging from '@react-native-firebase/messaging';
+import {useSelector} from 'react-redux';
 
 // Dynamic card data function - Keep original 3 cards, just update terminology
 const getCardData = (chipStats) => [
@@ -126,6 +127,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
   // Static chip ID for battery testing
   const STATIC_CHIP_ID = "2CF7F1C07190019F";
+
+  // Notifications state
+  const notifications = useSelector(state => state.notifications?.items || []);
+  const unreadCount = notifications.filter(item => !item.read).length;
 
   // Initialize MQTT for battery monitoring
   const initializeMqtt = async () => {
@@ -987,14 +992,25 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </View>
 
           <View style={styles.headerIcons}>
-            {/* <TouchableOpacity onPress={handleOpenAR} style={styles.iconBtn}>
-              <Ionicons name="navigate" size={24} color="#fff" />
-            </TouchableOpacity> */}
+            {/* Notification Bell */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('NotificationScreen')}
+              style={styles.iconBtn}>
+              <Ionicons name="notifications" size={22} color="#fff" />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Profile Button */}
             <TouchableOpacity
               onPress={() => navigation.navigate('ProfileScreen')}
               style={styles.iconBtn}>
               <Ionicons name="person" size={24} color="#fff" />
-
             </TouchableOpacity>
           </View>
         </View>
@@ -1321,6 +1337,23 @@ const styles = StyleSheet.create({
     height: spacings.medium,
     width: spacings.medium,
     tintColor: whiteColor,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    paddingHorizontal: 4,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF4D4F',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   beautifulSearchBar: {
     backgroundColor: whiteColor,

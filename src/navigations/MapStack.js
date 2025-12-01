@@ -17,8 +17,8 @@ export default function MapStack() {
       {/* Second screen - Map view with polygons */}
       <Stack.Screen name="YardPolygonsMapScreen" component={YardPolygonsMapScreen} />
       {/* Other screens */}
-      {/* <Stack.Screen name="MapViewScreen" component={MapViewScreen} />
-      <Stack.Screen name="VehicleDetailsScreen" component={VehicleDetailsScreen} /> */}
+      {/* <Stack.Screen name="MapViewScreen" component={MapViewScreen} /> */}
+      <Stack.Screen name="VehicleDetailsScreen" component={VehicleDetailsScreen} />
       <Stack.Screen name="ParkingSlotsScreen" component={ParkingSlotsScreen} />
     </Stack.Navigator>
   );

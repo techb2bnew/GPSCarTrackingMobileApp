@@ -688,8 +688,8 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                             }, 300);
                         }
                     }}
-                    showsUserLocation={false}
-                    showsMyLocationButton={false}
+                    showsUserLocation={true}
+                    showsMyLocationButton={true}
                     zoomEnabled={true}
                     scrollEnabled={true}
                     pitchEnabled={false}
@@ -826,6 +826,27 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                                             )}
                                         </Text>
                                     </View>
+                                    
+                                    {/* View Detail Button */}
+                                    <TouchableOpacity 
+                                        style={styles.viewDetailButton}
+                                        onPress={() => {
+                                            closeTooltip();
+                                            // Ensure chipId field is set for VehicleDetailsScreen compatibility
+                                            const vehicleData = {
+                                                ...selectedVehicle,
+                                                chipId: selectedVehicle.chip || selectedVehicle.chipId
+                                            };
+                                            navigation.navigate('VehicleDetailsScreen', {
+                                                vehicle: vehicleData,
+                                                yardName: yardName,
+                                                yardId: yardId
+                                            });
+                                        }}
+                                    >
+                                        <Text style={styles.viewDetailButtonText}>View Detail</Text>
+                                        <Ionicons name="arrow-forward" size={18} color="#fff" style={styles.viewDetailIcon} />
+                                    </TouchableOpacity>
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -1029,6 +1050,30 @@ const styles = StyleSheet.create({
         color: '#000',
         flex: 1,
         fontWeight: '500',
+    },
+    viewDetailButton: {
+        backgroundColor: COLOR_PRIMARY,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    viewDetailButtonText: {
+        color: '#fff',
+        fontSize: style.fontSizeMedium.fontSize,
+        fontWeight: style.fontWeightBold.fontWeight,
+        marginRight: 8,
+    },
+    viewDetailIcon: {
+        marginLeft: 4,
     },
 });
 

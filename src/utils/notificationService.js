@@ -1,5 +1,6 @@
 import PushNotification from 'react-native-push-notification';
 import { Platform, PermissionsAndroid } from 'react-native';
+import { saveBackgroundNotification } from './backgroundNotificationStorage';
 
 /**
  * Initialize PushNotification configuration
@@ -10,6 +11,23 @@ export const configurePushNotifications = () => {
     // Called when a notification is received
     onNotification: function (notification) {
       console.log('📨 [NOTIFICATION] Notification received:', notification);
+      
+      // If app is in background, save notification to storage
+      // This handles notifications that arrive when app is in background
+      if (notification.userInteraction === false) {
+        // App is in background, save to storage
+        console.log('📨 [NOTIFICATION] App in background, saving notification...');
+        const remoteMessage = {
+          notification: {
+            title: notification.title,
+            body: notification.message || notification.body,
+          },
+          data: notification.data || notification.userInfo || {},
+        };
+        saveBackgroundNotification(remoteMessage).catch(err => {
+          console.error('❌ [NOTIFICATION] Error saving background notification:', err);
+        });
+      }
     },
 
     // Android specific
