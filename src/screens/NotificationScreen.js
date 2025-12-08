@@ -75,7 +75,7 @@ export default function NotificationScreen({navigation}) {
     console.log('📥 [NOTIFICATION_SCREEN] Pending notifications in storage:', pending.length);
     
     if (pending.length > 0) {
-      Alert.alert(
+      console.log(
         'Found Notifications',
         `Found ${pending.length} background notification(s) in storage. Syncing now...`,
       );
@@ -85,9 +85,9 @@ export default function NotificationScreen({navigation}) {
     setRefreshing(false);
     
     if (synced) {
-      Alert.alert('Success', 'Background notifications synced!');
+      console.log('Success', 'Background notifications synced!');
     } else if (pending.length === 0) {
-      Alert.alert('Info', 'No background notifications found in storage.');
+      console.log('Info', 'No background notifications found in storage.');
     }
   };
 
@@ -150,6 +150,7 @@ export default function NotificationScreen({navigation}) {
             renderItem={renderItem}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
             contentContainerStyle={{paddingBottom: 20}}
+            showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }

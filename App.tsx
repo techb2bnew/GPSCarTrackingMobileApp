@@ -16,7 +16,7 @@ import { requestNotificationPermissions, configurePushNotifications, displayFore
 import messaging from '@react-native-firebase/messaging';
 import { getFCMToken, saveFCMTokenToDatabase } from './src/utils/fcmTokenManager';
 import { addNotification } from './src/redux/notificationsSlice';
-import { loadAndClearBackgroundNotifications } from './src/utils/backgroundNotificationStorage';
+import { loadAndClearBackgroundNotifications, saveBackgroundNotification } from './src/utils/backgroundNotificationStorage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { flex, alignItemsCenter, alignJustifyCenter } = BaseStyle;
@@ -227,6 +227,11 @@ function AppContent({ setCheckUser }: AppContentProps) {
             data.message ||
             'You have a new notification';
 
+          // Save this notification to storage first (in case it wasn't saved before)
+          console.log('💾 [FCM] Saving notification that was opened from background...');
+          await saveBackgroundNotification(remoteMessage);
+
+          // Add to Redux
           dispatch(
             addNotification({
               title,
@@ -274,6 +279,11 @@ function AppContent({ setCheckUser }: AppContentProps) {
             data.message ||
             'You have a new notification';
 
+          // Save this notification to storage first (in case it wasn't saved before)
+          console.log('💾 [FCM] Saving initial notification...');
+          await saveBackgroundNotification(remoteMessage);
+
+          // Add to Redux
           dispatch(
             addNotification({
               title,

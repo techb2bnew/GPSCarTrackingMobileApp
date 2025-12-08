@@ -2516,20 +2516,7 @@
 // export default VehicleDetailsScreen;
 import React, { useState, useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  PermissionsAndroid,
-  Platform,
-  Modal,
-  Animated,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Dimensions, PermissionsAndroid, Platform, Modal, Animated } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import Geolocation from '@react-native-community/geolocation';
@@ -2591,6 +2578,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   // History states
   const [chipHistory, setChipHistory] = useState([]);
+  const [vehicleHistory, setVehicleHistory] = useState([]);
+  const [activeHistoryTab, setActiveHistoryTab] = useState('chip'); // 'chip' or 'vehicle'
 
   // Current location visibility state - show user icon when clicked
   const [showUserIcon, setShowUserIcon] = useState(false);
@@ -2598,10 +2587,18 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Map fullscreen state
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
+  // Map type state
+  const [mapType, setMapType] = useState('standard'); // 'satellite' or 'standard'
+
   // Heading & Bearing Variables
   const [deviceHeading, setDeviceHeading] = useState(0);
   const [bearingToCar, setBearingToCar] = useState(0);
   const arrowRotation = useRef(new Animated.Value(0)).current;
+
+  // Navigation Steps States
+  const [routeSteps, setRouteSteps] = useState([]);
+  const [currentStep, setCurrentStep] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
 
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
@@ -2681,6 +2678,42 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       }
     } catch (error) {
       console.error('📚 [HISTORY] Error loading chip history:', error);
+    }
+  };
+
+  // Load vehicle history from carHistory table
+  const loadVehicleHistory = async () => {
+    try {
+      const chipId = getChipId();
+      if (!chipId) {
+        setVehicleHistory([]);
+        return;
+      }
+
+      console.log('📚 [VEHICLE HISTORY] Fetching history for chipId:', chipId);
+
+      const { data, error } = await supabase
+        .from('carHistory')
+        .select('*')
+        .eq('chipId', chipId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('📚 [VEHICLE HISTORY] Error fetching vehicle history:', error);
+        setVehicleHistory([]);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        console.log('📚 [VEHICLE HISTORY] Found', data.length, 'entries');
+        setVehicleHistory(data);
+      } else {
+        console.log('📚 [VEHICLE HISTORY] No history found');
+        setVehicleHistory([]);
+      }
+    } catch (error) {
+      console.error('📚 [VEHICLE HISTORY] Error loading vehicle history:', error);
+      setVehicleHistory([]);
     }
   };
 
@@ -2960,7 +2993,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
-  // Calculate optimal map region to show all locations
+  // Calculate optimal map region to show all locations with distance-based zoom
   const calculateMapRegion = (currentLoc, carLoc) => {
     if (!currentLoc || !carLoc) {
       return {
@@ -2970,19 +3003,61 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         longitudeDelta: 0.01,
       };
     }
+
+    // Calculate distance between current location and car location
+    const distance = calculateDistance(currentLoc, carLoc);
+
+    // Calculate bounds to include both locations
     const minLat = Math.min(currentLoc.latitude, carLoc.latitude);
     const maxLat = Math.max(currentLoc.latitude, carLoc.latitude);
     const minLng = Math.min(currentLoc.longitude, carLoc.longitude);
     const maxLng = Math.max(currentLoc.longitude, carLoc.longitude);
 
-    const latPadding = (maxLat - minLat) * 0.4; // More padding for rotation
-    const lngPadding = (maxLng - minLng) * 0.4;
-
+    // Calculate center point
     const centerLat = (minLat + maxLat) / 2;
     const centerLng = (minLng + maxLng) / 2;
 
-    const latDelta = Math.max((maxLat - minLat) + latPadding, 0.005);
-    const lngDelta = Math.max((maxLng - minLng) + lngPadding, 0.005);
+    // Distance-based zoom calculation
+    let baseDelta;
+    let paddingMultiplier;
+
+    if (distance < 50) {
+      // Very close (< 50m): Zoom in a lot
+      baseDelta = 0.0008;
+      paddingMultiplier = 2.0; // 200% padding for very close locations
+    } else if (distance < 200) {
+      // Close (50-200m): Zoom in
+      baseDelta = 0.002;
+      paddingMultiplier = 1.5; // 150% padding
+    } else if (distance < 1000) {
+      // Medium (200m-1km): Moderate zoom
+      baseDelta = 0.01;
+      paddingMultiplier = 1.3; // 130% padding
+    } else if (distance < 5000) {
+      // Far (1-5km): Zoom out
+      baseDelta = 0.02;
+      paddingMultiplier = 1.2; // 120% padding
+    } else {
+      // Very far (> 5km): Zoom out more
+      baseDelta = 0.05;
+      paddingMultiplier = 1.1; // 110% padding
+    }
+
+    // Calculate actual deltas based on bounds and distance
+    const latSpan = maxLat - minLat;
+    const lngSpan = maxLng - minLng;
+
+    // Use the larger of: calculated span with padding, or distance-based delta
+    const latDelta = Math.max(
+      (latSpan * paddingMultiplier) || baseDelta,
+      baseDelta
+    );
+    const lngDelta = Math.max(
+      (lngSpan * paddingMultiplier) || baseDelta,
+      baseDelta
+    );
+
+    console.log(`🗺️ [MAP] Distance: ${distance}m, Zoom Delta: ${latDelta.toFixed(4)}`);
 
     return {
       latitude: centerLat,
@@ -2992,7 +3067,17 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     };
   };
 
+  // Get current location alternative - disabled only for chip ending with "39d"
   const getCurrentLocationAlternative = () => {
+    const chipId = getChipId();
+    
+    // Skip if chip ID ends with "39d" (using static coordinates)
+    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+      console.log('🧪 [TEST] getCurrentLocationAlternative skipped for static chip');
+      return;
+    }
+
+    // Normal dynamic location fetching for other chips
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -3017,7 +3102,17 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     );
   };
 
+  // Get current location - disabled only for chip ending with "39d"
   const getCurrentLocation = () => {
+    const chipId = getChipId();
+    
+    // Skip if chip ID ends with "39d" (using static coordinates)
+    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+      console.log('🧪 [TEST] getCurrentLocation skipped for static chip');
+      return;
+    }
+
+    // Normal dynamic location fetching for other chips
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -3043,7 +3138,17 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     );
   };
 
+  // Get current location third attempt - disabled only for chip ending with "39d"
   const getCurrentLocationThirdAttempt = () => {
+    const chipId = getChipId();
+    
+    // Skip if chip ID ends with "39d" (using static coordinates)
+    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+      console.log('🧪 [TEST] getCurrentLocationThirdAttempt skipped for static chip');
+      return;
+    }
+
+    // Normal dynamic location fetching for other chips
     Geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -3063,6 +3168,61 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       { enableHighAccuracy: false, timeout: 60000, maximumAge: 600000, distanceFilter: 500 }
     );
   };
+
+  // 🧪 TESTING: Set static coordinates ONLY for chip ID ending with "39d"
+  useEffect(() => {
+    const chipId = getChipId();
+    
+    // Only use static coordinates if chip ID ends with "39d"
+    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+      // Static test coordinates
+      const testCurrentLocation = {
+        latitude: 35.969658,
+        longitude: -86.492557
+      };
+      const testCarLocation = {
+        latitude: 35.969036,
+        longitude: -86.493105
+      };
+
+      // Set static locations for testing - FORCE SET
+      setCurrentLocation(testCurrentLocation);
+      setCarLocation(testCarLocation);
+      setChipLocation(testCarLocation);
+
+      // Set saved location for testing
+      setSavedLocation({
+        latitude: testCarLocation.latitude,
+        longitude: testCarLocation.longitude,
+        timestamp: Date.now(),
+        lastUpdated: new Date().toLocaleTimeString()
+      });
+
+      // Calculate distance for testing
+      const distance = calculateDistance(testCurrentLocation, testCarLocation);
+      setDistanceToCar(distance);
+
+      // Set loading to false so map can render
+      setIsLoading(false);
+
+      // Force map zoom after a short delay
+      setTimeout(() => {
+        if (mapRef.current) {
+          const region = calculateMapRegion(testCurrentLocation, testCarLocation);
+          mapRef.current.animateToRegion(region, 1000);
+          hasZoomedRef.current = true;
+        }
+      }, 1000);
+
+      console.log('🧪 [TEST] Static coordinates set for chip ending with 39d');
+      console.log('🧪 [TEST] Chip ID:', chipId);
+      console.log('🧪 [TEST] Current Location:', testCurrentLocation);
+      console.log('🧪 [TEST] Car Location:', testCarLocation);
+      console.log('🧪 [TEST] Distance:', distance, 'meters');
+    } else {
+      console.log('📍 [DYNAMIC] Using dynamic coordinates for chip:', chipId);
+    }
+  }, [vehicle?.chipId, vehicle?.chip]);
 
   // Check chip online status
   useEffect(() => {
@@ -3086,6 +3246,18 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     const initializeLocation = async () => {
       const chipId = getChipId();
+      
+      // Skip dynamic initialization if chip ID ends with "39d" (using static coordinates)
+      if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+        console.log('🧪 [TEST] Skipping dynamic initialization for static chip');
+        loadChipHistory();
+        loadVehicleHistory();
+        setIsLoading(false);
+        setLastUpdateTime(new Date().toLocaleTimeString());
+        return;
+      }
+
+      // Normal dynamic initialization for other chips
       if (chipId) {
         try {
           const { data: carData, error: dbError } = await supabase
@@ -3128,6 +3300,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         }
         initializeMqtt();
         loadChipHistory();
+        loadVehicleHistory();
       }
 
       setIsLoading(false);
@@ -3145,6 +3318,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     };
 
     initializeLocation();
+
     return () => {
       if (mqttClient) {
         mqttClient.end();
@@ -3152,16 +3326,24 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         setMqttConnected(false);
       }
     };
-  }, []);
+  }, [vehicle?.chipId, vehicle?.chip]);
 
-  // Update location every 30s
+  // Update location every 30s - skip for chip ending with "39d"
   useEffect(() => {
+    const chipId = getChipId();
+    
+    // Skip periodic updates if chip ID ends with "39d" (using static coordinates)
+    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+      return;
+    }
+
+    // Normal periodic updates for other chips
     if (!locationPermission) return;
     const locationInterval = setInterval(() => {
       if (locationPermission) getCurrentLocation();
     }, 30000);
     return () => clearInterval(locationInterval);
-  }, [locationPermission]);
+  }, [locationPermission, vehicle?.chipId, vehicle?.chip]);
 
   // ✅ 1. COMPASS & MAP ROTATION LOGIC
   useEffect(() => {
@@ -3284,6 +3466,80 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       setDistanceToCar(distance);
     }
   }, [currentLocation, carLocation]);
+
+  // Calculate current step based on distance
+  const calculateCurrentStep = () => {
+    if (!routeSteps || routeSteps.length === 0 || !currentLocation || distanceToCar === null) {
+      setCurrentStep(null);
+      return;
+    }
+
+    // Calculate total route distance
+    let totalRouteDistance = 0;
+    routeSteps.forEach(step => {
+      totalRouteDistance += step.distance?.value || 0;
+    });
+
+    // Distance traveled = total distance - remaining distance
+    const distanceTraveled = Math.max(0, totalRouteDistance - distanceToCar);
+
+    // Find which step we're currently on
+    let accumulatedDistance = 0;
+    let currentStepIndex = 0;
+
+    for (let i = 0; i < routeSteps.length; i++) {
+      const step = routeSteps[i];
+      const stepDistance = step.distance?.value || 0;
+
+      if (accumulatedDistance + stepDistance <= distanceTraveled) {
+        accumulatedDistance += stepDistance;
+        currentStepIndex = i + 1;
+      } else {
+        break;
+      }
+    }
+
+    // Get current step
+    if (currentStepIndex < routeSteps.length) {
+      const step = routeSteps[currentStepIndex];
+      const stepStartDistance = accumulatedDistance;
+      const remainingDistanceInStep = Math.max(0, (stepStartDistance + (step.distance?.value || 0)) - distanceTraveled);
+
+      // Clean HTML tags from instruction
+      const cleanInstruction = step.html_instructions?.replace(/<[^>]*>/g, '') || step.instructions || 'Continue';
+
+      setCurrentStep({
+        instruction: cleanInstruction,
+        distance: Math.round(remainingDistanceInStep),
+        stepIndex: currentStepIndex
+      });
+    } else {
+      // Reached destination or very close
+      if (distanceToCar < 10) {
+        setCurrentStep({
+          instruction: 'You have arrived at your destination',
+          distance: 0,
+          stepIndex: routeSteps.length
+        });
+      } else {
+        // Show last step
+        const lastStep = routeSteps[routeSteps.length - 1];
+        const cleanInstruction = lastStep.html_instructions?.replace(/<[^>]*>/g, '') || lastStep.instructions || 'Continue';
+        setCurrentStep({
+          instruction: cleanInstruction,
+          distance: Math.round(distanceToCar),
+          stepIndex: routeSteps.length - 1
+        });
+      }
+    }
+  };
+
+  // Update current step when distance or route changes
+  useEffect(() => {
+    if (routeSteps.length > 0 && distanceToCar !== null) {
+      calculateCurrentStep();
+    }
+  }, [distanceToCar, routeSteps, currentLocation]);
 
   // ✅ 3. MAIN ZOOM LOCK LOGIC
   useEffect(() => {
@@ -3486,7 +3742,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         ]}
       >
         {/* Using Arrow Up because 0 deg means "Straight Ahead" */}
-        <Ionicons name="arrow-up" size={24} color="#007AFF" style={{ marginBottom: 35 }} />
+        <Ionicons name="arrow-up" size={24} color="#ff0000ff" style={{ marginBottom: 35 }} />
       </View>
     );
   };
@@ -3512,6 +3768,29 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   const renderMap = () => (
     <View style={[styles.mapContainer, isMapFullscreen && styles.mapContainerFullscreen]}>
+      {/* Navigation Step Display - Top of Map */}
+      {currentStep && (
+        <View style={[styles.stepContainer, {
+          top: isMapFullscreen ? 50 : 10,
+        }]}>
+          <View style={styles.stepContent}>
+            <Ionicons name="navigate" size={20} color="#fffff" style={styles.stepIcon} />
+            <View style={styles.stepTextContainer}>
+              <Text style={styles.stepInstruction} numberOfLines={2}>
+                {currentStep.instruction}
+              </Text>
+              {currentStep.distance > 0 && (
+                <Text style={styles.stepDistance}>
+                  {currentStep.distance < 1000
+                    ? `${currentStep.distance}m`
+                    : `${(currentStep.distance / 1000).toFixed(1)}km`}
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+      )}
+
       {!getChipId() && (
         <View style={styles.noChipNote}>
           <Text style={styles.noChipText}>📍 Please assign a chip to track vehicle location</Text>
@@ -3531,10 +3810,26 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         />
       </TouchableOpacity>
 
+      {/* Map Type Toggle Button */}
+      <TouchableOpacity
+        style={[styles.mapTypeToggle, { bottom: isMapFullscreen ? 120 : 20, right: 15 }]}
+        onPress={() => setMapType(mapType === 'satellite' ? 'standard' : 'satellite')}
+        activeOpacity={0.8}
+      >
+        <Ionicons
+          name={mapType === 'satellite' ? 'map-outline' : 'globe-outline'}
+          size={20}
+          color="#333"
+        />
+        <Text style={styles.mapTypeToggleText}>
+          {mapType === 'satellite' ? 'Standard' : 'Satellite'}
+        </Text>
+      </TouchableOpacity>
+
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapType="standard"
+        mapType={mapType}
         showsUserLocation={false}
         showsMyLocationButton={false}
         showsCompass={false} // Hide default compass as we rotate manually
@@ -3569,11 +3864,12 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           </Marker>
         )}
 
-        {getChipId() && carLocation && (
+        {/* 🧪 TESTING: Show car marker even without chip ID for testing */}
+        {carLocation && (
           <Marker
             coordinate={carLocation}
             title="Vehicle Location"
-            description={`${vehicle?.vin}`}
+            description={`${vehicle?.vin || 'Test Vehicle'}`}
           >
             <View style={styles.carMarkerContainer}>
               {savedLocation && (
@@ -3590,7 +3886,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           </Marker>
         )}
 
-        {getChipId() && currentLocation && carLocation && (
+        {/* 🧪 TESTING: Show route even without chip ID for testing */}
+        {currentLocation && carLocation && (
           <MapViewDirections
             key={`route-${currentLocation.latitude}-${currentLocation.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
             origin={currentLocation}
@@ -3600,6 +3897,20 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             strokeColor="#f40d0dff"
             optimizeWaypoints={true}
             onReady={(result) => {
+              // Extract route steps
+              if (result && result.legs && result.legs.length > 0) {
+                const allSteps = [];
+                result.legs.forEach(leg => {
+                  if (leg.steps) {
+                    allSteps.push(...leg.steps);
+                  }
+                });
+                setRouteSteps(allSteps);
+                setRouteCoordinates(result.coordinates || []);
+                console.log('📍 [STEPS] Route steps loaded:', allSteps.length, 'steps');
+              }
+
+              // Zoom to region
               if (mapRef.current && currentLocation && carLocation && !hasZoomedRef.current) {
                 const region = calculateMapRegion(currentLocation, carLocation);
                 mapRef.current.animateToRegion(region, 1000);
@@ -3608,6 +3919,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             }}
             onError={(errorMessage) => {
               console.log('❌ [DIRECTIONS] Error:', errorMessage);
+              setRouteSteps([]);
+              setCurrentStep(null);
             }}
           />
         )}
@@ -3722,52 +4035,174 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       )}
 
-      {/* Chip History Section */}
-      {chipHistory.length > 0 && (
-        <View style={styles.historyInfoCard}>
-          <Text style={styles.cardTitle}>📚 Chip Assignment History</Text>
-          {chipHistory.map((entry, index) => (
-            <View key={index} style={styles.historyEntry}>
-              <View style={styles.historyHeader}>
-                <View style={[
-                  styles.historyIcon,
-                  {
-                    backgroundColor: entry.action === 'assigned' ? greenColor :
-                      entry.action === 'vehicle_scanned' ? '#007AFF' : '#ff6b6b'
-                  }
-                ]}>
-                  <Ionicons
-                    name={entry.action === 'assigned' ? 'checkmark' :
-                      entry.action === 'vehicle_scanned' ? 'phone-portrait' :
-                        'close'}
-                    size={16}
-                    color="#fff"
-                  />
-                </View>
-                <View style={styles.historyDetails}>
-                  <Text style={styles.historyAction}>
-                    {entry.action === 'assigned' ? '✅ Assigned' :
-                      entry.action === 'unassigned' ? '❌ Unassigned' :
-                        entry.action === 'vehicle_scanned' ? '📱 Vehicle Scanned' :
-                          '📋 Action'}: {entry.chip_id || entry.vin || 'N/A'}
-                  </Text>
-                  <Text style={styles.historyTime}>
-                    {new Date(entry.timestamp).toLocaleString()}
-                  </Text>
-                  <Text style={styles.historyUser}>
-                    By: {entry.user_name} ({entry.user_email})
-                  </Text>
-                  {entry.notes && (
-                    <Text style={styles.historyNotes}>
-                      {entry.notes}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            </View>
-          ))}
+      {/* History Section with Tabs */}
+      <View style={styles.historyInfoCard}>
+        <Text style={styles.cardTitle}>📚 History</Text>
+
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeHistoryTab === 'chip' && styles.activeTab
+            ]}
+            onPress={() => setActiveHistoryTab('chip')}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.tabText,
+              activeHistoryTab === 'chip' && styles.activeTabText
+            ]}>
+              Chip History
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeHistoryTab === 'vehicle' && styles.activeTab
+            ]}
+            onPress={() => setActiveHistoryTab('vehicle')}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.tabText,
+              activeHistoryTab === 'vehicle' && styles.activeTabText
+            ]}>
+              Vehicle History
+            </Text>
+          </TouchableOpacity>
         </View>
-      )}
+
+        {/* Chip History Tab Content */}
+        {activeHistoryTab === 'chip' && (
+          <View style={styles.tabContent}>
+            {chipHistory.length > 0 ? (
+              chipHistory.map((entry, index) => (
+                <View key={index} style={styles.historyEntry}>
+                  <View style={styles.historyHeader}>
+                    <View style={[
+                      styles.historyIcon,
+                      {
+                        backgroundColor: entry.action === 'assigned' ? greenColor :
+                          entry.action === 'vehicle_scanned' ? '#007AFF' : '#ff6b6b'
+                      }
+                    ]}>
+                      <Ionicons
+                        name={entry.action === 'assigned' ? 'checkmark' :
+                          entry.action === 'vehicle_scanned' ? 'phone-portrait' :
+                            'close'}
+                        size={16}
+                        color="#fff"
+                      />
+                    </View>
+                    <View style={styles.historyDetails}>
+                      <Text style={styles.historyAction}>
+                        {entry.action === 'assigned' ? '✅ Assigned' :
+                          entry.action === 'unassigned' ? '❌ Unassigned' :
+                            entry.action === 'vehicle_scanned' ? '📱 Vehicle Scanned' :
+                              '📋 Action'}: {entry.chip_id || entry.vin || 'N/A'}
+                      </Text>
+                      <Text style={styles.historyTime}>
+                        {new Date(entry.timestamp).toLocaleString()}
+                      </Text>
+                      <Text style={styles.historyUser}>
+                        By: {entry.user_name} ({entry.user_email})
+                      </Text>
+                      {entry.notes && (
+                        <Text style={styles.historyNotes}>
+                          {entry.notes}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyHistoryContainer}>
+                <Ionicons name="information-circle-outline" size={48} color={grayColor} />
+                <Text style={styles.emptyHistoryText}>
+                  No chip history available for this vehicle
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Vehicle History Tab Content */}
+        {activeHistoryTab === 'vehicle' && (
+          <View style={styles.tabContent}>
+            {vehicleHistory.length > 0 ? (
+              vehicleHistory.map((entry, index) => {
+                const eventText = entry.event === 'left'
+                  ? `Left from Slot ${entry.cpSlot || 'N/A'}`
+                  : entry.event === 'entered'
+                    ? `Entered to Slot ${entry.cpSlot || 'N/A'}`
+                    : `${entry.event || 'Event'}`;
+
+                return (
+                  <View key={index} style={styles.vehicleHistoryCard}>
+                    <View style={styles.vehicleHistoryHeader}>
+                      <View style={[
+                        styles.vehicleHistoryIcon,
+                        {
+                          backgroundColor: entry.event === 'left' ? '#ff6b6b' :
+                            entry.event === 'entered' ? greenColor : '#007AFF'
+                        }
+                      ]}>
+                        <Ionicons
+                          name={entry.event === 'left' ? 'exit-outline' :
+                            entry.event === 'entered' ? 'enter-outline' :
+                              'information-circle-outline'}
+                          size={20}
+                          color="#fff"
+                        />
+                      </View>
+                      <View style={styles.vehicleHistoryTitleContainer}>
+                        <Text style={styles.vehicleHistoryTitle}>
+                          {eventText}
+                        </Text>
+                        <Text style={styles.vehicleHistoryDate}>
+                          {entry.created_at ? new Date(entry.created_at).toLocaleString() : 'N/A'}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.vehicleHistoryBody}>
+                      <View style={styles.vehicleHistoryItem}>
+                        <Ionicons name="radio" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Text style={styles.vehicleHistoryItemLabel}>Chip ID</Text>
+                        <Text style={styles.vehicleHistoryItemValue}>{entry.chipId || 'N/A'}</Text>
+                      </View>
+                      <View style={styles.vehicleHistoryItem}>
+                        <Ionicons name="car" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Text style={styles.vehicleHistoryItemLabel}>VIN</Text>
+                        <Text style={styles.vehicleHistoryItemValue}>{entry.vin || 'N/A'}</Text>
+                      </View>
+                      <View style={styles.vehicleHistoryItem}>
+                        <Ionicons name="location" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Text style={styles.vehicleHistoryItemLabel}>Slot</Text>
+                        <Text style={styles.vehicleHistoryItemValue}>{entry.cpSlot || 'N/A'}</Text>
+                      </View>
+                      <View style={styles.vehicleHistoryItem}>
+                        <Ionicons name="business" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Text style={styles.vehicleHistoryItemLabel}>Facility</Text>
+                        <Text style={styles.vehicleHistoryItemValue}>{entry.facilityName || 'N/A'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.emptyHistoryContainer}>
+                <Ionicons name="information-circle-outline" size={48} color={grayColor} />
+                <Text style={styles.emptyHistoryText}>
+                  No vehicle history available
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 
@@ -3941,6 +4376,27 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 1001,
   },
+  mapTypeToggle: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1001,
+  },
+  mapTypeToggleText: {
+    marginLeft: 6,
+    fontSize: style.fontSizeSmall1x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
+    color: '#333',
+  },
   noChipNote: {
     position: 'absolute',
     top: 10,
@@ -3958,6 +4414,43 @@ const styles = StyleSheet.create({
     fontSize: style.fontSizeSmall1x.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
     textAlign: 'center',
+  },
+  // Navigation Step Display Styles
+  stepContainer: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(254, 254, 254, 1)',
+    borderRadius: 12,
+    padding: 8,
+    zIndex: 1002,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
+    width: "30%"
+  },
+  stepContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepIcon: {
+    marginRight: 12,
+  },
+  stepTextContainer: {
+    flex: 1,
+  },
+  stepInstruction: {
+    color: '#fffff',
+    fontSize: style.fontSizeSmall2x.fontSize,
+    fontWeight: style.fontWeightThin1x.fontWeight,
+    marginBottom: 4,
+  },
+  stepDistance: {
+    color: '#0004ffff',
+    fontSize: style.fontSizeSmall.fontSize,
+    fontWeight: style.fontWeightThin1x.fontWeight,
   },
   map: {
     flex: 1,
@@ -4346,6 +4839,135 @@ const styles = StyleSheet.create({
     color: grayColor,
     fontStyle: 'italic',
   },
+  // Tab Styles
+  tabContainer: {
+    flexDirection: 'row',
+    marginBottom: spacings.large,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1.5,
+    borderColor: '#e9ecef',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacings.medium + 4,
+    paddingHorizontal: spacings.medium,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 2,
+    transition: 'all 0.3s ease',
+  },
+  activeTab: {
+    backgroundColor: '#613EEA',
+    shadowColor: '#613EEA',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 5,
+    transform: [{ scale: 1.02 }],
+  },
+  tabText: {
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    color: '#6c757d',
+    letterSpacing: 0.3,
+  },
+  activeTabText: {
+    color: whiteColor,
+    fontWeight: style.fontWeightThin1x.fontWeight,
+    letterSpacing: 0.5,
+  },
+  tabContent: {
+    marginTop: spacings.small,
+  },
+  emptyHistoryContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacings.xLarge * 2,
+    paddingHorizontal: spacings.large,
+  },
+  emptyHistoryText: {
+    fontSize: style.fontSizeNormal.fontSize,
+    color: grayColor,
+    textAlign: 'center',
+    marginTop: spacings.medium,
+    fontStyle: 'italic',
+  },
+  // Vehicle History Card Styles
+  vehicleHistoryCard: {
+    backgroundColor: whiteColor,
+    borderRadius: 12,
+    padding: spacings.medium + 4,
+    marginBottom: spacings.medium,
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  vehicleHistoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacings.small + 4,
+    paddingBottom: spacings.small + 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  vehicleHistoryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacings.medium,
+  },
+  vehicleHistoryTitleContainer: {
+    flex: 1,
+  },
+  vehicleHistoryTitle: {
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightThin1x.fontWeight,
+    color: blackColor,
+    marginBottom: 2,
+  },
+  vehicleHistoryDate: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: grayColor,
+  },
+  vehicleHistoryBody: {
+    // gap: spacings.small, // Not supported in RN
+  },
+  vehicleHistoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginBottom: 2,
+  },
+  vehicleHistoryItemIcon: {
+    marginRight: 8,
+  },
+  vehicleHistoryItemLabel: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: grayColor,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    marginLeft: 4,
+    marginRight: 8,
+  },
+  vehicleHistoryItemValue: {
+    fontSize: style.fontSizeSmall.fontSize,
+    color: blackColor,
+    fontWeight: style.fontWeightMedium.fontWeight,
+    flex: 1,
+  },
   // ✅ Heading Direction Indicator Styles - Below current location (behind blue dot)
   headingDirectionContainer: {
     position: 'absolute',
@@ -4364,7 +4986,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'red',
     marginBottom: -2,
   },
-
   headingDirectionInner: {
     width: 0,
     height: 0,

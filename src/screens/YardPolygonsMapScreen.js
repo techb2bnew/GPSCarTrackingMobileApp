@@ -161,6 +161,7 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const [mqttClient, setMqttClient] = useState(null);
     const [mqttConnected, setMqttConnected] = useState(false);
+    const [mapType, setMapType] = useState('standard'); // 'satellite' or 'standard'
     
     // Buffer for MQTT lat/lon data per chip
     const mqttBufferRef = useRef({}); // { chipId: { lat: null, lon: null } }
@@ -680,7 +681,7 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                     ref={mapRef}
                     style={styles.map}
                     initialRegion={mapRegion}
-                    mapType="satellite"
+                    mapType={mapType}
                     onMapReady={() => {
                         if (mapRef.current && mapRegion.latitude !== 0) {
                             setTimeout(() => {
@@ -778,6 +779,21 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                         </Text>
                     </View>
                 )}
+
+                {/* Map Type Toggle Button */}
+                <TouchableOpacity
+                    style={styles.mapTypeToggle}
+                    onPress={() => setMapType(mapType === 'satellite' ? 'standard' : 'satellite')}
+                >
+                    <Ionicons 
+                        name={mapType === 'satellite' ? 'map-outline' : 'globe-outline'} 
+                        size={20} 
+                        color="#333" 
+                    />
+                    <Text style={styles.mapTypeToggleText}>
+                        {mapType === 'satellite' ? 'Standard' : 'Satellite'}
+                    </Text>
+                </TouchableOpacity>
             </View>
 
             {/* Vehicle Tooltip Modal */}
@@ -1074,6 +1090,29 @@ const styles = StyleSheet.create({
     },
     viewDetailIcon: {
         marginLeft: 4,
+    },
+    mapTypeToggle: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        zIndex: 1000,
+    },
+    mapTypeToggleText: {
+        marginLeft: 6,
+        fontSize: style.fontSizeSmall1x.fontSize,
+        fontWeight: style.fontWeightBold.fontWeight,
+        color: '#333',
     },
 });
 
