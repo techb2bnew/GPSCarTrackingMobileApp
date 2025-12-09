@@ -425,7 +425,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
           style={styles.facilitySelectorButton}
           onPress={() => setShowFacilityModal(true)}>
           <View style={styles.facilitySelectorContent}>
-            <Ionicons name="business-outline" size={20} color="#613EEA" />
+            <Ionicons name="business-outline" size={20} color="#003F65" />
             <View style={{ flex: 1, marginLeft: spacings.small }}>
               <Text style={styles.facilitySelectorText}>
                 {selectedFacility
@@ -448,10 +448,10 @@ const ActivityHistoryScreen = ({ navigation }) => {
       {/* Statistics Cards */}
       <View style={styles.statsContainer}>
       <View style={styles.statCard}>
-          <Ionicons name="car" size={20} color="#613EEA" />
+          <Ionicons name="car" size={20} color="#003F65" />
           <View style={styles.statContent}>
             <Text style={styles.statLabel}>Total</Text>
-            <Text style={[styles.statValue, { color: '#613EEA' }]}>
+            <Text style={[styles.statValue, { color: '#003F65' }]}>
               {stats.total}
             </Text>
           </View>
@@ -481,7 +481,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
       {!selectedFacility && (
         <View style={styles.facilityBreakdownContainer}>
           <View style={styles.facilityBreakdownHeader}>
-            <Ionicons name="business" size={20} color="#613EEA" />
+            <Ionicons name="business" size={20} color="#003F65" />
             <Text style={styles.facilityBreakdownTitle}>
               {stats.totalFacilities} Facilities
             </Text>
@@ -539,7 +539,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
 
             {loadingFacilities ? (
               <View style={styles.loadingFacilitiesContainer}>
-                <ActivityIndicator size="small" color="#613EEA" />
+                <ActivityIndicator size="small" color="#003F65" />
                 <Text style={styles.loadingFacilitiesText}>Loading facilities...</Text>
               </View>
             ) : facilities.length > 0 ? (
@@ -574,7 +574,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
                         </Text>
                       </View>
                       {selectedFacility === item.id && (
-                        <Ionicons name="checkmark-circle" size={22} color="#613EEA" />
+                        <Ionicons name="checkmark-circle" size={22} color="#003F65" />
                       )}
                     </TouchableOpacity>
                   );
@@ -595,7 +595,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#613EEA" />
+          <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Loading activities...</Text>
         </View>
       ) : getFilteredData().length === 0 ? (
@@ -727,8 +727,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   filterButtonActive: {
-    backgroundColor: '#613EEA',
-    borderColor: '#613EEA',
+    backgroundColor: '#003F65',
+    borderColor: '#003F65',
   },
   filterButtonText: {
     color: '#666',
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
   },
   selectedFacilityCard: {
     backgroundColor: '#F0EDFF',
-    borderColor: '#613EEA',
+    borderColor: '#003F65',
     borderWidth: 2,
   },
   facilityCardContent: {
@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
     ...style,
   },
   selectedFacilityText: {
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: style.fontWeightBold.fontWeight,
   },
   loadingFacilitiesContainer: {

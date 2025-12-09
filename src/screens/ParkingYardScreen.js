@@ -98,7 +98,7 @@
 //   // },
 //   selectedCard: {
 //     backgroundColor: '#d6d3e6',
-//     borderColor: '#613EEA',
+//     borderColor: '#003F65',
 //   },
 //   // name: {
 //   //   fontWeight: 'bold',
@@ -133,7 +133,7 @@
 //     color: '#252837',
 //   },
 //   selectedText: {
-//     color: '#613EEA',
+//     color: '#003F65',
 //   },
 // });
 
@@ -716,7 +716,7 @@ const ParkingYardScreen = ({ navigation }) => {
         <View style={styles.yardCardHeader}>
           <View style={styles.simpleCardLeft}>
             <View style={styles.simpleIconContainer}>
-              <Ionicons name="business" size={24} color="#613EEA" />
+              <Ionicons name="business" size={24} color="#003F65" />
             </View>
             <View style={styles.simpleTextContainer}>
               <Text style={[styles.simpleYardName]}>
@@ -748,7 +748,7 @@ const ParkingYardScreen = ({ navigation }) => {
                 e.stopPropagation();
                 handleOpenEditYard(item);
               }}>
-              <Ionicons name="pencil" size={18} color="#613EEA" />
+              <Ionicons name="pencil" size={18} color="#003F65" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -835,7 +835,7 @@ const ParkingYardScreen = ({ navigation }) => {
             style={styles.addButton}
             onPress={() => setShowAddYardModal(true)}
           >
-            <Ionicons name="add-circle" size={32} color="#613EEA" />
+            <Ionicons name="add-circle" size={32} color="#003F65" />
           </TouchableOpacity>
         </View>
 
@@ -1116,7 +1116,7 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   selectedSimpleCard: {
-    borderColor: '#613EEA',
+    borderColor: '#003F65',
     borderWidth: 2,
     backgroundColor: '#faf9ff',
   },
@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   simpleSlotText: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   fullYardContainer: {
@@ -1189,7 +1189,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedText: {
-    color: '#613EEA',
+    color: '#003F65',
   },
   noData: {
     fontSize: style.fontSizeNormal.fontSize,
@@ -1221,7 +1221,7 @@ const styles = StyleSheet.create({
   emptyAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingHorizontal: spacings.xLarge,
     paddingVertical: spacings.xLarge,
     borderRadius: 12,
@@ -1285,7 +1285,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   submitButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1370,7 +1370,7 @@ const styles = StyleSheet.create({
   },
   vehicleYardInfo: {
     fontSize: style.fontSizeSmall2x.fontSize,
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   vehicleSlotInfo: {

@@ -233,7 +233,7 @@ export default function MainTabNavigator({setCheckUser}) {
               <Feather
                 name="home"
                 size={22}
-                color={focused ? '#613EEA' : 'white'}
+                color={focused ? '#003F65' : 'white'}
               />
             );
           } else if (route.name === 'Map') {
@@ -241,7 +241,7 @@ export default function MainTabNavigator({setCheckUser}) {
               <Ionicons
                 name="map-outline"
                 size={22}
-                color={focused ? '#613EEA' : 'white'}
+                color={focused ? '#003F65' : 'white'}
               />
             );
           } else if (route.name === 'Scan') {
@@ -249,7 +249,7 @@ export default function MainTabNavigator({setCheckUser}) {
               <Ionicons
                 name="qr-code"
                 size={22}
-                color={focused ? '#613EEA' : 'white'}
+                color={focused ? '#003F65' : 'white'}
               />
             );
           } else if (route.name === 'History') {
@@ -257,7 +257,7 @@ export default function MainTabNavigator({setCheckUser}) {
               <Feather
                 name="clock"
                 size={22}
-                color={focused ? '#613EEA' : 'white'}
+                color={focused ? '#003F65' : 'white'}
               />
             );
           } else if (route.name === 'Facility') {
@@ -265,7 +265,7 @@ export default function MainTabNavigator({setCheckUser}) {
               <Ionicons
                 name="car-sport-outline"
                 size={27}
-                color={focused ? '#613EEA' : 'white'}
+                color={focused ? '#003F65' : 'white'}
               />
             );
           }

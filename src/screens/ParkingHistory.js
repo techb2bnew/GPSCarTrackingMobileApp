@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   uniqueId: {marginBottom: 8, marginTop: 4},
   time: {fontWeight: 'bold'},
   qrBtn: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     borderRadius: 24,
     padding: 10,
     alignSelf: 'center',

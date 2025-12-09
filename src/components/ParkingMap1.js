@@ -700,7 +700,7 @@ export default ParkingMap1;
 //   if (isLoading) {
 //     return (
 //       <View style={multiVehicleStyles.loadingContainer}>
-//         <ActivityIndicator size="large" color="#613EEA" />
+//         <ActivityIndicator size="large" color="#003F65" />
 //         <Text style={multiVehicleStyles.loadingText}>Loading map...</Text>
 //       </View>
 //     );
@@ -773,7 +773,7 @@ export default ParkingMap1;
 //       {/* Stats Overlay */}
 //       <View style={multiVehicleStyles.statsOverlay}>
 //         <View style={multiVehicleStyles.statItem}>
-//           <Ionicons name="car" size={18} color="#613EEA" />
+//           <Ionicons name="car" size={18} color="#003F65" />
 //           <Text style={multiVehicleStyles.statText}>
 //             {Object.keys(carLocations).length}/{activeChips.length} tracked
 //           </Text>
@@ -783,7 +783,7 @@ export default ParkingMap1;
 //           style={multiVehicleStyles.fitButton}
 //           onPress={fitMapToMarkers}
 //         >
-//           <Ionicons name="expand" size={20} color="#613EEA" />
+//           <Ionicons name="expand" size={20} color="#003F65" />
 //         </TouchableOpacity>
 //       </View>
 
@@ -795,7 +795,7 @@ export default ParkingMap1;
 //           loadActiveChipsAndLocations();
 //         }}
 //       >
-//         <Ionicons name="refresh" size={24} color="#613EEA" />
+//         <Ionicons name="refresh" size={24} color="#003F65" />
 //       </TouchableOpacity>
 //     </View>
 //   );
@@ -820,7 +820,7 @@ export default ParkingMap1;
 //     color: '#666',
 //   },
 //   currentLocationMarker: {
-//     backgroundColor: '#007AFF',
+//     backgroundColor: '#003F65',
 //     width: 40,
 //     height: 40,
 //     borderRadius: 20,
@@ -828,7 +828,7 @@ export default ParkingMap1;
 //     alignItems: 'center',
 //     borderWidth: 3,
 //     borderColor: '#fff',
-//     shadowColor: '#007AFF',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 4 },
 //     shadowOpacity: 0.4,
 //     shadowRadius: 8,
@@ -931,7 +931,7 @@ export default ParkingMap1;
 //     borderRadius: 28,
 //     justifyContent: 'center',
 //     alignItems: 'center',
-//     shadowColor: '#613EEA',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 4 },
 //     shadowOpacity: 0.3,
 //     shadowRadius: 8,

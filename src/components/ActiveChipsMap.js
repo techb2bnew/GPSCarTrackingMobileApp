@@ -77,7 +77,7 @@ const ActiveChipsMap = ({
         description="Your current position"
       >
         <View style={styles.currentLocationMarker}>
-          <Ionicons name="location" size={24} color="#007AFF" />
+          <Ionicons name="location" size={24} color="#003F65" />
         </View>
       </Marker>
     );
@@ -132,7 +132,7 @@ const ActiveChipsMap = ({
               
               <View style={styles.tooltipContent}>
                 <View style={styles.tooltipRow}>
-                  <Ionicons name="car" size={20} color="#007AFF" />
+                  <Ionicons name="car" size={20} color="#003F65" />
                   <Text style={styles.tooltipLabel}>VIN:</Text>
                   <Text style={styles.tooltipValue}>{selectedChip.vin || 'N/A'}</Text>
                 </View>
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: spacings.small,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#003F65',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
   },
   viewDetailButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#003F65',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

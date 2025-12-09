@@ -56,7 +56,7 @@ const MoodDiaryView = ({ triggerAnimation }) => {
       </Animated.Text>
 
       <Animated.Text style={[styles.subtitle, textAnimStyle]}>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        Track your vehicles easily with real-time location updates and detailed analytics.
       </Animated.Text>
 
     </Animated.View>

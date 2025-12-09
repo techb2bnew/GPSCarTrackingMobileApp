@@ -13,7 +13,7 @@ const DotIndicator = ({totalSteps, currentStep}) => {
               styles.dot,
               {
                 opacity: currentStep === index ? 1 : 0.3,
-                backgroundColor: currentStep === index ? '#613EEA' : '#888',
+                backgroundColor: currentStep === index ? '#003F65' : '#888',
               },
             ]}
           />

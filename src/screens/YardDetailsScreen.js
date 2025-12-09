@@ -412,7 +412,7 @@ const YardDetailsScreen = ({navigation, route}) => {
   //         styles.card,
   //         {
   //           backgroundColor: isSelectedVin
-  //             ? '#613EEA'
+  //             ? '#003F65'
   //             : isEven
   //             ? '#F9F9F9'
   //             : '#FFFFFF',
@@ -451,7 +451,7 @@ const YardDetailsScreen = ({navigation, route}) => {
           styles.card,
           {
             backgroundColor: isSelectedVin
-              ? '#613EEA'
+              ? '#003F65'
               : isEven
               ? '#F9F9F9'
               : '#FFFFFF',
@@ -535,7 +535,7 @@ const YardDetailsScreen = ({navigation, route}) => {
                 style={{
                   height: heightPercentageToDP(0.7),
                   width: widthPercentageToDP(20),
-                  backgroundColor: '#613EEA',
+                  backgroundColor: '#003F65',
                   position: 'absolute',
                   top: -1,
                   left: '43.5%',
@@ -707,12 +707,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
   },
   verticalLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     marginTop: -1, // ensure it attaches directly to dot
   },
   activityText: {

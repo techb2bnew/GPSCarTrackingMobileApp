@@ -651,7 +651,7 @@ const YardDetailScreen = ({ navigation, route }) => {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
 
       const config = {
-        license: 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q==',
+        license: 't0104HAEAAHnkipevQ7nbqRETi/D3IBgFzyPBzKTpUMI6mdI1X8qE2N4Lk3Ss8P45mbE8M4T1LsEjYexiXT8H58OZPeJg0ck8BhjqZteaJm3wRp/cVHte1Tm+6Z0i+O+Uf52RNGZTHBJnOtc=;t0109HAEAAKy8sMF0BJ13Hx/FS8NVevExxUSUaMrYvO120w2tlfniJvq8csa/uPaDjz21w2cmqG4PEPHbTJt1VdEpZwxcLkIDYgC4DDDF5n1NRRvc0Sv2Hz6fVw2OZ0anyLx3yp/OnDRXUzkBHMg64w==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -864,7 +864,7 @@ const YardDetailScreen = ({ navigation, route }) => {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
 
       const config = {
-        license: 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q==',
+        license: 't0104HAEAAHnkipevQ7nbqRETi/D3IBgFzyPBzKTpUMI6mdI1X8qE2N4Lk3Ss8P45mbE8M4T1LsEjYexiXT8H58OZPeJg0ck8BhjqZteaJm3wRp/cVHte1Tm+6Z0i+O+Uf52RNGZTHBJnOtc=;t0109HAEAAKy8sMF0BJ13Hx/FS8NVevExxUSUaMrYvO120w2tlfniJvq8csa/uPaDjz21w2cmqG4PEPHbTJt1VdEpZwxcLkIDYgC4DDDF5n1NRRvc0Sv2Hz6fVw2OZ0anyLx3yp/OnDRXUzkBHMg64w==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -1202,13 +1202,13 @@ const YardDetailScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={handleEditYard}
           style={styles.headerEditButton}>
-          <Ionicons name="pencil" size={22} color="#613EEA" />
+          <Ionicons name="pencil" size={22} color="#003F65" />
         </TouchableOpacity>
       </View>
 
       {isLoading ? (
         <View style={[styles.loadingContainer, alignJustifyCenter]}>
-          <ActivityIndicator size="large" color="#613EEA" />
+          <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Fetching vehicle details...</Text>
         </View>
       ) : (
@@ -1310,7 +1310,7 @@ const YardDetailScreen = ({ navigation, route }) => {
                       />
                       {isCheckingSlot && (
                         <View style={styles.checkingIndicator}>
-                          <ActivityIndicator size="small" color="#007AFF" />
+                          <ActivityIndicator size="small" color="#003F65" />
                           <Text style={styles.checkingText}>Checking availability...</Text>
                         </View>
                       )}
@@ -1627,7 +1627,7 @@ const styles = StyleSheet.create({
   },
   slotInfoText: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   fullYardHeaderContainer: {
@@ -1709,7 +1709,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   addVehicleButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: spacings.large,
     paddingHorizontal: 40,
     borderRadius: 25,
@@ -1766,7 +1766,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightThin1x.fontWeight,
   },
   assignButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingHorizontal: spacings.large,
     paddingVertical: spacings.large,
     borderRadius: spacings.xxLarge,
@@ -1781,17 +1781,17 @@ const styles = StyleSheet.create({
     marginBottom: hp(13),
   },
   addMoreButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.large,
     borderRadius: 30,
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
     borderWidth: 1.5,
-    borderColor: '#7B68EE',
+    borderColor: '#003F65',
     transform: [{ scale: 1 }],
   },
   addMoreButtonText: {
@@ -1869,7 +1869,7 @@ const styles = StyleSheet.create({
     padding: spacings.normalx,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#613EEA',
+    borderLeftColor: '#003F65',
   },
   vinInput: {
     fontSize: style.fontSizeNormal.fontSize,
@@ -1912,7 +1912,7 @@ const styles = StyleSheet.create({
   },
   checkingText: {
     fontSize: 11,
-    color: '#007AFF',
+    color: '#003F65',
     marginLeft: 5,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
@@ -1937,11 +1937,11 @@ const styles = StyleSheet.create({
   },
   assignChipButton: {
     flex: 1,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -2009,7 +2009,7 @@ const styles = StyleSheet.create({
   duplicateYardText: {
     fontSize: 18,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#613EEA',
+    color: '#003F65',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -2030,14 +2030,14 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   duplicateCloseButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: 18,
     paddingHorizontal: 24,
     borderRadius: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -2058,7 +2058,7 @@ const styles = StyleSheet.create({
   },
   duplicateActionButton: {
     flex: 1,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -2155,7 +2155,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   submitButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

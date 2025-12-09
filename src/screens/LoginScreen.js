@@ -346,10 +346,10 @@ const styles = StyleSheet.create({
   forgot: {
     fontSize: style.fontSizeSmall2x.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#613EEA',
+    color: '#003F65',
   },
   loginButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     borderRadius: 8,
     paddingVertical: spacings.xLarge,
     alignItems: 'center',
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#613EEA',
+    color: '#003F65',
   },
   errorContainer: {
     backgroundColor: '#ffebee',
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
   },
   supportButtonText: {
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: style.fontWeightMedium.fontWeight,
     fontSize: style.fontSizeSmall1x.fontSize,
   },

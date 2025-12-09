@@ -1523,7 +1523,7 @@
 //         ]}
 //       >
 //         {/* Navigation arrow pointing to car - Blue color matching current location */}
-//         <Ionicons name="navigate" size={32} color="#007AFF" style={{ transform: [{ rotate: '0deg' }] }} />
+//         <Ionicons name="navigate" size={32} color="#003F65" style={{ transform: [{ rotate: '0deg' }] }} />
 //       </Animated.View>
 //     );
 //   };
@@ -1608,7 +1608,7 @@
 //                     }
 //                   ]}
 //                 >
-//                   <Ionicons name="arrow-up" size={40} color="#007AFF" />
+//                   <Ionicons name="arrow-up" size={40} color="#003F65" />
 //                 </Animated.View>
 //               )}
 //               {/* Current Location Point - Always visible (blue dot) */}
@@ -1795,7 +1795,7 @@
 //                   styles.historyIcon,
 //                   {
 //                     backgroundColor: entry.action === 'assigned' ? greenColor :
-//                       entry.action === 'vehicle_scanned' ? '#007AFF' : '#ff6b6b'
+//                       entry.action === 'vehicle_scanned' ? '#003F65' : '#ff6b6b'
 //                   }
 //                 ]}>
 //                   <Ionicons
@@ -1836,7 +1836,7 @@
 //   if (isLoading) {
 //     return (
 //       <View style={[styles.container, alignJustifyCenter]}>
-//         <ActivityIndicator size="large" color="#613EEA" />
+//         <ActivityIndicator size="large" color="#003F65" />
 //         <Text style={styles.loadingText}>Loading vehicle details...</Text>
 //       </View>
 //     );
@@ -1863,9 +1863,9 @@
 //             disabled={isRefreshingLocation}
 //           >
 //             {isRefreshingLocation ? (
-//               <ActivityIndicator size="small" color="#613EEA" />
+//               <ActivityIndicator size="small" color="#003F65" />
 //             ) : (
-//               <Ionicons name="refresh" size={24} color="#613EEA" />
+//               <Ionicons name="refresh" size={24} color="#003F65" />
 //             )}
 //           </TouchableOpacity>
 //         )}
@@ -2014,10 +2014,10 @@
 //     width: 18,
 //     height: 18,
 //     borderRadius: 9,
-//     backgroundColor: '#007AFF',
+//     backgroundColor: '#003F65',
 //     borderWidth: 3,
 //     borderColor: '#fff',
-//     shadowColor: '#007AFF',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 2 },
 //     shadowOpacity: 0.6,
 //     shadowRadius: 6,
@@ -2026,7 +2026,7 @@
 //   currentLocationMarker: {
 //     position: 'absolute',
 //     top: -40,
-//     backgroundColor: '#007AFF',
+//     backgroundColor: '#003F65',
 //     width: 32,
 //     height: 32,
 //     borderRadius: 16,
@@ -2034,7 +2034,7 @@
 //     alignItems: 'center',
 //     borderWidth: 3,
 //     borderColor: '#fff',
-//     shadowColor: '#007AFF',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 3 },
 //     shadowOpacity: 0.6,
 //     shadowRadius: 6,
@@ -2070,7 +2070,7 @@
 //     borderTopWidth: 50,
 //     borderLeftColor: 'transparent',
 //     borderRightColor: 'transparent',
-//     borderTopColor: 'rgba(0, 122, 255, 0.25)', // Light blue semi-transparent (exact like image)
+//     borderTopColor: 'rgba(0, 63, 101, 0.25)', // Light blue semi-transparent (exact like image)
 //   },
 //   simpleArrowContainer: {
 //     position: 'absolute',
@@ -2085,10 +2085,10 @@
 //     borderRadius: 18,
 //     backgroundColor: 'rgba(255, 255, 255, 0.95)',
 //     borderWidth: 2,
-//     borderColor: '#007AFF',
+//     borderColor: '#003F65',
 //     alignItems: 'center',
 //     justifyContent: 'center',
-//     shadowColor: '#007AFF',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 2 },
 //     shadowOpacity: 0.4,
 //     shadowRadius: 4,
@@ -2098,7 +2098,7 @@
 //     marginTop: 4,
 //     fontSize: 9,
 //     fontWeight: '600',
-//     color: '#007AFF',
+//     color: '#003F65',
 //     textAlign: 'center',
 //     backgroundColor: 'rgba(255, 255, 255, 0.9)',
 //     paddingHorizontal: 4,
@@ -2248,18 +2248,18 @@
 //     fontWeight: style.fontWeightMedium.fontWeight,
 //   },
 //   assignChipButton: {
-//     backgroundColor: '#613EEA',
+//     backgroundColor: '#003F65',
 //     paddingVertical: spacings.large,
 //     paddingHorizontal: spacings.xLarge,
 //     borderRadius: 25,
 //     marginVertical: spacings.large,
-//     shadowColor: '#613EEA',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 6 },
 //     shadowOpacity: 0.4,
 //     shadowRadius: 10,
 //     elevation: 8,
 //     borderWidth: 1.5,
-//     borderColor: '#7B68EE',
+//     borderColor: '#003F65',
 //   },
 //   assignChipButtonText: {
 //     color: whiteColor,
@@ -2268,18 +2268,18 @@
 //     letterSpacing: 0.5,
 //   },
 //   unassignChipButton: {
-//     backgroundColor: '#613EEA',
+//     backgroundColor: '#003F65',
 //     paddingVertical: spacings.large,
 //     paddingHorizontal: spacings.xLarge,
 //     borderRadius: 25,
 //     marginVertical: spacings.large,
-//     shadowColor: '#613EEA',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 6 },
 //     shadowOpacity: 0.4,
 //     shadowRadius: 10,
 //     elevation: 8,
 //     borderWidth: 1.5,
-//     borderColor: '#7B68EE',
+//     borderColor: '#003F65',
 //   },
 //   unassignChipButtonText: {
 //     color: whiteColor,
@@ -2347,7 +2347,7 @@
 //   duplicateYardText: {
 //     fontSize: style.fontSizeMedium1x.fontSize,
 //     fontWeight: style.fontWeightBold.fontWeight,
-//     color: '#613EEA',
+//     color: '#003F65',
 //     textAlign: 'center',
 //     marginBottom: 16,
 //   },
@@ -2398,7 +2398,7 @@
 //     letterSpacing: 0.5,
 //   },
 //   duplicateCloseButton: {
-//     backgroundColor: '#613EEA',
+//     backgroundColor: '#003F65',
 //     paddingVertical: 10,
 //     paddingHorizontal: 10,
 //     flex: 1,
@@ -2407,7 +2407,7 @@
 //     alignItems: 'center',
 //     justifyContent: 'center',
 //     borderRadius: 10,
-//     shadowColor: '#613EEA',
+//     shadowColor: '#003F65',
 //     shadowOffset: { width: 0, height: 4 },
 //     shadowOpacity: 0.3,
 //     shadowRadius: 8,
@@ -3645,7 +3645,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     try {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
       const config = {
-        license: 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q==',
+        license: 't0104HAEAAHnkipevQ7nbqRETi/D3IBgFzyPBzKTpUMI6mdI1X8qE2N4Lk3Ss8P45mbE8M4T1LsEjYexiXT8H58OZPeJg0ck8BhjqZteaJm3wRp/cVHte1Tm+6Z0i+O+Uf52RNGZTHBJnOtc=;t0109HAEAAKy8sMF0BJ13Hx/FS8NVevExxUSUaMrYvO120w2tlfniJvq8csa/uPaDjz21w2cmqG4PEPHbTJt1VdEpZwxcLkIDYgC4DDDF5n1NRRvc0Sv2Hz6fVw2OZ0anyLx3yp/OnDRXUzkBHMg64w==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -4085,7 +4085,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                       styles.historyIcon,
                       {
                         backgroundColor: entry.action === 'assigned' ? greenColor :
-                          entry.action === 'vehicle_scanned' ? '#007AFF' : '#ff6b6b'
+                          entry.action === 'vehicle_scanned' ? '#003F65' : '#ff6b6b'
                       }
                     ]}>
                       <Ionicons
@@ -4147,7 +4147,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                         styles.vehicleHistoryIcon,
                         {
                           backgroundColor: entry.event === 'left' ? '#ff6b6b' :
-                            entry.event === 'entered' ? greenColor : '#007AFF'
+                            entry.event === 'entered' ? greenColor : '#003F65'
                         }
                       ]}>
                         <Ionicons
@@ -4169,22 +4169,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                     </View>
                     <View style={styles.vehicleHistoryBody}>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="radio" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="radio" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>Chip ID</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.chipId || 'N/A'}</Text>
                       </View>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="car" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="car" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>VIN</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.vin || 'N/A'}</Text>
                       </View>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="location" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="location" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>Slot</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.cpSlot || 'N/A'}</Text>
                       </View>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="business" size={16} color="#613EEA" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="business" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>Facility</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.facilityName || 'N/A'}</Text>
                       </View>
@@ -4209,7 +4209,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   if (isLoading) {
     return (
       <View style={[styles.container, alignJustifyCenter]}>
-        <ActivityIndicator size="large" color="#613EEA" />
+        <ActivityIndicator size="large" color="#003F65" />
         <Text style={styles.loadingText}>Loading vehicle details...</Text>
       </View>
     );
@@ -4237,9 +4237,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               disabled={isRefreshingLocation}
             >
               {isRefreshingLocation ? (
-                <ActivityIndicator size="small" color="#613EEA" />
+                <ActivityIndicator size="small" color="#003F65" />
               ) : (
-                <Ionicons name="refresh" size={24} color="#613EEA" />
+                <Ionicons name="refresh" size={24} color="#003F65" />
               )}
             </TouchableOpacity>
           )}
@@ -4448,7 +4448,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   stepDistance: {
-    color: '#0004ffff',
+    color: '#003F65',
     fontSize: style.fontSizeSmall.fontSize,
     fontWeight: style.fontWeightThin1x.fontWeight,
   },
@@ -4466,10 +4466,10 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#003F65',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#007AFF',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.6,
     shadowRadius: 6,
@@ -4479,7 +4479,7 @@ const styles = StyleSheet.create({
   currentLocationMarker: {
     position: 'absolute',
     top: -40,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#003F65',
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -4487,7 +4487,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#007AFF',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.6,
     shadowRadius: 6,
@@ -4610,18 +4610,18 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   assignChipButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.xLarge,
     borderRadius: 25,
     marginVertical: spacings.large,
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
     borderWidth: 1.5,
-    borderColor: '#7B68EE',
+    borderColor: '#003F65',
   },
   assignChipButtonText: {
     color: whiteColor,
@@ -4630,18 +4630,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   unassignChipButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.xLarge,
     borderRadius: 25,
     marginVertical: spacings.large,
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
     borderWidth: 1.5,
-    borderColor: '#7B68EE',
+    borderColor: '#003F65',
   },
   unassignChipButtonText: {
     color: whiteColor,
@@ -4709,7 +4709,7 @@ const styles = StyleSheet.create({
   duplicateYardText: {
     fontSize: style.fontSizeMedium1x.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#613EEA',
+    color: '#003F65',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -4760,7 +4760,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   duplicateCloseButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: 10,
     paddingHorizontal: 10,
     flex: 1,
@@ -4769,7 +4769,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -4865,8 +4865,8 @@ const styles = StyleSheet.create({
     transition: 'all 0.3s ease',
   },
   activeTab: {
-    backgroundColor: '#613EEA',
-    shadowColor: '#613EEA',
+    backgroundColor: '#003F65',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -4994,7 +4994,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 20,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#4A9EFF',
+    borderBottomColor: '#003F65',
   },
 
 });

@@ -140,7 +140,7 @@
 //     color: '#888',
 //   },
 //   nextButton: {
-//     backgroundColor: '#613EEA',
+//     backgroundColor: '#003F65',
 //     paddingVertical: 10,
 //     paddingHorizontal: 20,
 //     borderRadius: 20,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   nextButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,

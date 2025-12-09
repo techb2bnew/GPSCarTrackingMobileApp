@@ -72,7 +72,7 @@ const EditConnection = ({navigation}) => {
           style={styles.input}
         />
         <TouchableOpacity style={styles.iconButton} onPress={handleOpen}>
-          <Icon name="scan-outline" size={24} color="#613EEA" />
+          <Icon name="scan-outline" size={24} color="#003F65" />
         </TouchableOpacity>
       </View>
 
@@ -86,7 +86,7 @@ const EditConnection = ({navigation}) => {
           style={styles.input}
         />
         <TouchableOpacity style={styles.iconButton} onPress={handleOpen}>
-          <Icon name="scan-outline" size={24} color="#613EEA" />
+          <Icon name="scan-outline" size={24} color="#003F65" />
         </TouchableOpacity>
       </View>
 
@@ -130,7 +130,7 @@ const EditConnection = ({navigation}) => {
             <TouchableOpacity
               onPress={() => setParkingModalVisible(false)}
               style={styles.modalCloseButton}>
-              <Text style={{color: '#613EEA'}}>Close</Text>
+              <Text style={{color: '#003F65'}}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   button: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',

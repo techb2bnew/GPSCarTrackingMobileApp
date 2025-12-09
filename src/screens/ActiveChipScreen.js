@@ -929,7 +929,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
               loadChipData();
             }}
             style={styles.refreshButton}>
-            <Icon name="refresh" size={24} color="#613EEA" />
+            <Icon name="refresh" size={24} color="#003F65" />
           </TouchableOpacity>
         )}
       </View>
@@ -948,7 +948,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
       {/* List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#613EEA" />
+          <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Loading chip data...</Text>
         </View>
       ) : (
@@ -1028,7 +1028,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                         await loadYardVehicles(yard.id);
                         setReassignStep(2);
                       }}>
-                      <Icon name="business" size={24} color="#613EEA" />
+                      <Icon name="business" size={24} color="#003F65" />
                       <View style={styles.listItemText}>
                         <Text style={styles.listItemTitle}>{yard.name}</Text>
                         <Text style={styles.listItemSubtitle}>{yard.address}</Text>
@@ -1055,7 +1055,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                       setSelectedVehicle(null);
                     }}
                     style={styles.backButtonContainer}>
-                    <Icon name="arrow-back" size={20} color="#613EEA" />
+                    <Icon name="arrow-back" size={20} color="#003F65" />
                     <Text style={styles.backButtonText}>Back to Yards</Text>
                   </TouchableOpacity>
                 </View>
@@ -1072,7 +1072,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                         onPress={() => {
                           setSelectedVehicle(vehicle);
                         }}>
-                        <Icon name="car" size={24} color="#613EEA" />
+                        <Icon name="car" size={24} color="#003F65" />
                         <View style={styles.listItemText}>
                           <Text style={styles.listItemTitle}>{vehicle.vin}</Text>
                           <Text style={styles.listItemSubtitle}>
@@ -1302,7 +1302,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   reassignButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingHorizontal: spacings.small,
     paddingVertical: spacings.small,
     borderRadius: 8,
@@ -1349,7 +1349,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: spacings.large,
     borderLeftWidth: 4,
-    borderLeftColor: '#613EEA',
+    borderLeftColor: '#003F65',
   },
   chipInfoLabel: {
     fontSize: style.fontSizeSmall.fontSize,
@@ -1376,7 +1376,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
   },
   selectedListItem: {
-    borderColor: '#613EEA',
+    borderColor: '#003F65',
     borderWidth: 2,
     backgroundColor: '#f3f0ff',
   },
@@ -1420,12 +1420,12 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#613EEA',
+    color: '#003F65',
     marginLeft: 8,
     fontWeight: '600',
   },
   assignButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,

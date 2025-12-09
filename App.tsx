@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { View, StyleSheet, Platform, AppState } from 'react-native';
+import { View, StyleSheet, Platform, AppState, Image, Text, ActivityIndicator, ImageBackground } from 'react-native';
 import { Provider, useSelector, useDispatch } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './src/redux/store';
@@ -7,9 +7,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import MainTabNavigator from './src/navigations/MainTabNavigator';
 import AuthStack from './src/navigations/AuthStack';
 import AnimatedLottieView from 'lottie-react-native';
-import { whiteColor } from './src/constants/Color';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, withSequence, interpolate, Easing } from 'react-native-reanimated';
+import { whiteColor, nissanPrimaryBlue } from './src/constants/Color';
 import { BaseStyle } from './src/constants/Style';
 import InternetChecker from './src/components/InternetChecker';
+import { MAIN_LOGO, SPLASH_IMAGE } from './src/assests/images';
 import { requestLocationPermission } from './src/utils/locationPermission';
 import { listenAllChipsMotionEvents } from './src/utils/motionEventListener';
 import { requestNotificationPermissions, configurePushNotifications, displayForegroundNotification } from './src/utils/notificationService';
@@ -41,6 +43,38 @@ function AppContent({ setCheckUser }: AppContentProps) {
   const tokenSaveInProgress = useRef(false);
   const lastTokenSaveTime = useRef(0);
   console.log("userDatauserData", userData);
+
+  // Animation values for splash screen
+  const logoScale = useSharedValue(0.5);
+  const logoOpacity = useSharedValue(0);
+  const textOpacity = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+  const progressValue = useSharedValue(0);
+
+  useEffect(() => {
+    if (showSplash) {
+      // Start animations
+      logoScale.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.back(1.5)) });
+      logoOpacity.value = withTiming(1, { duration: 800 });
+      // Delay text animation using setTimeout
+      setTimeout(() => {
+        textOpacity.value = withTiming(1, { duration: 600 });
+      }, 400);
+      // Progress bar animation - fills from 0 to 100% over 3.5 seconds
+      progressValue.value = withTiming(100, { duration: 3500, easing: Easing.linear });
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        false
+      );
+    } else {
+      // Reset progress when splash is hidden
+      progressValue.value = 0;
+    }
+  }, [showSplash]);
 
   // Request location permission on app startup
   useEffect(() => {
@@ -376,17 +410,93 @@ function AppContent({ setCheckUser }: AppContentProps) {
     return unsubscribe;
   }, [userData]);
 
+  // Animated styles
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: logoScale.value }],
+    opacity: logoOpacity.value,
+  }));
+
+  const textAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: textOpacity.value,
+  }));
+
+  const pulseAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  const progressBarStyle = useAnimatedStyle(() => ({
+    width: `${progressValue.value}%`,
+  }));
+
   return (
     <View style={styles.container}>
       <InternetChecker />
       {showSplash ? (
         <View style={styles.splashContainer}>
-          <AnimatedLottieView
-            source={require('./src/assets/welcome.json')}
+          {/* OPTION 1: Animated Logo with Fade & Scale (Currently Active) */}
+          <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+            <Image
+              source={MAIN_LOGO}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </Animated.View>
+          <Animated.View style={[styles.textContainer, textAnimatedStyle]}>
+            <Text style={styles.splashSubtitle}>Track Your Vehicles</Text>
+            <Text style={styles.splashSubtitle}>Monitor & Manage Anytime</Text>
+          </Animated.View>
+          
+          {/* Progress Bar */}
+          <View style={styles.progressBarContainer}>
+            <Animated.View style={[styles.progressBar, progressBarStyle]} />
+          </View>
+
+          {/* OPTION 2: Pulse Animation - Uncomment to use */}
+          {/* <Animated.View style={[styles.pulseContainer, pulseAnimatedStyle]}>
+            <Image
+              source={MAIN_LOGO}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </Animated.View>
+          <Text style={styles.splashText}>Loading...</Text> */}
+
+          {/* OPTION 3: Lottie Animation (welcomeww.json) - Uncomment to use */}
+          {/* <AnimatedLottieView
+            source={require('./src/assets/welcomeww.json')}
             autoPlay
             loop
             style={styles.splashAnimation}
-          />
+          /> */}
+
+          {/* OPTION 4: Successfully Animation - Uncomment to use */}
+          {/* <AnimatedLottieView
+            source={require('./src/assets/successfully.json')}
+            autoPlay
+            loop
+            style={styles.splashAnimation}
+          /> */}
+
+          {/* OPTION 5: Background Image with Logo - Uncomment to use */}
+          {/* <ImageBackground
+            source={SPLASH_IMAGE}
+            style={styles.splashBackground}
+            resizeMode="cover"
+          >
+            <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+              <Image
+                source={MAIN_LOGO}
+                style={styles.logoOverlay}
+                resizeMode="contain"
+              />
+            </Animated.View>
+          </ImageBackground> */}
+
+          {/* OPTION 6: Minimal Loading - Uncomment to use */}
+          {/* <View style={styles.minimalContainer}>
+            <ActivityIndicator size="large" color={nissanPrimaryBlue} />
+            <Text style={styles.minimalText}>Loading...</Text>
+          </View> */}
         </View>
       ) : (
         <NavigationContainer>
@@ -425,6 +535,77 @@ const styles = StyleSheet.create({
   splashAnimation: {
     width: 300,
     height: 300,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 200,
+    height: 200,
+  },
+  textContainer: {
+    alignItems: 'center',
+    marginTop: 30,
+  },
+  splashTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: nissanPrimaryBlue,
+    marginBottom: 8,
+  },
+  splashSubtitle: {
+    fontSize: 18,
+    color: '#666',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  loader: {
+    marginTop: 30,
+  },
+  progressBarContainer: {
+    width: '70%',
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    marginTop: 40,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: nissanPrimaryBlue,
+    borderRadius: 2,
+  },
+  pulseContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  splashText: {
+    fontSize: 18,
+    color: nissanPrimaryBlue,
+    marginTop: 20,
+    fontWeight: '600',
+  },
+  splashBackground: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoOverlay: {
+    width: 200,
+    height: 200,
+  },
+  minimalContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  minimalText: {
+    marginTop: 20,
+    fontSize: 16,
+    color: nissanPrimaryBlue,
+    fontWeight: '500',
   },
 });
 

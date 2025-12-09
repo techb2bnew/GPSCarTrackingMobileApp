@@ -34,7 +34,7 @@ const WelcomeView = ({animationController, onStartClick}) => {
         <TouchableOpacity
           style={{
             marginTop: 20,
-            backgroundColor: '#613eea',
+            backgroundColor: '#003F65',
             paddingVertical: 14,
             paddingHorizontal: 20,
             borderRadius: 50,

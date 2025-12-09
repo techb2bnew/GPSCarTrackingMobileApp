@@ -459,7 +459,7 @@ const MapViewScreen = ({ navigation }) => {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Loading Map...</Text>
         </View>
       ) : (

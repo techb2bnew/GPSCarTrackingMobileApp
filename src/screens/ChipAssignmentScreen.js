@@ -250,7 +250,7 @@ const ChipAssignmentScreen = ({ navigation }) => {
         <View style={styles.vehicleContent}>
           <View style={styles.vehicleLeft}>
             <View style={styles.vinContainer}>
-              <Icon name="car" size={20} color="#613EEA" />
+              <Icon name="car" size={20} color="#003F65" />
               <Text style={styles.vinText}>{displayVin}</Text>
               <View
                 style={[
@@ -368,10 +368,10 @@ const ChipAssignmentScreen = ({ navigation }) => {
           </View>
         </View>
         <View style={styles.statCard}>
-          <Icon name="car" size={20} color="#613EEA" />
+          <Icon name="car" size={20} color="#003F65" />
           <View style={styles.statContent}>
             <Text style={styles.statLabel}>Total</Text>
-            <Text style={[styles.statValue, { color: '#613EEA' }]}>
+            <Text style={[styles.statValue, { color: '#003F65' }]}>
               {stats.total}
             </Text>
           </View>
@@ -448,7 +448,7 @@ const ChipAssignmentScreen = ({ navigation }) => {
       {/* Vehicle List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#613EEA" />
+          <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Loading vehicles...</Text>
         </View>
       ) : filteredData.length === 0 ? (
@@ -474,8 +474,8 @@ const ChipAssignmentScreen = ({ navigation }) => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#613EEA']}
-              tintColor="#613EEA"
+              colors={['#003F65']}
+              tintColor="#003F65"
             />
           }
         />
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   activeTab: {
-    borderBottomColor: '#613EEA',
+    borderBottomColor: '#003F65',
   },
   tabText: {
     fontSize: 16,
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     ...style,
   },
   activeTabText: {
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: 'bold',
   },
   tabBadge: {
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTabBadge: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
   },
   tabBadgeText: {
     fontSize: 12,

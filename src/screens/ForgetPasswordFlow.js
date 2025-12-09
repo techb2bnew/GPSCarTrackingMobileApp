@@ -166,7 +166,7 @@ const ForgetPasswordFlow = () => {
               if (otpError) clearErrors();
             }}
             inputCount={5}
-            tintColor="#613EEA"
+            tintColor="#003F65"
             offTintColor="#ccc"
             containerStyle={{ marginBottom: 20 }}
             textInputStyle={{ borderWidth: 2, borderRadius: 10 }}
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     fontWeight: 'bold',
-    color: '#613EEA',
+    color: '#003F65',
     // textDecorationLine: 'underline',
   },
   input: {
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   inputPassword: { flex: 1, padding: 10 },
   eyeIcon: { paddingHorizontal: 10 },
   button: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',

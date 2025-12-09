@@ -45,7 +45,7 @@ import {
 } from '../utils';
 import { useFocusEffect } from '@react-navigation/native';
 import ParkingYardScreen from './ParkingYardScreen';
-import { blackColor, blackOpacity5, darkgrayColor, grayColor, redColor, whiteColor } from '../constants/Color';
+import { blackColor, blackOpacity5, darkgrayColor, grayColor, nissanPrimaryBlue, redColor, whiteColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
 import messaging from '@react-native-firebase/messaging';
 import {useSelector} from 'react-redux';
@@ -80,7 +80,7 @@ const getCardData = (chipStats) => [
     id: 4,
     icon: VEHICLE_REG,
     text: 'Chip Assignment',
-    backgroundColor: '#6C63FF',
+    backgroundColor: nissanPrimaryBlue,
     count: chipStats.totalVehicles,
     type: 'assignment',
   },
@@ -864,7 +864,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         <View style={styles.yardCardHeader}>
           <View style={styles.simpleCardLeft}>
             <View style={styles.simpleIconContainer}>
-              <Ionicons name="business" size={24} color="#613EEA" />
+              <Ionicons name="business" size={24} color="#003F65" />
             </View>
             <View style={styles.simpleTextContainer}>
               <Text style={[styles.simpleYardName]}>
@@ -896,7 +896,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                 e.stopPropagation();
                 handleOpenEditYard(item);
               }}>
-              <Ionicons name="pencil" size={18} color="#613EEA" />
+              <Ionicons name="pencil" size={18} color="#003F65" />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -1020,7 +1020,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
             style={styles.beautifulSearchBar}
             onPress={() => navigation.navigate('SearchScreen')}>
             <View style={styles.searchIconContainer}>
-              <Ionicons name="search" size={20} color="#613EEA" />
+              <Ionicons name="search" size={20} color="#003F65" />
             </View>
             <Text style={styles.searchText}>
               Search VIN, Make, Model...
@@ -1114,7 +1114,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           ) : (
             <View style={styles.beautifulEmptyContainer}>
               <View style={styles.emptyIconWrapper}>
-                <Ionicons name="business-outline" size={30} color="#613EEA" />
+                <Ionicons name="business-outline" size={30} color="#003F65" />
               </View>
               <Text style={styles.beautifulEmptyText}>No Parking Yards Yet</Text>
               <Text style={styles.beautifulEmptySubtext}>
@@ -1274,13 +1274,13 @@ const styles = StyleSheet.create({
 
   // Beautiful Header Styles
   beautifulHeader: {
-    backgroundColor: '#613EEA',
+    backgroundColor: nissanPrimaryBlue,
     paddingTop: Platform.OS === 'ios' ? heightPercentageToDP(6) : heightPercentageToDP(1),
     paddingBottom: spacings.Large1x,
     paddingHorizontal: Platform.OS === 'ios' ? spacings.xxxxLarge : spacings.xLarge,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    shadowColor: '#613EEA',
+    shadowColor: nissanPrimaryBlue,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 12,
@@ -1521,13 +1521,13 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightThin1x.fontWeight,
   },
   beautifulAddButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: nissanPrimaryBlue,
     width: 45,
     height: 45,
     borderRadius: 22.5,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#613EEA',
+    shadowColor: nissanPrimaryBlue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1549,7 +1549,7 @@ const styles = StyleSheet.create({
     borderColor: '#f0f0f0',
   },
   selectedSimpleCard: {
-    borderColor: '#613EEA',
+    borderColor: nissanPrimaryBlue,
     borderWidth: 2,
     backgroundColor: '#faf9ff',
   },
@@ -1589,7 +1589,7 @@ const styles = StyleSheet.create({
   },
   simpleSlotText: {
     fontSize: style.fontSizeExtraSmall.fontSize,
-    color: '#613EEA',
+    color: nissanPrimaryBlue,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   fullYardContainer: {
@@ -1623,7 +1623,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedText: {
-    color: '#613EEA',
+    color: nissanPrimaryBlue,
   },
   // Beautiful Empty State
   beautifulEmptyContainer: {
@@ -1637,7 +1637,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     padding: 10,
     marginBottom: 16,
-    shadowColor: '#613EEA',
+    shadowColor: nissanPrimaryBlue,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
@@ -1658,13 +1658,13 @@ const styles = StyleSheet.create({
     marginBottom: spacings.large,
   },
   emptyActionButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: nissanPrimaryBlue,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacings.large,
     paddingVertical: spacings.normal,
     borderRadius: 20,
-    shadowColor: '#613EEA',
+    shadowColor: nissanPrimaryBlue,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
@@ -1725,7 +1725,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   submitButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: nissanPrimaryBlue,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1796,7 +1796,7 @@ const styles = StyleSheet.create({
     marginTop: spacings.small,
   },
   testBatteryBtn: {
-    backgroundColor: '#613EEA',
+    backgroundColor: nissanPrimaryBlue,
     paddingHorizontal: spacings.medium,
     paddingVertical: spacings.small,
     borderRadius: 8,
@@ -1814,11 +1814,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F8FF',
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#613EEA',
+    borderLeftColor: '#003F65',
   },
   statusInfoText: {
     fontSize: 12,
-    color: '#613EEA',
+    color: nissanPrimaryBlue,
     fontWeight: '500',
     textAlign: 'center',
   },

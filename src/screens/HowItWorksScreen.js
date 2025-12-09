@@ -26,7 +26,7 @@ const HowItWorksScreen = ({ navigation }) => {
         {/* App Overview */}
         <View style={styles.section}>
           <View style={styles.iconHeader}>
-            <Ionicons name="information-circle" size={32} color="#613EEA" />
+            <Ionicons name="information-circle" size={32} color="#003F65" />
             <Text style={styles.sectionTitle}>How the App Works</Text>
           </View>
           <Text style={styles.description}>
@@ -37,7 +37,7 @@ const HowItWorksScreen = ({ navigation }) => {
         {/* Home Screen Flow */}
         <View style={styles.section}>
           <View style={styles.iconHeader}>
-            <Ionicons name="home" size={32} color="#613EEA" />
+            <Ionicons name="home" size={32} color="#003F65" />
             <Text style={styles.sectionTitle}>Home Screen</Text>
           </View>
           
@@ -360,7 +360,7 @@ const HowItWorksScreen = ({ navigation }) => {
 // Helper Components
 const FeatureItem = ({ icon, text }) => (
   <View style={styles.featureItem}>
-    <Ionicons name={icon} size={20} color="#613EEA" />
+    <Ionicons name={icon} size={20} color="#003F65" />
     <Text style={styles.featureText}>{text}</Text>
   </View>
 );
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
     padding: spacings.large,
     marginBottom: spacings.large,
     borderLeftWidth: 4,
-    borderLeftColor: '#613EEA',
+    borderLeftColor: '#003F65',
   },
   stepHeader: {
     flexDirection: 'row',
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacings.small2x,
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     marginTop: spacings.small,
     marginRight: spacings.small2x,
   },

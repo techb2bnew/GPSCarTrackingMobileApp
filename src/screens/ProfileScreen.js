@@ -357,7 +357,7 @@ const ProfileScreen = ({ navigation }) => {
               </View>
               <View style={styles.memberSinceRow}>
                 <View style={styles.memberSinceContainer}>
-                  <Ionicons name="calendar" size={13} color="#613EEA" />
+                  <Ionicons name="calendar" size={13} color="#003F65" />
                   <Text style={styles.memberSinceText}>Joined {joiningDate}</Text>
                 </View>
               </View>
@@ -385,14 +385,14 @@ const ProfileScreen = ({ navigation }) => {
             onPress={handleEditProfile}
             activeOpacity={0.7}
           >
-            <Ionicons name="pencil" size={20} color="#613EEA" />
+            <Ionicons name="pencil" size={20} color="#003F65" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="person-outline" size={20} color="#613EEA" />
+              <Ionicons name="person-outline" size={20} color="#003F65" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Full Name</Text>
@@ -402,7 +402,7 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="mail-outline" size={20} color="#613EEA" />
+              <Ionicons name="mail-outline" size={20} color="#003F65" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Email</Text>
@@ -412,7 +412,7 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="call-outline" size={20} color="#613EEA" />
+              <Ionicons name="call-outline" size={20} color="#003F65" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Phone</Text>
@@ -422,7 +422,7 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="calendar-outline" size={20} color="#613EEA" />
+              <Ionicons name="calendar-outline" size={20} color="#003F65" />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Joining Date</Text>
@@ -491,7 +491,7 @@ const ProfileScreen = ({ navigation }) => {
         icon: 'time-outline',
         label: 'Facility History',
         screen: 'ActivityHistoryScreen',
-        color: '#613EEA',
+        color: '#003F65',
         bgColor: '#F3F0FF',
       },
       {
@@ -561,7 +561,7 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
-                  <Ionicons name="person-circle-outline" size={28} color="#613EEA" />
+                  <Ionicons name="person-circle-outline" size={28} color="#003F65" />
                   <Text style={styles.modalTitle}>Edit Profile</Text>
                 </View>
                 <TouchableOpacity
@@ -579,7 +579,7 @@ const ProfileScreen = ({ navigation }) => {
               >
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="person-outline" size={16} color="#613EEA" /> Full Name
+                    <Ionicons name="person-outline" size={16} color="#003F65" /> Full Name
                   </Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="person" size={20} color="#999" style={styles.inputIcon} />
@@ -595,7 +595,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="mail-outline" size={16} color="#613EEA" /> Email Address
+                    <Ionicons name="mail-outline" size={16} color="#003F65" /> Email Address
                   </Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail" size={20} color="#999" style={styles.inputIcon} />
@@ -615,7 +615,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="call-outline" size={16} color="#613EEA" /> Phone Number
+                    <Ionicons name="call-outline" size={16} color="#003F65" /> Phone Number
                   </Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="call" size={20} color="#999" style={styles.inputIcon} />
@@ -632,7 +632,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="calendar-outline" size={16} color="#613EEA" /> Joining Date
+                    <Ionicons name="calendar-outline" size={16} color="#003F65" /> Joining Date
                   </Text>
                   <View style={[styles.inputWrapper, styles.disabledInputWrapper]}>
                     <Ionicons name="calendar" size={20} color="#999" style={styles.inputIcon} />
@@ -747,7 +747,7 @@ const ProfileScreen = ({ navigation }) => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#613EEA" />
+          <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       ) : (
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     marginVertical: spacings.large,
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -840,7 +840,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -907,7 +907,7 @@ const styles = StyleSheet.create({
   },
   memberSinceText: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#613EEA',
+    color: '#003F65',
     marginLeft: 6,
     fontWeight: style.fontWeightMedium1x.fontWeight,
   },
@@ -915,7 +915,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -932,10 +932,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacings.medium,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#613EEA',
+    borderColor: '#003F65',
   },
   editProfileButtonText: {
-    color: '#613EEA',
+    color: '#003F65',
     fontSize: style.fontSizeNormal.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
     marginLeft: 8,
@@ -1016,7 +1016,7 @@ const styles = StyleSheet.create({
   statCardSmall: {
     backgroundColor: whiteColor,
     borderRadius: 12,
-    padding: spacings.small1x,
+    padding: spacings.large,
     width: '31.5%',
     alignItems: 'center',
     borderWidth: 1,
@@ -1044,13 +1044,13 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: style.fontSizeLarge.fontSize,
     fontWeight: style.fontWeightBlack.fontWeight,
-    color: '#613EEA',
+    color: '#003F65',
     marginBottom: 4,
   },
   statNumberLarge: {
     fontSize: style.fontSizeLarge2x.fontSize,
     fontWeight: style.fontWeightBlack.fontWeight,
-    color: '#613EEA',
+    color: '#003F65',
     marginBottom: 6,
   },
   statLabelSmall: {
@@ -1216,8 +1216,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 15,
     borderRadius: 12,
-    backgroundColor: '#613EEA',
-    shadowColor: '#613EEA',
+    backgroundColor: '#003F65',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1306,7 +1306,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     backgroundColor: '#e0e0e0',
-    padding: spacings.small1x,
+    padding: spacings.large,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -1319,7 +1319,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     backgroundColor: 'red',
-    padding: spacings.small1x,
+    padding: spacings.large,
     borderRadius: 8,
     alignItems: 'center',
   },

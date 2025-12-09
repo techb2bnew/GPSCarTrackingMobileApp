@@ -820,7 +820,7 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                             {selectedVehicle && (
                                 <View style={styles.tooltipContent}>
                                     <View style={styles.tooltipRow}>
-                                        <Ionicons name="car" size={20} color="#007AFF" />
+                                        <Ionicons name="car" size={20} color="#003F65" />
                                         <Text style={styles.tooltipLabel}>VIN:</Text>
                                         <Text style={styles.tooltipValue}>{selectedVehicle.vin || 'N/A'}</Text>
                                     </View>

@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   yardInfo: {
     fontSize: style.fontSizeSmall2x.fontSize,
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   slotInfo: {

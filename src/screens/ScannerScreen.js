@@ -14,7 +14,7 @@ import { widthPercentageToDP as wp } from '../utils';
 import { supabase } from '../lib/supabaseClient';
 import { checkChipOnlineStatus } from '../utils/chipStatusAPI';
 
-const LICENSE = 't0106HAEAAHzeSbXnzxTF1q/CibMNJ9Rs/d+Mr1go8Ei1Ca/DsVz7oHBgmTAqPAI1+Qm+mZuykTKpLGSMnYRSb7/O9fLWl9kAtwG6uNlxzb0WeKN3Tqp9nqNejm+eTuH8dyp9nW5WXF42iKU56Q==;t0109HAEAALVBi/VLPlWfzPA0RQBXzFhWyqtHKnUpwCzsrabGTAEfMsiO/36D/SvYGIPrZuRi2U6ptBwKu64cW9vsuRURDBtAXABOA0y1+Vija4Vf9Ix9hufnperXcc/VKZL/nfK7M81aKtsBi1857Q=='
+const LICENSE = 't0104HAEAAHnkipevQ7nbqRETi/D3IBgFzyPBzKTpUMI6mdI1X8qE2N4Lk3Ss8P45mbE8M4T1LsEjYexiXT8H58OZPeJg0ck8BhjqZteaJm3wRp/cVHte1Tm+6Z0i+O+Uf52RNGZTHBJnOtc=;t0109HAEAAKy8sMF0BJ13Hx/FS8NVevExxUSUaMrYvO120w2tlfniJvq8csa/uPaDjz21w2cmqG4PEPHbTJt1VdEpZwxcLkIDYgC4DDDF5n1NRRvc0Sv2Hz6fVw2OZ0anyLx3yp/OnDRXUzkBHMg64w=='
 const ScannerScreen = ({ navigation, route }) => {
   const returnTo = route?.params?.returnTo;
   const yardId = route?.params?.yardId;

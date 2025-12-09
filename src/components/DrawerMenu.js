@@ -159,10 +159,10 @@ export default function DrawerMenu({
           <Ionicons
             name="log-out-outline"
             size={20}
-            color="#613EEA"
+            color="#003F65"
             style={{ marginRight: 10 }}
           />
-          <Text style={{ color: '#613EEA' }}>Logout</Text>
+          <Text style={{ color: '#003F65' }}>Logout</Text>
         </TouchableOpacity>
       </View>
 
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     height: 80,
     width: 80,
     borderRadius: 40,
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     backgroundColor: 'red',
-    padding: spacings.normal,
+    padding: spacings.large,
     borderRadius: 5,
     alignItems: 'center',
   },

@@ -1,52 +1,3 @@
-// import React from 'react';
-// import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
-// import { INTRO_1 } from '../../assests/images';
-
-// const { width, height } = Dimensions.get('window');
-
-// const RelaxView = ({ animationController }) => {
-//   return (
-//     <View style={styles.container}>
-//       <Image
-//         source={INTRO_1} // replace with your image
-//         style={styles.image}
-//         resizeMode="contain"
-//       />
-//       <Text style={styles.title}>Best Parking Spots</Text>
-//       <Text style={styles.subtitle}>
-//       Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-//       </Text>
-//     </View>
-//   );
-// };
-
-// export default RelaxView;
-
-// const styles = StyleSheet.create({
-//   container: {
-//     alignItems: 'center',
-//     paddingHorizontal: 20,
-//   },
-//   image: {
-//     width: width * 0.7,
-//     height: height * 0.4,
-//     marginBottom: 20,
-//   },
-//   title: {
-//     fontSize: 24,
-//     fontWeight: '600',
-//     color: '#130057',
-//     textAlign: 'center',
-//     marginBottom: 10,
-//   },
-//   subtitle: {
-//     fontSize: style.fontSizeNormal.fontSize,
-//     color: '#888',
-//     textAlign: 'center',
-//   },
-// });
-
-
 import React from 'react';
 import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
@@ -57,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { INTRO_1 } from '../../assests/images';
 import { spacings, style } from '../../constants/Fonts';
+import { nissanPrimaryBlue } from '../../constants/Color';
 
 const { width, height } = Dimensions.get('window');
 
@@ -105,7 +57,7 @@ const RelaxView = () => {
         Best Parking Spots
       </Animated.Text>
       <Animated.Text style={[styles.subtitle, subtitleAnimStyle]}>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        Find the best parking spots near you with real-time availability and easy navigation.
       </Animated.Text>
     </View>
   );
@@ -126,7 +78,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: style.fontSizeLargeXX.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
-    color: '#130057',
+    color: nissanPrimaryBlue,
     textAlign: 'center',
     marginBottom: 10,
   },

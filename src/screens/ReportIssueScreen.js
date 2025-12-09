@@ -154,7 +154,7 @@ const ReportIssueScreen = ({ navigation }) => {
           {/* Info Card */}
           <View style={styles.infoCard}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="information-circle" size={24} color="#613EEA" />
+              <Ionicons name="information-circle" size={24} color="#003F65" />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoTitle}>Need Help?</Text>
@@ -169,7 +169,7 @@ const ReportIssueScreen = ({ navigation }) => {
             {/* Issue Title */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                <Ionicons name="alert-circle-outline" size={16} color="#613EEA" /> Issue Title *
+                <Ionicons name="alert-circle-outline" size={16} color="#003F65" /> Issue Title *
               </Text>
               <View style={[styles.inputWrapper, errors.issueTitle && styles.inputError]}>
                 <Ionicons name="create-outline" size={20} color="#999" style={styles.inputIcon} />
@@ -196,7 +196,7 @@ const ReportIssueScreen = ({ navigation }) => {
             {/* Issue Category (Optional) */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                <Ionicons name="list-outline" size={16} color="#613EEA" /> Category (Optional)
+                <Ionicons name="list-outline" size={16} color="#003F65" /> Category (Optional)
               </Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="folder-outline" size={20} color="#999" style={styles.inputIcon} />
@@ -214,7 +214,7 @@ const ReportIssueScreen = ({ navigation }) => {
             {/* Issue Description */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                <Ionicons name="document-text-outline" size={16} color="#613EEA" /> Issue Description *
+                <Ionicons name="document-text-outline" size={16} color="#003F65" /> Issue Description *
               </Text>
               <View style={[styles.inputWrapper, styles.textAreaWrapper, errors.issueDescription && styles.inputError]}>
                 <TextInput
@@ -329,12 +329,12 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: style.fontSizeNormal.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#613EEA',
+    color: '#003F65',
     marginBottom: spacings.xsmall,
   },
   infoText: {
     fontSize: style.fontSizeSmall1x.fontSize,
-    color: '#613EEA',
+    color: '#003F65',
     lineHeight: 20,
   },
   formSection: {
@@ -416,14 +416,14 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightThin1x.fontWeight,
   },
   submitButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacings.xLarge,
     borderRadius: 12,
     marginTop: spacings.large,
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

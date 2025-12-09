@@ -123,7 +123,7 @@ export default function NotificationScreen({navigation}) {
             <TouchableOpacity
               onPress={onRefresh}
               style={styles.refreshButton}>
-              <Ionicons name="refresh" size={20} color="#613EEA" />
+              <Ionicons name="refresh" size={20} color="#003F65" />
             </TouchableOpacity>
             {notifications.length > 0 && (
               <TouchableOpacity

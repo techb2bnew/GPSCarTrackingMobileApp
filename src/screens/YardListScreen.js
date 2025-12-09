@@ -95,7 +95,7 @@ const YardListScreen = ({ navigation }) => {
         }}>
         <View style={styles.cardContent}>
           <View style={styles.iconContainer}>
-            <Ionicons name="business" size={24} color="#613EEA" />
+            <Ionicons name="business" size={24} color="#003F65" />
           </View>
           <View style={styles.textContainer}>
             <Text style={styles.name}>{item.name}</Text>
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   },
   slots: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#613EEA',
+    color: '#003F65',
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   arrowContainer: {

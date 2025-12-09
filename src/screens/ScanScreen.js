@@ -183,7 +183,7 @@ export default function ScanScreen({ navigation, route }) {
                 <Ionicons
                   name="add-circle"
                   size={32}
-                  color="#613EEA"
+                  color="#003F65"
                   style={styles.cardIcon}
                 />
               </View>
@@ -198,7 +198,7 @@ export default function ScanScreen({ navigation, route }) {
 
               {/* Arrow Icon */}
               <View style={styles.arrowContainer}>
-                <Ionicons name="chevron-forward" size={20} color="#613EEA" />
+                <Ionicons name="chevron-forward" size={20} color="#003F65" />
               </View>
             </View>
           </TouchableOpacity>
@@ -222,7 +222,7 @@ export default function ScanScreen({ navigation, route }) {
                 <Ionicons
                   name="car-sport"
                   size={30}
-                  color="#613EEA"
+                  color="#003F65"
                   style={styles.cardIcon}
                 />
               </View>
@@ -237,7 +237,7 @@ export default function ScanScreen({ navigation, route }) {
 
               {/* Arrow Icon */}
               <View style={styles.arrowContainer}>
-                <Ionicons name="chevron-forward" size={20} color="#613EEA" />
+                <Ionicons name="chevron-forward" size={20} color="#003F65" />
               </View>
             </View>
 
@@ -324,7 +324,7 @@ export default function ScanScreen({ navigation, route }) {
 
             <View style={styles.detailSection}>
               <View style={styles.detailRow}>
-                <Ionicons name="information-circle" size={24} color="#613EEA" />
+                <Ionicons name="information-circle" size={24} color="#003F65" />
                 <View style={styles.detailTextContainer}>
                   <Text style={styles.detailLabel}>VIN Number</Text>
                   <Text style={styles.detailValue}>{foundVehicle?.vin}</Text>
@@ -332,7 +332,7 @@ export default function ScanScreen({ navigation, route }) {
               </View>
 
               <View style={styles.detailRow}>
-                <Ionicons name="car" size={24} color="#613EEA" />
+                <Ionicons name="car" size={24} color="#003F65" />
                 <View style={styles.detailTextContainer}>
                   <Text style={styles.detailLabel}>Make </Text>
                   <Text style={styles.detailValue}>{foundVehicle?.make} </Text>
@@ -340,7 +340,7 @@ export default function ScanScreen({ navigation, route }) {
               </View>
 
               <View style={styles.detailRow}>
-                <Ionicons name="calendar" size={24} color="#613EEA" />
+                <Ionicons name="calendar" size={24} color="#003F65" />
                 <View style={styles.detailTextContainer}>
                   <Text style={styles.detailLabel}>Model</Text>
                   <Text style={styles.detailValue}>{foundVehicle?.model}</Text>
@@ -358,7 +358,7 @@ export default function ScanScreen({ navigation, route }) {
               )}
 
               <View style={styles.detailRow}>
-                <Ionicons name="business" size={24} color="#613EEA" />
+                <Ionicons name="business" size={24} color="#003F65" />
                 <View style={styles.detailTextContainer}>
                   <Text style={styles.detailLabel}>Parking Yard</Text>
                   <Text style={styles.detailValue}>{foundYardName}</Text>
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     minHeight: hp(13),
     // Enhanced Shadow for prominence
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 100,
   },
   vinCardBackground: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
   },
   chipCardBackground: {
     backgroundColor: '#28a745',
@@ -731,11 +731,11 @@ const styles = StyleSheet.create({
     width: hp(7.5),
     height: hp(7.5),
     borderRadius: hp(3.75),
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     alignItems: 'center',
     justifyContent: 'center',
     // Enhanced Shadow
-    shadowColor: '#613EEA',
+    shadowColor: '#003F65',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
@@ -811,7 +811,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   closeButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -846,7 +846,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   viewDetailsButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -926,7 +926,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   yesButton: {
-    backgroundColor: '#613EEA',
+    backgroundColor: '#003F65',
   },
   noButtonText: {
     color: '#666',

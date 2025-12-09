@@ -58,7 +58,7 @@ const CareView = ({ triggerAnimation }) => {
       </Animated.Text>
 
       <Animated.Text style={styles.subtitle}>
-        Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        Navigate quickly to your destination with smart routing and live traffic updates.
       </Animated.Text>
     </Animated.View>
   );
