@@ -398,7 +398,7 @@
 
 // export default ApiList;
 
-const GOOGLE_MAPS_APIKEY = 'AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI'; // 👈 add your Google Maps API key
+const GOOGLE_MAPS_APIKEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE'; // 👈 add your Google Maps API key
 // import React, {useEffect, useRef, useState} from 'react';
 // import {
 //   View,

@@ -1656,7 +1656,7 @@
 //             key={`route-${currentLocation.latitude}-${currentLocation.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
 //             origin={currentLocation}
 //             destination={carLocation}
-//             apikey="AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI"
+//             apikey="AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE"
 //             strokeWidth={3}
 //             strokeColor="#f40d0dff"
 //             optimizeWaypoints={true}
@@ -2550,6 +2550,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const mapRef = useRef(null);
   const mqttLocationCallbackRef = useRef(null); // For refresh button MQTT callback
   const [isRefreshingLocation, setIsRefreshingLocation] = useState(false);
+  const watchIdRef = useRef(null); // For storing watchPosition ID
 
   // 🔒 LOCK VARIABLE: To prevent auto-zoom loop (Fixed by Ref)
   const hasZoomedRef = useRef(false);
@@ -3072,10 +3073,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     const chipId = getChipId();
     
     // Skip if chip ID ends with "39d" (using static coordinates)
-    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
-      console.log('🧪 [TEST] getCurrentLocationAlternative skipped for static chip');
-      return;
-    }
+    // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+    //   console.log('🧪 [TEST] getCurrentLocationAlternative skipped for static chip');
+    //   return;
+    // }
 
     // Normal dynamic location fetching for other chips
     Geolocation.getCurrentPosition(
@@ -3107,10 +3108,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     const chipId = getChipId();
     
     // Skip if chip ID ends with "39d" (using static coordinates)
-    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
-      console.log('🧪 [TEST] getCurrentLocation skipped for static chip');
-      return;
-    }
+    // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+    //   console.log('🧪 [TEST] getCurrentLocation skipped for static chip');
+    //   return;
+    // }
 
     // Normal dynamic location fetching for other chips
     Geolocation.getCurrentPosition(
@@ -3143,10 +3144,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     const chipId = getChipId();
     
     // Skip if chip ID ends with "39d" (using static coordinates)
-    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
-      console.log('🧪 [TEST] getCurrentLocationThirdAttempt skipped for static chip');
-      return;
-    }
+    // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+    //   console.log('🧪 [TEST] getCurrentLocationThirdAttempt skipped for static chip');
+    //   return;
+    // }
 
     // Normal dynamic location fetching for other chips
     Geolocation.getCurrentPosition(
@@ -3170,59 +3171,59 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   };
 
   // 🧪 TESTING: Set static coordinates ONLY for chip ID ending with "39d"
-  useEffect(() => {
-    const chipId = getChipId();
+  // useEffect(() => {
+  //   const chipId = getChipId();
     
-    // Only use static coordinates if chip ID ends with "39d"
-    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
-      // Static test coordinates
-      const testCurrentLocation = {
-        latitude: 35.969658,
-        longitude: -86.492557
-      };
-      const testCarLocation = {
-        latitude: 35.969036,
-        longitude: -86.493105
-      };
+  //   // Only use static coordinates if chip ID ends with "39d"
+  //   if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+  //     // Static test coordinates
+  //     const testCurrentLocation = {
+  //       latitude: 35.969658,
+  //       longitude: -86.492557
+  //     };
+  //     const testCarLocation = {
+  //       latitude: 35.969036,
+  //       longitude: -86.493105
+  //     };
 
-      // Set static locations for testing - FORCE SET
-      setCurrentLocation(testCurrentLocation);
-      setCarLocation(testCarLocation);
-      setChipLocation(testCarLocation);
+  //     // Set static locations for testing - FORCE SET
+  //     setCurrentLocation(testCurrentLocation);
+  //     setCarLocation(testCarLocation);
+  //     setChipLocation(testCarLocation);
 
-      // Set saved location for testing
-      setSavedLocation({
-        latitude: testCarLocation.latitude,
-        longitude: testCarLocation.longitude,
-        timestamp: Date.now(),
-        lastUpdated: new Date().toLocaleTimeString()
-      });
+  //     // Set saved location for testing
+  //     setSavedLocation({
+  //       latitude: testCarLocation.latitude,
+  //       longitude: testCarLocation.longitude,
+  //       timestamp: Date.now(),
+  //       lastUpdated: new Date().toLocaleTimeString()
+  //     });
 
-      // Calculate distance for testing
-      const distance = calculateDistance(testCurrentLocation, testCarLocation);
-      setDistanceToCar(distance);
+  //     // Calculate distance for testing
+  //     const distance = calculateDistance(testCurrentLocation, testCarLocation);
+  //     setDistanceToCar(distance);
 
-      // Set loading to false so map can render
-      setIsLoading(false);
+  //     // Set loading to false so map can render
+  //     setIsLoading(false);
 
-      // Force map zoom after a short delay
-      setTimeout(() => {
-        if (mapRef.current) {
-          const region = calculateMapRegion(testCurrentLocation, testCarLocation);
-          mapRef.current.animateToRegion(region, 1000);
-          hasZoomedRef.current = true;
-        }
-      }, 1000);
+  //     // Force map zoom after a short delay
+  //     setTimeout(() => {
+  //       if (mapRef.current) {
+  //         const region = calculateMapRegion(testCurrentLocation, testCarLocation);
+  //         mapRef.current.animateToRegion(region, 1000);
+  //         hasZoomedRef.current = true;
+  //       }
+  //     }, 1000);
 
-      console.log('🧪 [TEST] Static coordinates set for chip ending with 39d');
-      console.log('🧪 [TEST] Chip ID:', chipId);
-      console.log('🧪 [TEST] Current Location:', testCurrentLocation);
-      console.log('🧪 [TEST] Car Location:', testCarLocation);
-      console.log('🧪 [TEST] Distance:', distance, 'meters');
-    } else {
-      console.log('📍 [DYNAMIC] Using dynamic coordinates for chip:', chipId);
-    }
-  }, [vehicle?.chipId, vehicle?.chip]);
+  //     console.log('🧪 [TEST] Static coordinates set for chip ending with 39d');
+  //     console.log('🧪 [TEST] Chip ID:', chipId);
+  //     console.log('🧪 [TEST] Current Location:', testCurrentLocation);
+  //     console.log('🧪 [TEST] Car Location:', testCarLocation);
+  //     console.log('🧪 [TEST] Distance:', distance, 'meters');
+  //   } else {
+  //     console.log('📍 [DYNAMIC] Using dynamic coordinates for chip:', chipId);
+  //   }
+  // }, [vehicle?.chipId, vehicle?.chip]);
 
   // Check chip online status
   useEffect(() => {
@@ -3248,14 +3249,14 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       const chipId = getChipId();
       
       // Skip dynamic initialization if chip ID ends with "39d" (using static coordinates)
-      if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
-        console.log('🧪 [TEST] Skipping dynamic initialization for static chip');
-        loadChipHistory();
-        loadVehicleHistory();
-        setIsLoading(false);
-        setLastUpdateTime(new Date().toLocaleTimeString());
-        return;
-      }
+      // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+      //   console.log('🧪 [TEST] Skipping dynamic initialization for static chip');
+      //   loadChipHistory();
+      //   loadVehicleHistory();
+      //   setIsLoading(false);
+      //   setLastUpdateTime(new Date().toLocaleTimeString());
+      //   return;
+      // }
 
       // Normal dynamic initialization for other chips
       if (chipId) {
@@ -3325,25 +3326,72 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         setMqttClient(null);
         setMqttConnected(false);
       }
+      // Clear location watch when component unmounts or chip changes
+      if (watchIdRef.current !== null) {
+        Geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
     };
   }, [vehicle?.chipId, vehicle?.chip]);
 
-  // Update location every 30s - skip for chip ending with "39d"
+  // Watch location continuously - updates in real-time as user moves
   useEffect(() => {
     const chipId = getChipId();
     
-    // Skip periodic updates if chip ID ends with "39d" (using static coordinates)
-    if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
-      return;
+    // Skip location watching if chip ID ends with "39d" (using static coordinates)
+    // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
+    //   return;
+    // }
+
+    // Clear any existing watch before starting a new one
+    if (watchIdRef.current !== null) {
+      Geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
     }
 
-    // Normal periodic updates for other chips
+    // Start watching location if permission is granted
     if (!locationPermission) return;
-    const locationInterval = setInterval(() => {
-      if (locationPermission) getCurrentLocation();
-    }, 30000);
-    return () => clearInterval(locationInterval);
-  }, [locationPermission, vehicle?.chipId, vehicle?.chip]);
+
+    console.log('📍 [LOCATION] Starting continuous location tracking...');
+    
+    watchIdRef.current = Geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const newCurrentLocation = { latitude, longitude };
+        console.log('📍 [LOCATION] Location updated:', { latitude, longitude });
+        setCurrentLocation(newCurrentLocation);
+        setLastUpdateTime(new Date().toLocaleTimeString());
+        
+        // Calculate distance to car if car location is available
+        if (carLocation) {
+          const distance = calculateDistance(newCurrentLocation, carLocation);
+          setDistanceToCar(distance);
+        }
+      },
+      (error) => {
+        console.error('❌ [LOCATION] Error watching location:', error);
+        // On error, fall back to getCurrentLocation
+        if (locationPermission) {
+          getCurrentLocation();
+        }
+      },
+      {
+        enableHighAccuracy: true, // Use high accuracy for real-time tracking
+        timeout: 15000,
+        maximumAge: 0, // Always get fresh location
+        distanceFilter: 5, // Update every 5 meters of movement
+      }
+    );
+
+    // Cleanup: clear watch when component unmounts or dependencies change
+    return () => {
+      if (watchIdRef.current !== null) {
+        console.log('📍 [LOCATION] Stopping location tracking...');
+        Geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [locationPermission, vehicle?.chipId, vehicle?.chip, carLocation]);
 
   // ✅ 1. COMPASS & MAP ROTATION LOGIC
   useEffect(() => {
@@ -3645,7 +3693,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     try {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
       const config = {
-        license: 't0104HAEAAHnkipevQ7nbqRETi/D3IBgFzyPBzKTpUMI6mdI1X8qE2N4Lk3Ss8P45mbE8M4T1LsEjYexiXT8H58OZPeJg0ck8BhjqZteaJm3wRp/cVHte1Tm+6Z0i+O+Uf52RNGZTHBJnOtc=;t0109HAEAAKy8sMF0BJ13Hx/FS8NVevExxUSUaMrYvO120w2tlfniJvq8csa/uPaDjz21w2cmqG4PEPHbTJt1VdEpZwxcLkIDYgC4DDDF5n1NRRvc0Sv2Hz6fVw2OZ0anyLx3yp/OnDRXUzkBHMg64w==',
+        license: 't0104HAEAAG7Dm4Jh1NwYjEncE1DwQ3PoLN8IGycyCDZYryphPYFWpnrP1k0QClW8V7xicZuouoY1Tws36ry55YNMpTeLlCEYBgh1s2dNrgO+6MhL9We24VgzO8VE/HYqrs7s7gnTDXGhObw=;t0108HAEAAFPKsrZ27uslPcr2wdyQOHBDc6EGjtH5bSaSp8NEtcRQ9KWp/dI0WLG9Nu0aAf0FsoA6E/18gSqVAQeI1SECiZYdEBPAMMCSm/e1hHb4R0fsN1yfWYfjntkpJuKxU3531ogomD5/QDnK',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -3741,8 +3789,8 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           { transform: [{ rotate: `${rotation}deg` }] }
         ]}
       >
-        {/* Using Arrow Up because 0 deg means "Straight Ahead" */}
-        <Ionicons name="arrow-up" size={24} color="#ff0000ff" style={{ marginBottom: 35 }} />
+        {/* Blue Base Design - Similar to heading arrow */}
+        <View style={[styles.directionArrowInner,{marginBottom: 35}]} />
       </View>
     );
   };
@@ -3851,7 +3899,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             onPress={handleCurrentLocationMarkerClick}
           >
             <View style={styles.currentLocationContainer}>
-              {renderHeadingDirection()}
+              {/* {renderHeadingDirection()} */}
               <View style={styles.currentLocationPoint} />
 
               {showUserIcon && (
@@ -3870,6 +3918,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             coordinate={carLocation}
             title="Vehicle Location"
             description={`${vehicle?.vin || 'Test Vehicle'}`}
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat={false}
+            tracksViewChanges={false}
           >
             <View style={styles.carMarkerContainer}>
               {savedLocation && (
@@ -3892,7 +3943,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             key={`route-${currentLocation.latitude}-${currentLocation.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
             origin={currentLocation}
             destination={carLocation}
-            apikey="AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI"
+            apikey="AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE"
             strokeWidth={3}
             strokeColor="#f40d0dff"
             optimizeWaypoints={true}
@@ -4461,6 +4512,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 60,
     height: 60,
+    zIndex: 1000,
   },
   currentLocationPoint: {
     width: 18,
@@ -4474,7 +4526,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 6,
     elevation: 6,
-    zIndex: 999
+    zIndex: 1001
   },
   currentLocationMarker: {
     position: 'absolute',
@@ -4499,7 +4551,17 @@ const styles = StyleSheet.create({
     height: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 3,
+    zIndex: 1,
+  },
+  directionArrowInner: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#003F65',
   },
   carMarkerContainer: {
     alignItems: 'center',

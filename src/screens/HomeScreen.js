@@ -953,7 +953,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   const handleOpenAR = () => {
     // Send static coordinates instead of yard center
     // Static location 500m away in Mohali
-    const target = { latitude: 30.713452, longitude: 76.691131 };
+    const target = { latitude: 30.711312, longitude: 76.693547 };
     navigation.navigate('ARNavigationScreen', { target });
   };
 
@@ -992,6 +992,13 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </View>
 
           <View style={styles.headerIcons}>
+            {/* AR Navigation Button */}
+            <TouchableOpacity
+              onPress={handleOpenAR}
+              style={styles.iconBtn}>
+              <Ionicons name="navigate" size={24} color="#fff" />
+            </TouchableOpacity>
+
             {/* Notification Bell */}
             <TouchableOpacity
               onPress={() => navigation.navigate('NotificationScreen')}

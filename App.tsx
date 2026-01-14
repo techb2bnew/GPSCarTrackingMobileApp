@@ -83,8 +83,8 @@ function AppContent({ setCheckUser }: AppContentProps) {
         await requestLocationPermission({
           title: 'Location Permission',
           message: 'This app needs access to your location to show your position on the map.',
-          onGranted: () => {},
-          onDenied: () => {},
+          onGranted: () => { },
+          onDenied: () => { },
         });
       } catch (error) {
         const err: any = error;
@@ -157,7 +157,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
   useEffect(() => {
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       console.log('📨 [FCM] Foreground message received:', JSON.stringify(remoteMessage));
-      
+
       // Display notification even when app is open
       displayForegroundNotification(remoteMessage);
 
@@ -273,7 +273,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
               data,
             }),
           );
-          
+
           // Also sync any other pending background notifications
           await syncBackgroundNotifications();
         } catch (error) {
@@ -325,7 +325,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
               data,
             }),
           );
-          
+
           // Also sync any other pending background notifications
           setTimeout(async () => {
             await syncBackgroundNotifications();
@@ -445,7 +445,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
             <Text style={styles.splashSubtitle}>Track Your Vehicles</Text>
             <Text style={styles.splashSubtitle}>Monitor & Manage Anytime</Text>
           </Animated.View>
-          
+
           {/* Progress Bar */}
           <View style={styles.progressBarContainer}>
             <Animated.View style={[styles.progressBar, progressBarStyle]} />
@@ -499,9 +499,17 @@ function AppContent({ setCheckUser }: AppContentProps) {
           </View> */}
         </View>
       ) : (
-        <NavigationContainer>
-          {!userData ? <AuthStack /> : <MainTabNavigator setCheckUser={setCheckUser} />}
-        </NavigationContainer>
+        Platform.OS === 'android' ? (
+          <SafeAreaView style={{ flex: 1 }}>
+            <NavigationContainer>
+              {!userData ? <AuthStack /> : <MainTabNavigator setCheckUser={setCheckUser} />}
+            </NavigationContainer>
+          </SafeAreaView>
+        ) : (
+          <NavigationContainer>
+            {!userData ? <AuthStack /> : <MainTabNavigator setCheckUser={setCheckUser} />}
+          </NavigationContainer>
+        )
       )}
     </View>
   );

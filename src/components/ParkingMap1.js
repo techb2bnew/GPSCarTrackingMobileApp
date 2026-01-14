@@ -1,4 +1,4 @@
-const GOOGLE_MAPS_APIKEY = 'AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI'; // 👈 Add your API Key
+const GOOGLE_MAPS_APIKEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE'; // 👈 Add your API Key
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -365,7 +365,7 @@ export default ParkingMap1;
 // import Ionicons from 'react-native-vector-icons/Ionicons';
 // import { getActiveChips } from '../utils/chipManager';
 
-// const GOOGLE_MAPS_APIKEY = 'AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI';
+// const GOOGLE_MAPS_APIKEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE';
 
 // const ParkingMap1 = () => {
 //   const mapRef = useRef(null);

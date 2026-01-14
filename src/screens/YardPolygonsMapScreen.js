@@ -95,6 +95,43 @@ const getRegionFromPolygons = (polygons) => {
     };
 };
 
+// Get map region from vehicle locations
+const getRegionFromVehicleLocations = (vehicleLocations) => {
+    if (!vehicleLocations || Object.keys(vehicleLocations).length === 0) {
+        return null;
+    }
+
+    let minLat = Number.POSITIVE_INFINITY;
+    let maxLat = Number.NEGATIVE_INFINITY;
+    let minLng = Number.POSITIVE_INFINITY;
+    let maxLng = Number.NEGATIVE_INFINITY;
+
+    Object.values(vehicleLocations).forEach(location => {
+        if (location && typeof location.latitude === 'number' && typeof location.longitude === 'number') {
+            minLat = Math.min(minLat, location.latitude);
+            maxLat = Math.max(maxLat, location.latitude);
+            minLng = Math.min(minLng, location.longitude);
+            maxLng = Math.max(maxLng, location.longitude);
+        }
+    });
+
+    if (!isFinite(minLat) || !isFinite(maxLat) || !isFinite(minLng) || !isFinite(maxLng)) {
+        return null;
+    }
+
+    const latitude = (minLat + maxLat) / 2;
+    const longitude = (minLng + maxLng) / 2;
+    const latDelta = Math.max((maxLat - minLat) * 1.2, 0.001);
+    const lonDelta = Math.max((maxLng - minLng) * 1.2, 0.001);
+
+    return {
+        latitude,
+        longitude,
+        latitudeDelta: latDelta,
+        longitudeDelta: lonDelta,
+    };
+};
+
 // Convert coordinates from {lat, lng} to {latitude, longitude} format for MapView
 const convertCoordinates = (coordinates) => {
     if (!coordinates || !Array.isArray(coordinates)) {
@@ -114,7 +151,7 @@ const geocodeAddress = async (address) => {
             return null;
         }
 
-        const API_KEY = 'AIzaSyBXNyT9zcGdvhAUCUEYTm6e_qPw26AOPgI';
+        const API_KEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE';
         const encodedAddress = encodeURIComponent(address.trim());
         const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${API_KEY}`;
 
@@ -162,9 +199,13 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
     const [mqttClient, setMqttClient] = useState(null);
     const [mqttConnected, setMqttConnected] = useState(false);
     const [mapType, setMapType] = useState('standard'); // 'satellite' or 'standard'
+    const [isRefreshingLocations, setIsRefreshingLocations] = useState(false);
     
     // Buffer for MQTT lat/lon data per chip
     const mqttBufferRef = useRef({}); // { chipId: { lat: null, lon: null } }
+    
+    // Callbacks for refresh button - wait for MQTT location per chip
+    const mqttLocationCallbacksRef = useRef({}); // { chipId: (location) => void }
 
     // Fetch polygons from facility_polygons table
     const loadPolygons = async () => {
@@ -442,16 +483,27 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                         if (!isNaN(latitude) && !isNaN(longitude)) {
                             console.log(`🚗 [YardPolygonsMapScreen] MQTT location update for chip ${chipId}:`, { latitude, longitude });
 
+                            const locationData = {
+                                latitude,
+                                longitude,
+                                lastUpdate: new Date().toISOString(),
+                            };
+
                             // Update state
                             setVehicleLocations(prev => ({
                                 ...prev,
                                 [chipId]: {
                                     ...prev[chipId],
-                                    latitude,
-                                    longitude,
-                                    lastUpdate: new Date().toISOString(),
+                                    ...locationData,
                                 }
                             }));
+
+                            // If refresh callback is waiting, trigger it
+                            if (mqttLocationCallbacksRef.current[chipId]) {
+                                console.log(`📍 [YardPolygonsMapScreen] 🔄 Triggering refresh callback for chip ${chipId}`);
+                                mqttLocationCallbacksRef.current[chipId](locationData);
+                                mqttLocationCallbacksRef.current[chipId] = null;
+                            }
 
                             // Update database
                             try {
@@ -582,6 +634,164 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
         setSelectedVehicle(null);
     };
 
+    // Handle vehicle count badge click - focus on vehicles
+    const handleVehicleBadgeClick = () => {
+        if (!mapRef.current || Object.keys(vehicleLocations).length === 0) {
+            return;
+        }
+
+        const vehicleRegion = getRegionFromVehicleLocations(vehicleLocations);
+        
+        if (vehicleRegion) {
+            console.log('🚗 [YardPolygonsMapScreen] Focusing on vehicles:', vehicleRegion);
+            mapRef.current.animateToRegion(vehicleRegion, 1000);
+        } else {
+            console.log('⚠️ [YardPolygonsMapScreen] Could not calculate vehicle region');
+        }
+    };
+
+    // Handle refresh locations for all vehicles
+    const handleRefreshLocations = async () => {
+        console.log('🔄 [REFRESH] Refresh locations button clicked');
+        
+        if (vehicles.length === 0) {
+            console.log('⚠️ [REFRESH] No vehicles to refresh');
+            return;
+        }
+
+        setIsRefreshingLocations(true);
+
+        try {
+            // Get all chip IDs
+            const chipIds = vehicles
+                .filter(v => v.chip && v.chip.trim() !== '')
+                .map(v => v.chip);
+
+            if (chipIds.length === 0) {
+                console.log('⚠️ [REFRESH] No chips found');
+                setIsRefreshingLocations(false);
+                return;
+            }
+
+            console.log(`🔄 [REFRESH] Refreshing locations for ${chipIds.length} chips:`, chipIds);
+
+            // Step 1: Try to get locations from MQTT (15 seconds timeout per chip)
+            const mqttPromises = chipIds.map(chipId => {
+                return new Promise((resolve) => {
+                    // Set callback for when MQTT location is received
+                    mqttLocationCallbacksRef.current[chipId] = (location) => {
+                        console.log(`📍 [REFRESH] ✅ MQTT location received for chip ${chipId}:`, location);
+                        resolve({ chipId, location, source: 'mqtt' });
+                    };
+
+                    // Timeout after 15 seconds
+                    setTimeout(() => {
+                        if (mqttLocationCallbacksRef.current[chipId]) {
+                            mqttLocationCallbacksRef.current[chipId] = null;
+                            console.log(`📍 [REFRESH] ⏰ MQTT timeout for chip ${chipId}`);
+                            resolve({ chipId, location: null, source: 'timeout' });
+                        }
+                    }, 15000);
+                });
+            });
+
+            // Disconnect and reconnect MQTT to get fresh data
+            if (mqttClient) {
+                console.log('📍 [REFRESH] Reconnecting MQTT to fetch fresh locations...');
+                mqttClient.end();
+                setMqttClient(null);
+                setMqttConnected(false);
+            }
+
+            // Reinitialize MQTT
+            initializeMqtt();
+
+            // Wait for MQTT responses (with timeout)
+            const mqttResults = await Promise.all(mqttPromises);
+
+            // Step 2: For chips that didn't get MQTT response, fetch from database
+            const chipsNeedingDatabase = mqttResults
+                .filter(result => result.source === 'timeout' || !result.location)
+                .map(result => result.chipId);
+
+            console.log(`📍 [REFRESH] Fetching ${chipsNeedingDatabase.length} locations from database...`);
+
+            // Fetch from database for chips that didn't get MQTT response
+            const databasePromises = chipsNeedingDatabase.map(async (chipId) => {
+                try {
+                    const { data: carData, error } = await supabase
+                        .from('cars')
+                        .select('latitude, longitude, last_location_update, vin, chip')
+                        .eq('chip', chipId)
+                        .single();
+
+                    if (error) {
+                        console.error(`❌ [REFRESH] Database error for chip ${chipId}:`, error);
+                        return { chipId, location: null, source: 'database' };
+                    }
+
+                    if (carData && carData.latitude && carData.longitude) {
+                        const location = {
+                            latitude: parseFloat(carData.latitude),
+                            longitude: parseFloat(carData.longitude),
+                            lastUpdate: carData.last_location_update || new Date().toISOString(),
+                            vin: carData.vin,
+                            chipId: carData.chip
+                        };
+                        console.log(`📍 [REFRESH] ✅ Database location for chip ${chipId}:`, location);
+                        return { chipId, location, source: 'database' };
+                    }
+
+                    return { chipId, location: null, source: 'database' };
+                } catch (error) {
+                    console.error(`❌ [REFRESH] Error fetching from database for chip ${chipId}:`, error);
+                    return { chipId, location: null, source: 'database' };
+                }
+            });
+
+            const databaseResults = await Promise.all(databasePromises);
+
+            // Combine MQTT and database results
+            const allResults = [
+                ...mqttResults.filter(r => r.location),
+                ...databaseResults.filter(r => r.location)
+            ];
+
+            // Update vehicleLocations state with all results
+            if (allResults.length > 0) {
+                // Prepare merged locations object
+                const updatedLocations = { ...vehicleLocations };
+                allResults.forEach(({ chipId, location }) => {
+                    if (location) {
+                        updatedLocations[chipId] = {
+                            ...updatedLocations[chipId],
+                            ...location,
+                        };
+                    }
+                });
+
+                setVehicleLocations(updatedLocations);
+                console.log(`✅ [REFRESH] Updated ${allResults.length} vehicle locations`);
+
+                // After refresh, auto zoom to show all vehicles (same logic as badge click)
+                if (mapRef.current) {
+                    const vehicleRegion = getRegionFromVehicleLocations(updatedLocations);
+                    if (vehicleRegion) {
+                        console.log('🚗 [REFRESH] Focusing map on refreshed vehicles:', vehicleRegion);
+                        mapRef.current.animateToRegion(vehicleRegion, 1000);
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('❌ [REFRESH] Error refreshing locations:', error);
+        } finally {
+            setIsRefreshingLocations(false);
+            // Clear all callbacks
+            mqttLocationCallbacksRef.current = {};
+        }
+    };
+
     useEffect(() => {
         loadPolygons();
         loadVehicles();
@@ -667,11 +877,32 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                     onPress={() => navigation.goBack()}>
                     <Ionicons name="arrow-back" size={30} color="#000" />
                 </TouchableOpacity>
-                <View style={styles.headerContent}>
-                    <Text style={styles.title}>{yardName || 'Yard Map'}</Text>
-                    <Text style={styles.subtitle}>
-                        {loading ? 'Loading...' : polygons.length > 0 ? `${polygons.length} parking slots` : 'No parking slots'}
-                    </Text>
+
+                <View style={styles.headerMain}>
+                    <View style={styles.headerContent}>
+                        <Text style={styles.title}>{yardName || 'Yard Map'}</Text>
+                        <Text style={styles.subtitle}>
+                            {loading ? 'Loading...' : polygons.length > 0 ? `${polygons.length} parking slots` : 'No parking slots'}
+                        </Text>
+                    </View>
+
+                    {vehicles.length > 0 && (
+                        <TouchableOpacity
+                            style={styles.headerRefreshButton}
+                            onPress={handleRefreshLocations}
+                            disabled={isRefreshingLocations}
+                            activeOpacity={0.7}
+                        >
+                            {isRefreshingLocations ? (
+                                <ActivityIndicator size="small" color={COLOR_PRIMARY} />
+                            ) : (
+                                <Ionicons name="refresh" size={20} color={COLOR_PRIMARY} />
+                            )}
+                            <Text style={styles.headerRefreshText}>
+                                {isRefreshingLocations ? 'Refreshing' : 'Refresh'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </View>
 
@@ -772,12 +1003,16 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
 
                 {/* Vehicle Count Badge */}
                 {Object.keys(vehicleLocations).length > 0 && (
-                    <View style={styles.vehicleCountBadge}>
+                    <TouchableOpacity 
+                        style={styles.vehicleCountBadge}
+                        onPress={handleVehicleBadgeClick}
+                        activeOpacity={0.7}
+                    >
                         <Ionicons name="car" size={16} color={COLOR_PRIMARY} />
                         <Text style={styles.vehicleCountText}>
                             {Object.keys(vehicleLocations).length} vehicles
                         </Text>
-                    </View>
+                    </TouchableOpacity>
                 )}
 
                 {/* Map Type Toggle Button */}
@@ -882,7 +1117,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: whiteColor,
-        paddingTop: Platform.OS === 'ios' ? hp(6) : hp(3),
+        paddingTop: Platform.OS === 'ios' ? hp(6) : hp(1),
         paddingHorizontal: spacings.large,
         paddingBottom: spacings.medium,
         borderBottomWidth: 1,
@@ -892,6 +1127,12 @@ const styles = StyleSheet.create({
     backButton: {
         padding: spacings.small,
         marginRight: spacings.large,
+    },
+    headerMain: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
     },
     headerContent: {
         flex: 1,
@@ -1013,6 +1254,22 @@ const styles = StyleSheet.create({
         fontSize: style.fontSizeSmall1x.fontSize,
         fontWeight: style.fontWeightBold.fontWeight,
         color: '#333',
+    },
+    headerRefreshButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderWidth: 1,
+        borderColor: COLOR_PRIMARY,
+    },
+    headerRefreshText: {
+        marginLeft: 6,
+        fontSize: style.fontSizeSmall1x.fontSize,
+        fontWeight: style.fontWeightBold.fontWeight,
+        color: COLOR_PRIMARY,
     },
     tooltipOverlay: {
         flex: 1,
