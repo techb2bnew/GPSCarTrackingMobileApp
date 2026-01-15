@@ -20,6 +20,7 @@ import { getFCMToken, saveFCMTokenToDatabase } from './src/utils/fcmTokenManager
 import { addNotification } from './src/redux/notificationsSlice';
 import { loadAndClearBackgroundNotifications, saveBackgroundNotification } from './src/utils/backgroundNotificationStorage';
 import { SafeAreaView } from 'react-native-safe-area-context';
+// import crashlytics from '@react-native-firebase/crashlytics';
 
 const { flex, alignItemsCenter, alignJustifyCenter } = BaseStyle;
 
@@ -409,6 +410,15 @@ function AppContent({ setCheckUser }: AppContentProps) {
 
     return unsubscribe;
   }, [userData]);
+
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     crashlytics().crash();
+  //   }, 5000);
+
+  //   return () => clearTimeout(timer);
+  // }, []);
+
 
   // Animated styles
   const logoAnimatedStyle = useAnimatedStyle(() => ({

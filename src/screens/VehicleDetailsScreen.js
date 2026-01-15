@@ -2588,6 +2588,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Map fullscreen state
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
 
+  // Track view changes for Android marker rendering
+  const [tracksCarMarkerChanges, setTracksCarMarkerChanges] = useState(Platform.OS === 'android');
+
   // Map type state
   const [mapType, setMapType] = useState('standard'); // 'satellite' or 'standard'
 
@@ -3393,6 +3396,19 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     };
   }, [locationPermission, vehicle?.chipId, vehicle?.chip, carLocation]);
 
+  // Fix Android marker rendering - disable tracksViewChanges after initial render
+  useEffect(() => {
+    if (Platform.OS === 'android' && carLocation) {
+      // Re-enable tracksViewChanges when carLocation changes
+      setTracksCarMarkerChanges(true);
+      // Disable tracksViewChanges after a short delay to ensure marker renders and improve performance
+      const timer = setTimeout(() => {
+        setTracksCarMarkerChanges(false);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [carLocation]);
+
   // ✅ 1. COMPASS & MAP ROTATION LOGIC
   useEffect(() => {
     const degree_update_rate = 3;
@@ -3882,6 +3898,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         showsMyLocationButton={false}
         showsCompass={false} // Hide default compass as we rotate manually
         rotateEnabled={true}
+        loadingEnabled={true}
         initialRegion={{
           latitude: currentLocation?.latitude || carLocation?.latitude || 30.713452,
           longitude: currentLocation?.longitude || carLocation?.longitude || 76.691131,
@@ -3912,20 +3929,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           </Marker>
         )}
 
-        {/* 🧪 TESTING: Show car marker even without chip ID for testing */}
+        {/* Car Location Marker - Show if car location is available */}
         {carLocation && (
           <Marker
+            key={`car-marker-${carLocation.latitude}-${carLocation.longitude}-${Platform.OS}`}
             coordinate={carLocation}
             title="Vehicle Location"
             description={`${vehicle?.vin || 'Test Vehicle'}`}
             anchor={{ x: 0.5, y: 0.5 }}
             flat={false}
-            tracksViewChanges={false}
+            tracksViewChanges={tracksCarMarkerChanges}
+            zIndex={1000}
           >
             <View style={styles.carMarkerContainer}>
               {savedLocation && (
                 <View style={styles.tooltip}>
-                  <Text style={styles.tooltipText}>
+                  <Text style={styles.tooltipText} numberOfLines={2}>
                     Last updated: {timeAgo || getTimeAgo(savedLocation.timestamp)}
                   </Text>
                 </View>
@@ -4565,23 +4584,50 @@ const styles = StyleSheet.create({
   },
   carMarkerContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    ...(Platform.OS === 'android' ? {
+      // width: 'auto',
+      width: 140,
+      // height: 'auto',
+      height: 90,
+    } : {}),
+    // backgroundColor:"red"
   },
   tooltip: {
     backgroundColor: 'rgba(0,0,0,0.8)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 6,
     marginBottom: 5,
-    position: 'relative',
+    position: 'absolute',
+    bottom: 30,
+    alignSelf: 'center',
     minWidth: 150,
+    ...(Platform.OS === 'android' ? {
+      maxWidth: 400,
+      width: 'auto',
+      elevation: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    } : {
+      maxWidth: 200,
+    }),
+    zIndex: 1000,
   },
   tooltipText: {
     color: '#fff',
     fontSize: style.fontSizeExtraSmall.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: 16,
+    ...(Platform.OS === 'android' ? {
+      flexShrink: 0,
+      includeFontPadding: false,
+      textAlignVertical: 'center',
+      flexWrap: 'wrap',
+    } : {
+      flexShrink: 1,
+    }),
   },
   carLocationMarker: {
     backgroundColor: '#FF6B6B',
@@ -4592,11 +4638,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
-    shadowColor: '#FF6B6B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    ...(Platform.OS === 'android' ? {
+      elevation: 8,
+    } : {
+      shadowColor: '#FF6B6B',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 5,
+    }),
   },
   detailsContainer: {
     flex: 1,

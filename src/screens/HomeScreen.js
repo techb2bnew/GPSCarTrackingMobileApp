@@ -993,12 +993,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
           <View style={styles.headerIcons}>
             {/* AR Navigation Button */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               onPress={handleOpenAR}
               style={styles.iconBtn}>
               <Ionicons name="navigate" size={24} color="#fff" />
-            </TouchableOpacity>
-
+            </TouchableOpacity> */}
+  
             {/* Notification Bell */}
             <TouchableOpacity
               onPress={() => navigation.navigate('NotificationScreen')}
