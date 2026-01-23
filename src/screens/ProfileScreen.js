@@ -25,6 +25,7 @@ import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '.
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
 import { supabase } from '../lib/supabaseClient';
+import crashlytics from '@react-native-firebase/crashlytics';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -484,6 +485,32 @@ const ProfileScreen = ({ navigation }) => {
   // ============================================
   // QUICK ACTIONS SECTION
   // ============================================
+  // Test Crashlytics function
+  const testCrashlytics = () => {
+    Alert.alert(
+      'Test Crash',
+      'This will trigger a test crash to verify Crashlytics is working. The app will crash and restart.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Test Crash',
+          style: 'destructive',
+          onPress: () => {
+            // Set some attributes before crash
+            crashlytics().setAttribute('test_crash', 'true');
+            crashlytics().log('Test crash triggered from ProfileScreen');
+            // Trigger a test crash
+            crashlytics().crash();
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const renderQuickActions = () => {
     const quickActions = [
       {
@@ -510,10 +537,21 @@ const ProfileScreen = ({ navigation }) => {
         color: '#FF6B6B',
         bgColor: '#FFF5F5',
       },
+      // Test Crash button (only for development/testing)
+      // {
+      //   id: 4,
+      //   icon: 'bug-outline',
+      //   label: 'Test Crash',
+      //   action: 'test_crash',
+      //   color: '#FF0000',
+      //   bgColor: '#FFE5E5',
+      // },
     ];
 
     const handleActionPress = (action) => {
-      if (action.screen) {
+      if (action.action === 'test_crash') {
+        testCrashlytics();
+      } else if (action.screen) {
         navigation.navigate(action.screen);
       }
     };

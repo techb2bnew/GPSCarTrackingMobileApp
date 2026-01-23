@@ -3,7 +3,7 @@ import { View, StyleSheet, Platform, AppState, Image, Text, ActivityIndicator, I
 import { Provider, useSelector, useDispatch } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './src/redux/store';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import MainTabNavigator from './src/navigations/MainTabNavigator';
 import AuthStack from './src/navigations/AuthStack';
 import AnimatedLottieView from 'lottie-react-native';
@@ -20,7 +20,7 @@ import { getFCMToken, saveFCMTokenToDatabase } from './src/utils/fcmTokenManager
 import { addNotification } from './src/redux/notificationsSlice';
 import { loadAndClearBackgroundNotifications, saveBackgroundNotification } from './src/utils/backgroundNotificationStorage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import crashlytics from '@react-native-firebase/crashlytics';
+import crashlytics from '@react-native-firebase/crashlytics';
 
 const { flex, alignItemsCenter, alignJustifyCenter } = BaseStyle;
 
@@ -43,7 +43,65 @@ function AppContent({ setCheckUser }: AppContentProps) {
   const dispatch = useDispatch();
   const tokenSaveInProgress = useRef(false);
   const lastTokenSaveTime = useRef(0);
+  const navigationRef = useNavigationContainerRef();
   console.log("userDatauserData", userData);
+
+  // Initialize Crashlytics
+  useEffect(() => {
+    const initializeCrashlytics = async () => {
+      try {
+        // Enable crash collection
+        await crashlytics().setCrashlyticsCollectionEnabled(true);
+        console.log('✅ [CRASHLYTICS] Crashlytics initialized');
+      } catch (error) {
+        console.error('❌ [CRASHLYTICS] Error initializing Crashlytics:', error);
+      }
+    };
+    initializeCrashlytics();
+  }, []);
+
+  // Set user identification when user logs in
+  useEffect(() => {
+    if (userData && userData.id) {
+      try {
+        crashlytics().setUserId(userData.id.toString());
+        if (userData.email) {
+          crashlytics().setAttribute('user_email', userData.email);
+        }
+        if (userData.name) {
+          crashlytics().setAttribute('user_name', userData.name);
+        }
+        console.log('✅ [CRASHLYTICS] User identification set:', userData.email || userData.id);
+      } catch (error) {
+        console.error('❌ [CRASHLYTICS] Error setting user identification:', error);
+      }
+    } else {
+      // Clear user identification on logout
+      try {
+        crashlytics().setUserId('');
+        crashlytics().setAttribute('user_email', '');
+        crashlytics().setAttribute('user_name', '');
+      } catch (error) {
+        console.error('❌ [CRASHLYTICS] Error clearing user identification:', error);
+      }
+    }
+  }, [userData]);
+
+  // Track current screen name for crash reports
+  const handleNavigationStateChange = useCallback(() => {
+    try {
+      if (navigationRef && navigationRef.isReady()) {
+        const currentRoute = navigationRef.getCurrentRoute();
+        if (currentRoute) {
+          const screenName = currentRoute.name || 'Unknown';
+          crashlytics().setAttribute('current_screen', screenName);
+          console.log('📍 [CRASHLYTICS] Screen tracked:', screenName);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [CRASHLYTICS] Error tracking screen:', error);
+    }
+  }, [navigationRef]);
 
   // Animation values for splash screen
   const logoScale = useSharedValue(0.5);
@@ -411,8 +469,14 @@ function AppContent({ setCheckUser }: AppContentProps) {
     return unsubscribe;
   }, [userData]);
 
+  // ============================================
+  // TEST CRASHLYTICS - Uncomment to test automatic crash
+  // ============================================
   // useEffect(() => {
   //   const timer = setTimeout(() => {
+  //     console.log('🧪 [TEST] Triggering test crash in 5 seconds...');
+  //     crashlytics().setAttribute('test_crash', 'true');
+  //     crashlytics().log('Test crash triggered automatically from App.tsx');
   //     crashlytics().crash();
   //   }, 5000);
 
@@ -511,12 +575,22 @@ function AppContent({ setCheckUser }: AppContentProps) {
       ) : (
         Platform.OS === 'android' ? (
           <SafeAreaView style={{ flex: 1 }}>
-            <NavigationContainer>
+            <NavigationContainer 
+              ref={navigationRef}
+              onReady={() => {
+                handleNavigationStateChange();
+              }}
+              onStateChange={handleNavigationStateChange}>
               {!userData ? <AuthStack /> : <MainTabNavigator setCheckUser={setCheckUser} />}
             </NavigationContainer>
           </SafeAreaView>
         ) : (
-          <NavigationContainer>
+          <NavigationContainer 
+            ref={navigationRef}
+            onReady={() => {
+              handleNavigationStateChange();
+            }}
+            onStateChange={handleNavigationStateChange}>
             {!userData ? <AuthStack /> : <MainTabNavigator setCheckUser={setCheckUser} />}
           </NavigationContainer>
         )

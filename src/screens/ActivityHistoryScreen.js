@@ -304,13 +304,16 @@ const ActivityHistoryScreen = ({ navigation }) => {
           // Handle both string and number comparisons
           return String(f.id) === String(item.facilityId);
         });
+        console.log('facility', facility);
+        const facilityName = facility?.name;
         
-        const facilityName = facility?.name || `Facility ${item.facilityId}`;
-        
-        if (!counts[facilityName]) {
-          counts[facilityName] = 0;
+        // Only count if facilityName is defined (not undefined)
+        if (facilityName) {
+          if (!counts[facilityName]) {
+            counts[facilityName] = 0;
+          }
+          counts[facilityName]++;
         }
-        counts[facilityName]++;
       }
     });
     
