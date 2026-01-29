@@ -7918,10 +7918,6 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const [currentStep, setCurrentStep] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
 
-  // API Route Path State
-  const [apiRoutePath, setApiRoutePath] = useState([]);
-  const [apiRouteDistance, setApiRouteDistance] = useState(null);
-
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
     return vehicle?.chip || vehicle?.chipId; // Support both chip and chipId fields
@@ -8681,7 +8677,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     const initializeLocation = async () => {
       const chipId = getChipId();
-
+      
       // Skip dynamic initialization if chip ID ends with "39d" (using static coordinates)
       // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
       //   // console.log('🧪 [TEST] Skipping dynamic initialization for static chip');
@@ -8697,9 +8693,19 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         try {
           const { data: carData, error: dbError } = await supabase
             .from('cars')
-            .select('latitude, longitude, last_location_update')
+            .select('latitude, longitude, last_location_update, is_moving, notification_sent_check, parkedNotification')
             .eq('chip', chipId)
             .single();
+
+          if (carData) {
+            setCarTableStatus({
+              is_moving: carData.is_moving,
+              notification_sent_check: carData.notification_sent_check,
+              parkedNotification: carData.parkedNotification
+            });
+          } else {
+            setCarTableStatus(null);
+          }
 
           if (!dbError && carData && carData.latitude && carData.longitude) {
             const timestamp = parseDatabaseTimestamp(carData.last_location_update);
@@ -10082,6 +10088,19 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               {vehicle?.chipId ? (vehicle?.isActive ? 'Active' : 'Inactive') : 'Inactive'}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Is Moving:</Text>
+          <Text style={styles.infoValue}>{carTableStatus?.is_moving != null ? (carTableStatus.is_moving ? 'Yes' : 'No') : 'N/A'}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Notification Sent Check:</Text>
+          <Text style={styles.infoValue}>{carTableStatus?.notification_sent_check != null ? (carTableStatus.notification_sent_check ? 'Yes' : 'No') : 'N/A'}</Text>
+        </View>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>Parked Notification:</Text>
+          <Text style={styles.infoValue}>{carTableStatus?.parkedNotification != null ? String(carTableStatus.parkedNotification) : 'N/A'}</Text>
         </View>
       </View>
 

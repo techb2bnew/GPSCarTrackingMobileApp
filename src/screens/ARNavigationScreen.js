@@ -975,28 +975,15 @@ function normalizeAngle(angle) {
   return a;
 }
 
-/**
- * AR Navigation Screen
- * 
- * Navigation Flow:
- * - STARTING POINT: Current Location (GPS position) - automatically fetched
- * - ENDING POINT: Destination (target from route params) - passed when navigating to this screen
- * 
- * Route is calculated from: Current Location → Destination
- */
+
 export default function ARNavigationScreen({ navigation, route }) {
   const isFocused = useIsFocused();
   const devices = useCameraDevices();
   const { hasPermission: hasCameraPermission, requestPermission: requestCameraPermission } = useCameraPermission();
-
   const [cameraDevice, setCameraDevice] = useState(null);
   const [loadingDevice, setLoadingDevice] = useState(false);
-
-  // Destination (END POINT) - passed from route params when navigating to this screen
   const target = route?.params?.target;
-  const staticStart = route?.params?.start || null; // allow manual start when GPS off
-  
-  // Current Location (START POINT) - fetched from GPS
+  const staticStart = route?.params?.start || null; 
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [position, setPosition] = useState(null);
   const lastPositionRef = useRef(null);
@@ -1007,14 +994,14 @@ export default function ARNavigationScreen({ navigation, route }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(null);
   const [totalSteps, setTotalSteps] = useState(0);
   const [distanceToNextTurn, setDistanceToNextTurn] = useState(null);
-  const [distanceToNextTurnMeters, setDistanceToNextTurnMeters] = useState(null); // Distance in meters for calculations
-  const [nextTurnDirection, setNextTurnDirection] = useState(null); // 'left', 'right', 'straight', 'uturn'
-  const [isWrongDirection, setIsWrongDirection] = useState(false); // Wrong direction detection for yellow arrow
-  const [yellowArrowColor, setYellowArrowColor] = useState('#FFD700'); // Yellow by default, red when wrong
+  const [distanceToNextTurnMeters, setDistanceToNextTurnMeters] = useState(null); 
+  const [nextTurnDirection, setNextTurnDirection] = useState(null); 
+  const [isWrongDirection, setIsWrongDirection] = useState(false); 
+  const [yellowArrowColor, setYellowArrowColor] = useState('#FFD700'); 
   const [arrowIcon, setArrowIcon] = useState('navigate');
   const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [showMap, setShowMap] = useState(false); // Default: Map hidden for street view experience
-  const [showSteps, setShowSteps] = useState(false); // Toggle between full map and steps
+  const [showMap, setShowMap] = useState(false); 
+  const [showSteps, setShowSteps] = useState(false);
   const [deviceHeading, setDeviceHeading] = useState(0);
   const [userOrientation, setUserOrientation] = useState('North');
   const [arrowColor, setArrowColor] = useState('#5F93FB');
@@ -1023,16 +1010,13 @@ export default function ARNavigationScreen({ navigation, route }) {
   const [isOffRoute, setIsOffRoute] = useState(false);
   const [offRouteDistance, setOffRouteDistance] = useState(null);
   const lastRouteFetchTime = useRef(0);
-  const turnIndicatorPulse = useRef(new Animated.Value(1)).current; // For pulsing turn indicator
-  
-  // AR-specific states for missing functionality
+  const turnIndicatorPulse = useRef(new Animated.Value(1)).current; 
   const [arDestinationMarker, setArDestinationMarker] = useState(null);
   const [arPathPoints, setArPathPoints] = useState([]);
   const [arDistanceMarkers, setArDistanceMarkers] = useState([]);
   const [arTurnIndicators, setArTurnIndicators] = useState([]);
   const [showArMode, setShowArMode] = useState(true);
 
-  // Basic magnetometer heading derived from x/y (no tilt compensation)
   function calculateHeadingFromMagnetometer(x, y) {
     if (x == null || y == null) return null;
     let heading = Math.atan2(y, x) * (180 / Math.PI);
@@ -1040,7 +1024,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     return heading;
   }
 
-  // AR-specific helper functions for missing functionality
   function calculateArDestinationMarker() {
     if (!position || !target) return null;
     
@@ -1054,21 +1037,19 @@ export default function ARNavigationScreen({ navigation, route }) {
       target.latitude, target.longitude
     );
     
-    // Calculate AR screen position based on bearing and distance
     const screenWidth = Dimensions.get('window').width;
     const screenHeight = Dimensions.get('window').height;
     
-    // Convert bearing to screen coordinates
     const relativeBearing = normalizeAngle(bearing - (deviceHeading || 0));
     const x = screenWidth / 2 + (relativeBearing / 90) * (screenWidth / 4);
-    const y = screenHeight * 0.3; // Position in upper third
+    const y = screenHeight * 0.3; 
     
     return {
       x: Math.max(50, Math.min(screenWidth - 50, x)),
       y: Math.max(100, Math.min(screenHeight - 200, y)),
       distance: distance,
       bearing: bearing,
-      visible: distance < 1000 // Show only if within 1km
+      visible: distance < 1000 
     };
   }
 
@@ -1111,7 +1092,7 @@ export default function ARNavigationScreen({ navigation, route }) {
     );
     
     const markers = [];
-    const intervals = [50, 100, 200, 500]; // Distance intervals in meters
+    const intervals = [50, 100, 200, 500]; 
     
     intervals.forEach(interval => {
       if (distance > interval) {
@@ -1151,37 +1132,31 @@ export default function ARNavigationScreen({ navigation, route }) {
         currentStep.end_location.lat, currentStep.end_location.lng
       );
       
-      if (distance < 100) { // Show turn indicator when close to turn
-        // Calculate bearing to turn location (road direction)
+      if (distance < 100) { 
         const bearing = computeBearing(
           position.latitude, position.longitude,
           currentStep.end_location.lat, currentStep.end_location.lng
         );
         
-        // Calculate relative bearing (road direction - device heading)
-        // This compensates for device orientation
+       
         const relativeBearing = normalizeAngle(bearing - (deviceHeading || 0));
         const screenWidth = Dimensions.get('window').width;
         const screenHeight = Dimensions.get('window').height;
         
-        // Position green arrow based on relative bearing (device heading के अनुसार)
-        // Convert relative bearing to screen x position
-        // Center (0°) = screen center, left (-90°) = left side, right (+90°) = right side
         const x = screenWidth / 2 + (relativeBearing / 90) * (screenWidth / 6);
-        const y = screenHeight * 0.35; // Upper center area
+        const y = screenHeight * 0.35; 
         
-        // Get proper arrow icon based on instruction and bearing (Dynamic icon)
         const instruction = normalizeInstruction(currentStep.html_instructions);
         const arrowIcon = getArrowIcon(instruction, bearing, deviceHeading);
         
         indicators.push({
-          x: Math.max(60, Math.min(screenWidth - 60, x)), // Keep within screen bounds
+          x: Math.max(60, Math.min(screenWidth - 60, x)), 
           y: y,
           instruction: instruction,
           distance: distance,
           bearing: bearing,
           relativeBearing: relativeBearing,
-          arrowIcon: arrowIcon, // Dynamic icon based on turn direction
+          arrowIcon: arrowIcon, 
           visible: true
         });
       }
@@ -1206,12 +1181,8 @@ export default function ARNavigationScreen({ navigation, route }) {
     }
   }
 
-  // Google Directions API call for road-based navigation
-  // origin = Current Location (GPS position)
-  // destination = Target Location (from route params)
   async function fetchRouteDirections(origin, destination) {
     try {
-      // Validate that we have both starting point (current location) and destination
       if (!origin || !destination) {
         console.log('❌ Missing route points:', { 
           hasOrigin: !!origin, 
@@ -1231,19 +1202,16 @@ export default function ARNavigationScreen({ navigation, route }) {
       });
 
       const API_KEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE';
-      // Request shortest route: Get all alternatives and choose the one with shortest distance
-      // No departure_time = traffic ignored, distance-based routing
+
       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&mode=driving&alternatives=true&key=${API_KEY}`;
 
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.status === 'OK' && data.routes.length > 0) {
-        // Find shortest route by distance (traffic ignored)
         let shortestRoute = data.routes[0];
-        let shortestDistance = data.routes[0].legs[0].distance.value; // Distance in meters
+        let shortestDistance = data.routes[0].legs[0].distance.value; 
         
-        // Compare all routes and select the one with shortest distance
         data.routes.forEach((route) => {
           const routeDistance = route.legs[0].distance.value;
           if (routeDistance < shortestDistance) {
@@ -1264,13 +1232,10 @@ export default function ARNavigationScreen({ navigation, route }) {
         setRouteData({ route, steps });
         setTotalSteps(steps.length || 0);
 
-        // Extract route coordinates for map polyline
-        // Use overview_polyline - this is the SHORTEST route path (distance-based, traffic ignored)
-        // Same routeCoordinates will be used by both Blue Arrow navigation and Map Polyline
+        
         const overviewPolyline = route.overview_polyline.points;
         const decodedCoordinates = decodePolyline(overviewPolyline);
         
-        // Remove duplicate coordinates and ensure path is continuous
         const uniqueCoordinates = [];
         let lastCoord = null;
         decodedCoordinates.forEach(coord => {
@@ -1282,14 +1247,11 @@ export default function ARNavigationScreen({ navigation, route }) {
           }
         });
         
-        // Ensure start and end points are included
         if (uniqueCoordinates.length > 0) {
-          // Make sure first point matches origin
           uniqueCoordinates[0] = {
             latitude: origin.latitude,
             longitude: origin.longitude
           };
-          // Make sure last point matches destination
           uniqueCoordinates[uniqueCoordinates.length - 1] = {
             latitude: destination.latitude,
             longitude: destination.longitude
@@ -1297,9 +1259,8 @@ export default function ARNavigationScreen({ navigation, route }) {
         }
         
         setRouteCoordinates(uniqueCoordinates);
-        lastRouteFetchTime.current = Date.now(); // Update fetch time
+        lastRouteFetchTime.current = Date.now(); 
         
-        // Reset off route status when new route is fetched
         setIsOffRoute(false);
         setOffRouteDistance(null);
 
@@ -1325,12 +1286,11 @@ export default function ARNavigationScreen({ navigation, route }) {
         console.log('📍 Map will show SHORTEST route path (distance-based) from START to END with', uniqueCoordinates.length, 'coordinate points');
         console.log('✅ Blue Arrow and Map Polyline will follow the SAME shortest path');
 
-        // Log each step with complete details
         console.log('📋 All Route Steps:');
         steps.forEach((step, index) => {
           const instruction = step.html_instructions
-            .replace(/<[^>]*>/g, '') // Remove HTML tags
-            .replace(/&nbsp;/g, ' ') // Replace HTML entities
+            .replace(/<[^>]*>/g, '') 
+            .replace(/&nbsp;/g, ' ') 
             .trim();
 
           console.log(`Step ${index + 1}:`, {
@@ -1365,13 +1325,11 @@ export default function ARNavigationScreen({ navigation, route }) {
     }
   }
 
-  // Check if user is off route (wrong direction detection)
   function checkIfOffRoute(currentPos, routeCoords, threshold = 50) {
     if (!routeCoords || routeCoords.length === 0 || !currentPos) {
       return { isOffRoute: false, distance: null };
     }
 
-    // Find minimum distance from current position to any point on route
     let minDistanceToRoute = Infinity;
     
     routeCoords.forEach(coord => {
@@ -1397,11 +1355,9 @@ export default function ARNavigationScreen({ navigation, route }) {
     return { isOffRoute: isOff, distance: minDistanceToRoute };
   }
 
-  // Calculate which step we're currently on based on position
   function getCurrentNavigationStep(currentPos, steps) {
     if (!steps || !currentPos) return null;
 
-    // Start with first step if no current step is set
     if (currentStepIndex === null) {
       console.log('🎯 Starting with first step');
       return { ...steps[0], index: 0, distance: 0 };
@@ -1411,12 +1367,10 @@ export default function ARNavigationScreen({ navigation, route }) {
     let minDistance = Infinity;
     let currentStepIdx = currentStepIndex || 0;
 
-    // Find the closest step to current position
     steps.forEach((step, index) => {
       const stepStart = step.start_location;
       const stepEnd = step.end_location;
 
-      // Calculate distance to step start and end
       const distanceToStart = haversineDistanceMeters(
         currentPos.latitude, currentPos.longitude,
         stepStart.lat, stepStart.lng
@@ -1427,7 +1381,6 @@ export default function ARNavigationScreen({ navigation, route }) {
         stepEnd.lat, stepEnd.lng
       );
 
-      // Use the minimum distance to either start or end of step
       const minStepDistance = Math.min(distanceToStart, distanceToEnd);
 
       if (minStepDistance < minDistance) {
@@ -1437,7 +1390,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       }
     });
 
-    // Only move to next step if we're very close to current step (within 30m)
     if (closestStep && minDistance < 30) {
       const nextStepIndex = currentStepIdx + 1;
       if (nextStepIndex < steps.length) {
@@ -1451,7 +1403,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       }
     }
 
-    // Return current step or closest step
     const finalStep = closestStep || steps[currentStepIdx] || steps[0];
     const finalIndex = closestStep ? currentStepIdx : (currentStepIdx || 0);
 
@@ -1464,7 +1415,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     return { ...finalStep, index: finalIndex, distance: minDistance };
   }
 
-  // Calculate map region to include both start and end points and entire route
   function calculateMapRegion(startPoint, endPoint, routeCoords = []) {
     if (!startPoint || !endPoint) {
       return {
@@ -1475,7 +1425,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       };
     }
 
-    // Include route coordinates if available for better region calculation
     let allLats = [startPoint.latitude, endPoint.latitude];
     let allLngs = [startPoint.longitude, endPoint.longitude];
     
@@ -1493,19 +1442,16 @@ export default function ARNavigationScreen({ navigation, route }) {
     const minLng = Math.min(...allLngs);
     const maxLng = Math.max(...allLngs);
 
-    const latDelta = (maxLat - minLat) * 1.8; // Add 80% padding to show full route
-    const lngDelta = (maxLng - minLng) * 1.8; // Add 80% padding to show full route
-
-    // Center on current location (updates as you move) but include destination
+    const latDelta = (maxLat - minLat) * 1.8; 
+    const lngDelta = (maxLng - minLng) * 1.8; 
     return {
-      latitude: startPoint.latitude, // Center on current location (updates as you move)
-      longitude: startPoint.longitude, // Center on current location (updates as you move)
-      latitudeDelta: Math.max(latDelta, 0.005), // Minimum delta
-      longitudeDelta: Math.max(lngDelta, 0.005), // Minimum delta
+      latitude: startPoint.latitude, 
+      longitude: startPoint.longitude, 
+      latitudeDelta: Math.max(latDelta, 0.005), 
+      longitudeDelta: Math.max(lngDelta, 0.005), 
     };
   }
 
-  // Decode Google polyline to coordinates
   function decodePolyline(encoded) {
     const poly = [];
     let index = 0;
@@ -1541,11 +1487,9 @@ export default function ARNavigationScreen({ navigation, route }) {
     return poly;
   }
 
-  // Get device orientation (North, South, East, West) from GPS heading
   function getDeviceOrientation(heading) {
     if (heading === null || heading === undefined) return 'North';
 
-    // Normalize heading to 0-360 range
     let normalizedHeading = heading;
     while (normalizedHeading < 0) normalizedHeading += 360;
     while (normalizedHeading >= 360) normalizedHeading -= 360;
@@ -1561,32 +1505,25 @@ export default function ARNavigationScreen({ navigation, route }) {
     return 'North';
   }
 
-  // Calculate relative direction based on device orientation
   function calculateRelativeDirection(targetBearing, deviceHeading) {
     if (targetBearing === null || deviceHeading === null) return 0;
 
-    // Calculate relative bearing (target bearing - device heading)
     let relativeBearing = targetBearing - deviceHeading;
 
-    // Normalize to 0-360 range
     while (relativeBearing < 0) relativeBearing += 360;
     while (relativeBearing >= 360) relativeBearing -= 360;
 
     return relativeBearing;
   }
 
-  // Get appropriate arrow icon based on instruction and device orientation
   function getTurnMessage(instruction, targetBearing, deviceHeading) {
     if (!targetBearing || deviceHeading === null) return 'Calculating direction...';
     
-    // Calculate relative bearing (target bearing - device heading)
     let relativeBearing = targetBearing - deviceHeading;
     
-    // Normalize to -180 to 180 range
     while (relativeBearing > 180) relativeBearing -= 360;
     while (relativeBearing < -180) relativeBearing += 360;
     
-    // Check for specific instructions first
     const lowerInstruction = instruction.toLowerCase();
     if (lowerInstruction.includes('left') || lowerInstruction.includes('turn left')) {
       return 'Turn left';
@@ -1598,7 +1535,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       return 'Move forward';
     }
     
-    // Use relative bearing for general direction
     const absBearing = Math.abs(relativeBearing);
     
     if (absBearing <= 15) {
@@ -1616,7 +1552,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     const lowerInstruction = instruction.toLowerCase();
     console.log('🔍 Checking instruction for arrow:', lowerInstruction);
 
-    // Calculate relative direction
     const relativeBearing = calculateRelativeDirection(targetBearing, deviceHeading);
     const orientation = getDeviceOrientation(deviceHeading);
 
@@ -1627,7 +1562,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       relativeBearing: relativeBearing.toFixed(1)
     });
 
-    // Use instruction-based arrows for turn directions
     if (lowerInstruction.includes('left') || lowerInstruction.includes('turn left')) {
       console.log('⬅️ Setting LEFT arrow');
       return 'arrow-back';
@@ -1641,7 +1575,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       console.log('⬆️ Setting STRAIGHT arrow');
       return 'arrow-up';
     } else {
-      // For general navigation, use relative bearing
       if (relativeBearing >= 315 || relativeBearing < 45) {
         console.log('⬆️ Setting FORWARD arrow (North)');
         return 'arrow-up';
@@ -1661,7 +1594,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     }
   }
 
-  // Convert Google html instruction to plain text
   function normalizeInstruction(html) {
     if (!html) return '';
     try {
@@ -1671,7 +1603,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     }
   }
 
-  // Choose an icon for a navigation step
   function iconForStep(step) {
     const m = (step?.maneuver || '').toLowerCase();
     const txt = normalizeInstruction(step?.html_instructions || '');
@@ -1682,8 +1613,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     return 'navigate';
   }
 
-  // Initial location fetch (one-shot) to seed distance quickly
-  // This sets the STARTING POINT for navigation
   useEffect(() => {
     console.log('🎯 Fetching STARTING POINT (Current Location)...');
     Geolocation.getCurrentPosition(
@@ -1698,7 +1627,6 @@ export default function ARNavigationScreen({ navigation, route }) {
         setPosition(pos.coords);
         lastPositionRef.current = pos.coords;
 
-        // Set initial device heading
         if (pos.coords.heading !== undefined && pos.coords.heading !== null) {
           setDeviceHeading(pos.coords.heading);
           const orientation = getDeviceOrientation(pos.coords.heading);
@@ -1707,7 +1635,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       },
       err => {
         console.log('❌ Initial GPS Error:', err);
-        // Retry initial location fetch
         setTimeout(() => {
           console.log('🔄 Retrying initial location fetch...');
           Geolocation.getCurrentPosition(
@@ -1725,7 +1652,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     requestLocationPermission();
   }, []);
 
-  // Device orientation tracking using magnetometer (fallback to GPS heading)
   useEffect(() => {
     console.log('📱 Using magnetometer for device orientation (fallback to GPS)');
     try {
@@ -1746,11 +1672,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     };
   }, []);
 
-  // Remove duplicate GPS tracking - now handled in main GPS effect
-
-  // Fetch route when position (current location) and target (destination) are available
-  // Starting Point = position (Current GPS Location)
-  // Ending Point = target (Destination from route params)
   useEffect(() => {
     if (position && target) {
       console.log('🗺️ Fetching route from Current Location to Destination');
@@ -1773,7 +1694,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     }
   }, [position, target]);
 
-  // Check for wrong direction / off route and auto re-route
   useEffect(() => {
     if (!position || !routeCoordinates || routeCoordinates.length === 0) {
       setIsOffRoute(false);
@@ -1781,35 +1701,29 @@ export default function ARNavigationScreen({ navigation, route }) {
       return;
     }
 
-    // Check if user is off route (more than 50m from route)
     const { isOffRoute: offRoute, distance: routeDistance } = checkIfOffRoute(position, routeCoordinates, 50);
     
     setIsOffRoute(offRoute);
     setOffRouteDistance(routeDistance);
 
-    // Auto re-route if off route for more than 10 seconds
     if (offRoute && target) {
       const now = Date.now();
-      // Only re-route if last fetch was more than 10 seconds ago (avoid too frequent re-routing)
       if (now - lastRouteFetchTime.current > 10000) {
         console.log('🔄 Auto re-routing due to off route...');
         lastRouteFetchTime.current = now;
         fetchRouteDirections(position, target);
       }
     } else {
-      // Reset route fetch time when back on route
       lastRouteFetchTime.current = 0;
     }
   }, [position, routeCoordinates, target]);
 
-  // Auto-request camera when screen focused and not granted yet
   useEffect(() => {
     if (isFocused && !hasCameraPermission) {
       requestCameraPermission();
     }
   }, [isFocused, hasCameraPermission, requestCameraPermission]);
 
-  // Acquire a usable back camera once permission is granted
   useEffect(() => {
     async function loadDevice() {
       if (!hasCameraPermission || !isFocused) return;
@@ -1846,11 +1760,9 @@ export default function ARNavigationScreen({ navigation, route }) {
           timestamp: new Date(pos.timestamp).toLocaleTimeString()
         });
 
-        // Update position immediately
         setPosition(pos.coords);
         lastPositionRef.current = pos.coords;
 
-        // Update device heading if available
         if (pos.coords.heading !== undefined && pos.coords.heading !== null) {
           setDeviceHeading(pos.coords.heading);
           const orientation = getDeviceOrientation(pos.coords.heading);
@@ -1860,16 +1772,15 @@ export default function ARNavigationScreen({ navigation, route }) {
       },
       err => {
         console.log('❌ GPS Error:', err);
-        // Retry GPS tracking on error
         setTimeout(() => {
           console.log('🔄 Retrying GPS tracking...');
         }, 2000);
       },
       {
         enableHighAccuracy: true,
-        distanceFilter: 0.1, // More sensitive - update every 0.1m
-        interval: 100, // Faster updates - every 100ms
-        fastestInterval: 50, // Fastest possible updates
+        distanceFilter: 0.1, 
+        interval: 100, 
+        fastestInterval: 50, 
         timeout: 10000,
         maximumAge: 1000
       },
@@ -1881,7 +1792,7 @@ export default function ARNavigationScreen({ navigation, route }) {
       console.log('🛑 Stopping GPS tracking...');
       Geolocation.clearWatch(watchId);
     };
-  }, [hasLocationPermission]); // Remove position dependency to avoid re-creation
+  }, [hasLocationPermission]); 
 
   const { bearingToTarget, distance, movementBearing, turnInstruction } = useMemo(() => {
     const current = position || staticStart;
@@ -1889,15 +1800,11 @@ export default function ARNavigationScreen({ navigation, route }) {
       return { bearingToTarget: null, distance: null, movementBearing: null, turnInstruction: 'Location needed' };
     }
 
-    // Use road-based navigation if route data is available
     if (routeData && routeData.steps && routeCoordinates && routeCoordinates.length > 0) {
-      // FIRST: Find next point in routeCoordinates (same path as Map Polyline)
-      // This ensures Blue Arrow and Map Polyline follow the SAME path
       let nextRoutePoint = null;
       let nextRoutePointIndex = -1;
       let minDistanceToRoute = Infinity;
       
-      // Find closest point in routeCoordinates to current position
       routeCoordinates.forEach((coord, index) => {
         const dist = haversineDistanceMeters(
           current.latitude, current.longitude,
@@ -1905,19 +1812,16 @@ export default function ARNavigationScreen({ navigation, route }) {
         );
         if (dist < minDistanceToRoute && index < routeCoordinates.length - 1) {
           minDistanceToRoute = dist;
-          nextRoutePointIndex = index + 1; // Next point in route
+          nextRoutePointIndex = index + 1; 
         }
       });
       
-      // Get next point from routeCoordinates (same as Map Polyline)
       if (nextRoutePointIndex > 0 && nextRoutePointIndex < routeCoordinates.length) {
         nextRoutePoint = routeCoordinates[nextRoutePointIndex];
       } else if (routeCoordinates.length > 1) {
-        // Fallback: use second point if first point is closest
         nextRoutePoint = routeCoordinates[1];
       }
       
-      // Calculate bearing to next route point (same path as Map Polyline)
       let nextStepBearing = null;
       if (nextRoutePoint) {
         nextStepBearing = computeBearing(
@@ -1932,12 +1836,7 @@ export default function ARNavigationScreen({ navigation, route }) {
           totalRoutePoints: routeCoordinates.length
         });
       }
-      
-      // IMPORTANT: Use ONLY routeCoordinates for navigation (same as Map Polyline)
-      // DO NOT use currentStep from routeData.steps as it might be from longest path
-      // All navigation (Blue Arrow, message, distance) should come from routeCoordinates only
-      
-      // If nextRoutePoint not found, use first route point as fallback
+
       if (!nextStepBearing && routeCoordinates.length > 1) {
         nextStepBearing = computeBearing(
           current.latitude, current.longitude,
@@ -1945,7 +1844,6 @@ export default function ARNavigationScreen({ navigation, route }) {
         );
       }
       
-      // Calculate total distance along routeCoordinates path (shortest path)
       let totalRouteDistance = 0;
       for (let i = 0; i < routeCoordinates.length - 1; i++) {
         totalRouteDistance += haversineDistanceMeters(
@@ -1954,33 +1852,28 @@ export default function ARNavigationScreen({ navigation, route }) {
         );
       }
       
-      // For display purposes, also get currentStep (but don't use it for navigation)
       const currentStep = getCurrentNavigationStep(current, routeData.steps);
       if (currentStep) {
         setCurrentStep(currentStep);
         setCurrentStepIndex(currentStep.index);
       }
       
-      // Instruction text - will be determined from routeCoordinates turn direction
       const instruction = currentStep?.html_instructions
-        ?.replace(/<[^>]*>/g, '') // Remove HTML tags
-        .replace(/&nbsp;/g, ' ') // Replace HTML entities
+        ?.replace(/<[^>]*>/g, '') 
+        .replace(/&nbsp;/g, ' ') 
         .trim() || 'Continue';
       
-      // Distance will come from routeCoordinates, not from currentStep
       const stepDistance = currentStep?.distance?.text || '0 m';
       const stepDistanceMeters = currentStep?.distance?.value || 0;
       setDistanceToNextTurn(stepDistance);
       setDistanceToNextTurnMeters(stepDistanceMeters);
 
-      // Calculate distance to next turn point using routeCoordinates (same as Map Polyline)
-      // Find next significant turn in routeCoordinates (where bearing changes significantly)
+
       let distanceToTurnMeters = null;
       let turnDirectionFromRoute = null;
       
       if (nextRoutePoint && routeCoordinates.length > nextRoutePointIndex + 1) {
-        // Look ahead in routeCoordinates to find next turn point
-        const lookAheadDistance = 200; // Look up to 200m ahead
+        const lookAheadDistance = 200; 
         let accumulatedDistance = 0;
         let prevBearing = nextStepBearing;
         
@@ -1999,11 +1892,9 @@ export default function ARNavigationScreen({ navigation, route }) {
             nextCoord.latitude, nextCoord.longitude
           );
           
-          // Check if bearing change indicates a turn (more than 30 degrees)
           const bearingChange = Math.abs(normalizeAngle(segmentBearing - prevBearing));
           
           if (bearingChange > 30 && bearingChange < 150) {
-            // Found a turn point
             const distanceFromCurrent = haversineDistanceMeters(
               current.latitude, current.longitude,
               nextCoord.latitude, nextCoord.longitude
@@ -2011,7 +1902,6 @@ export default function ARNavigationScreen({ navigation, route }) {
             
             distanceToTurnMeters = distanceFromCurrent;
             
-            // Determine turn direction
             const relativeBearing = normalizeAngle(segmentBearing - prevBearing);
             if (relativeBearing > 0 && relativeBearing < 180) {
               turnDirectionFromRoute = 'right';
@@ -2033,9 +1923,7 @@ export default function ARNavigationScreen({ navigation, route }) {
         }
       }
       
-      // Fallback: use routeCoordinates next point if turn not found (NEVER use currentStep)
       if (distanceToTurnMeters === null && nextRoutePoint) {
-        // Calculate distance to next route point (same path as Map Polyline)
         distanceToTurnMeters = haversineDistanceMeters(
           current.latitude, current.longitude,
           nextRoutePoint.latitude, nextRoutePoint.longitude
@@ -2048,22 +1936,18 @@ export default function ARNavigationScreen({ navigation, route }) {
       
       setDistanceToNextTurnMeters(distanceToTurnMeters);
 
-      // Determine turn direction - prefer routeCoordinates direction (same as Map Polyline)
       const lowerInstruction = instruction.toLowerCase();
       let turnDir = 'straight';
-      let requiredBearing = nextStepBearing; // Required direction to go
+      let requiredBearing = nextStepBearing; 
         
-      // FIRST: Use turn direction from routeCoordinates if available (same as Map Polyline)
       if (turnDirectionFromRoute) {
         turnDir = turnDirectionFromRoute;
         console.log('✅ Using turnDir from routeCoordinates (shortest path):', turnDir);
       } else {
-        // If no turn found in routeCoordinates, check bearing change to determine direction
         if (nextStepBearing !== null && deviceHeading !== null) {
           const relativeBearing = normalizeAngle(nextStepBearing - deviceHeading);
           const absRel = Math.abs(relativeBearing);
           
-          // Determine direction based on relative bearing (same logic as routeCoordinates)
           if (absRel <= 15) {
             turnDir = 'straight';
           } else if (relativeBearing > 0 && relativeBearing < 180) {
@@ -2073,14 +1957,12 @@ export default function ARNavigationScreen({ navigation, route }) {
           }
           console.log('✅ Using turnDir from routeCoordinates bearing (shortest path):', turnDir);
         } else {
-          // Last fallback: straight (NEVER use currentStep instruction as it might be longest path)
           turnDir = 'straight';
           console.log('⚠️ No turn direction found, defaulting to straight (routeCoordinates path)');
         }
       }
       
-      // Check next step for upcoming turn (to show straight arrow when going straight before turn)
-      // NOTE: Use routeCoordinates for turn detection, not currentStep (which might be longest path)
+     
       let nextStepTurnDir = null;
       let nextStepDistance = null;
       if (currentStep && currentStep.index + 1 < routeData.steps.length) {
@@ -2099,7 +1981,6 @@ export default function ARNavigationScreen({ navigation, route }) {
             nextStepTurnDir = 'uturn';
           }
           
-          // Calculate distance to next step's turn point
           if (nextStepTurnDir) {
             nextStepDistance = haversineDistanceMeters(
               current.latitude, current.longitude,
@@ -2108,16 +1989,13 @@ export default function ARNavigationScreen({ navigation, route }) {
           }
         }
         
-        // Calculate actual direction based on phone heading + route direction
-        // Compare phone heading with required bearing
-        let actualTurnDir = turnDir; // Default to instruction direction
+
+        let actualTurnDir = turnDir; 
         let wrongDirection = false;
         
       if (deviceHeading !== null && requiredBearing !== null) {
-        // Calculate relative bearing (where user should go relative to phone heading)
         let relativeBearing = normalizeAngle(requiredBearing - deviceHeading);
         
-        // Check user's actual movement direction (if available)
         let userMovementBearing = null;
         if (lastPositionRef.current && position) {
           const moved = haversineDistanceMeters(
@@ -2126,7 +2004,7 @@ export default function ARNavigationScreen({ navigation, route }) {
             position.latitude, 
             position.longitude
           );
-          if (moved > 2) { // Only if moved more than 2 meters
+          if (moved > 2) { 
             userMovementBearing = computeBearing(
               lastPositionRef.current.latitude,
               lastPositionRef.current.longitude,
@@ -2136,43 +2014,31 @@ export default function ARNavigationScreen({ navigation, route }) {
           }
         }
         
-        // Determine actual direction based on phone heading
         const absRel = Math.abs(relativeBearing);
         
-        // If user is moving, check movement direction vs required direction
         if (userMovementBearing !== null) {
           const movementDiff = normalizeAngle(requiredBearing - userMovementBearing);
           const absMovementDiff = Math.abs(movementDiff);
           
-          // Check if user is going in wrong direction (more than 60 degrees off)
           if (absMovementDiff > 60) {
-            // User is moving in wrong direction
             wrongDirection = true;
-            // Show correct direction based on where they should go
             actualTurnDir = turnDir;
           } else {
-            // User is moving in correct direction
             wrongDirection = false;
             actualTurnDir = turnDir;
           }
         } else {
-          // No movement data, use phone heading
           if (absRel <= 30) {
-            // User is facing correct direction (within 30 degrees)
             actualTurnDir = turnDir;
             wrongDirection = false;
           } else if (absRel >= 150) {
-            // User is facing opposite direction (more than 150 degrees off)
             wrongDirection = true;
             actualTurnDir = turnDir;
           } else {
-            // User is facing wrong direction (30-150 degrees off)
-            // Check if it's opposite to required turn
+    
             if (turnDir === 'left' && relativeBearing > 0 && relativeBearing < 90) {
-              // Should turn left but facing right
               wrongDirection = true;
             } else if (turnDir === 'right' && relativeBearing < 0 && relativeBearing > -90) {
-              // Should turn right but facing left
               wrongDirection = true;
             } else {
               wrongDirection = false;
@@ -2182,25 +2048,18 @@ export default function ARNavigationScreen({ navigation, route }) {
         }
       }
       
-      // Determine which arrow to show (like driving game):
-      // - If current step is straight → show straight arrow always
-      // - If current step is turn and distance > 20m → show straight arrow (going straight before turn)
-      // - If current step is turn and distance <= 20m → show turn arrow (replace straight)
+
       let arrowToShow = actualTurnDir;
       let distanceForArrow = distanceToTurnMeters;
       
       if (turnDir === 'straight') {
-        // Current step is straight → always show straight arrow
         arrowToShow = 'straight';
-        distanceForArrow = null; // No distance for straight
+        distanceForArrow = null; 
       } else {
-        // Current step is a turn
         if (distanceToTurnMeters > 20) {
-          // More than 20m away → show straight arrow (going straight before turn)
           arrowToShow = 'straight';
           distanceForArrow = null;
         } else {
-          // Within 20m → show turn arrow (replace straight)
           arrowToShow = actualTurnDir;
           distanceForArrow = distanceToTurnMeters;
         }
@@ -2210,21 +2069,17 @@ export default function ARNavigationScreen({ navigation, route }) {
       setDistanceToNextTurnMeters(distanceForArrow);
       setIsWrongDirection(wrongDirection);
       
-      // Set yellow arrow color - red if wrong direction
       if (wrongDirection) {
-        setYellowArrowColor('#FF4444'); // Red for wrong direction
+        setYellowArrowColor('#FF4444'); 
       } else {
-        setYellowArrowColor('#FFD700'); // Yellow for correct direction
+        setYellowArrowColor('#FFD700'); 
       }
 
-      // Get proper turn message - prefer routeCoordinates direction if available
       let finalTurnMessage = null;
       if (turnDirectionFromRoute) {
-        // Use turn direction from routeCoordinates (same as Map Polyline)
         finalTurnMessage = turnDirectionFromRoute === 'left' ? 'Turn left' : 'Turn right';
         console.log('✅ Using turn direction from routeCoordinates (shortest path):', finalTurnMessage);
       } else {
-        // Fallback: use bearing-based direction (NOT currentStep instruction)
         if (nextStepBearing !== null && deviceHeading !== null) {
           const relativeBearing = normalizeAngle(nextStepBearing - deviceHeading);
           if (Math.abs(relativeBearing) <= 15) {
@@ -2256,7 +2111,6 @@ export default function ARNavigationScreen({ navigation, route }) {
         distanceToTurn: distanceToTurnMeters ? distanceToTurnMeters.toFixed(1) + 'm' : 'N/A'
       });
 
-      // Use routeCoordinates distance (shortest path), not routeData.route distance
       const routeDistance = totalRouteDistance || routeData.route.legs[0].distance.value;
       const routeDistanceText = routeDistance < 1000 
         ? `${routeDistance.toFixed(0)} m` 
@@ -2270,7 +2124,6 @@ export default function ARNavigationScreen({ navigation, route }) {
         note: 'Using routeCoordinates distance (shortest path)'
       });
 
-      // Create distance-based instruction like "After 20 meters turn right"
       let formattedInstruction = '';
       if (distanceToTurnMeters && distanceToTurnMeters < 1000) {
         const meters = Math.round(distanceToTurnMeters);
@@ -2290,13 +2143,12 @@ export default function ARNavigationScreen({ navigation, route }) {
 
       return {
         bearingToTarget: nextStepBearing,
-        distance: routeDistance, // Use routeCoordinates distance (shortest path)
+        distance: routeDistance, 
         movementBearing: null,
         turnInstruction: formattedInstruction || turnMessage
       };
     }
 
-    // Fallback to direct bearing if no route data
     const bTarget = computeBearing(current.latitude, current.longitude, target.latitude, target.longitude);
     const d = haversineDistanceMeters(current.latitude, current.longitude, target.latitude, target.longitude);
 
@@ -2315,7 +2167,6 @@ export default function ARNavigationScreen({ navigation, route }) {
       }
     }
 
-    // Get proper turn message for direct navigation
     const turnMessage = getTurnMessage(instruction, bTarget, deviceHeading);
     const icon = getArrowIcon(instruction, bTarget, deviceHeading);
     setArrowIcon(icon);
@@ -2334,41 +2185,21 @@ export default function ARNavigationScreen({ navigation, route }) {
     return { bearingToTarget: bTarget, distance: d, movementBearing: moveBearing, turnInstruction: turnMessage };
   }, [position, staticStart, target, routeData, deviceHeading, currentStepIndex, routeCoordinates]);
 
-  // Force re-render when position changes for real-time updates
-  useEffect(() => {
-    // This ensures all calculations update when position changes
-    if (position) {
-      // Trigger re-calculation by updating state dependencies
-      // The useMemo will automatically recalculate
-      // Force update of turn indicators and distance box
-      console.log('📍 Position updated, recalculating navigation:', {
-        lat: position.latitude.toFixed(6),
-        lng: position.longitude.toFixed(6)
-      });
-    }
-  }, [position?.latitude, position?.longitude, routeCoordinates]);
-
-  // Update arrow color and guidance message based on off-route status
   useEffect(() => {
     if (isOffRoute) {
-      // Change arrow color to red when off route
-      setArrowColor('#FF4444'); // Red color for wrong direction
+      setArrowColor('#FF4444'); 
       setGuidanceMessage(`⚠️ Wrong Direction - ${offRouteDistance ? Math.round(offRouteDistance) : '--'}m off route. Re-routing...`);
       console.log('🔴 Off Route Alert:', {
         distanceFromRoute: offRouteDistance?.toFixed(1) + 'm',
         message: 'Re-routing...'
       });
     } else {
-      // Normal blue color when on route
-      setArrowColor('#5F93FB'); // Blue color for normal navigation
-      // Guidance message will be updated by arrow rotation effect
+      setArrowColor('#5F93FB'); 
     }
   }, [isOffRoute, offRouteDistance]);
 
-  // Animate turn indicator pulse when approaching a turn
   useEffect(() => {
     if (distanceToNextTurnMeters && distanceToNextTurnMeters < 100) {
-      // Start pulsing animation when within 100m of turn
       Animated.loop(
         Animated.sequence([
           Animated.timing(turnIndicatorPulse, {
@@ -2388,7 +2219,6 @@ export default function ARNavigationScreen({ navigation, route }) {
     }
   }, [distanceToNextTurnMeters]);
 
-  // Periodic consolidated console status (updates even if some UI parts are hidden)
   useEffect(() => {
     const intervalId = setInterval(() => {
       const relativeBearing = (bearingToTarget != null && deviceHeading != null)
@@ -2411,22 +2241,18 @@ export default function ARNavigationScreen({ navigation, route }) {
     return () => clearInterval(intervalId);
   }, [currentStepIndex, totalSteps, turnInstruction, distanceLabel, deviceHeading, userOrientation, bearingToTarget, arrowIcon]);
 
-  // Smooth arrow rotation animation with device orientation compensation
   useEffect(() => {
     if (bearingToTarget !== null && deviceHeading !== null) {
-      // Calculate relative bearing (compensate for device orientation)
       const relativeBearing = calculateRelativeDirection(bearingToTarget, deviceHeading);
       const targetRotation = relativeBearing;
       const currentRotation = smoothBearing;
 
-      // Calculate shortest rotation path
       let rotationDiff = targetRotation - currentRotation;
       if (rotationDiff > 180) rotationDiff -= 360;
       if (rotationDiff < -180) rotationDiff += 360;
 
       const newRotation = currentRotation + rotationDiff;
       setSmoothBearing(newRotation);
-      // Update guidance message based on relative bearing
       let guidance = 'Align with target';
       const normalized = ((relativeBearing % 360) + 360) % 360; // 0..359
       const absRel = Math.abs(((normalized + 540) % 360) - 180); // 0..180
@@ -2436,22 +2262,14 @@ export default function ARNavigationScreen({ navigation, route }) {
       else guidance = 'Turn left';
       setGuidanceMessage(guidance);
 
-      // console.log('🔄 Arrow Rotation:', {
-      //   targetBearing: bearingToTarget.toFixed(1),
-      //   deviceHeading: deviceHeading.toFixed(1),
-      //   relativeBearing: relativeBearing.toFixed(1),
-      //   rotationDiff: rotationDiff.toFixed(1)
-      // });
-
       Animated.timing(arrowRotation, {
         toValue: newRotation,
-        duration: 300, // Smooth 300ms animation
+        duration: 300, 
         useNativeDriver: true,
       }).start();
     }
   }, [bearingToTarget, deviceHeading]);
 
-  // Animate compass (north-up dial rotates opposite to device heading)
   useEffect(() => {
     if (deviceHeading !== null && deviceHeading !== undefined) {
       Animated.timing(compassRotation, {
@@ -2462,42 +2280,33 @@ export default function ARNavigationScreen({ navigation, route }) {
     }
   }, [deviceHeading]);
 
-  // Update AR elements when position or heading changes
   useEffect(() => {
     if (position && deviceHeading !== null) {
-      // Update AR destination marker
       const destMarker = calculateArDestinationMarker();
       setArDestinationMarker(destMarker);
       
-      // Update AR path points
       const pathPoints = calculateArPathPoints();
       setArPathPoints(pathPoints);
       
-      // Update AR distance markers
       const distanceMarkers = calculateArDistanceMarkers();
       setArDistanceMarkers(distanceMarkers);
       
-      // Update AR turn indicators
       const turnIndicators = calculateArTurnIndicators();
       setArTurnIndicators(turnIndicators);
     }
   }, [position, deviceHeading, routeCoordinates, currentStepIndex, routeData]);
 
-  // MapViewDirections automatically handles dynamic path from current location to destination
 
   const distanceLabel = distance != null ? `${distance < 1000 ? distance.toFixed(0) + ' m' : (distance / 1000).toFixed(2) + ' km'}` : '--';
   const showCamera = cameraDevice && hasCameraPermission && isFocused;
   const screenHeight = Dimensions.get('window').height;
   const screenWidth = Dimensions.get('window').width;
-  // Street View Style: Full screen camera when map hidden, camera takes most space when map shown
   const cameraHeight = showMap ? screenHeight * 0.7 : screenHeight;
   const mapHeight = screenHeight * 0.55;
 
   return (
     <View style={styles.container}>
-      {/* Street View Style: Camera as Base (Full Screen Reality View) */}
       <View style={[styles.cameraContainer, { height: cameraHeight }]}>
-        {/* Camera Feed - Base Reality (Street View) */}
         {showCamera ? (
           <Camera 
             style={StyleSheet.absoluteFill} 
@@ -2516,97 +2325,15 @@ export default function ARNavigationScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Overlay Layer - AR Elements on top of Camera Feed */}
         <View style={styles.overlay} pointerEvents="box-none">
           <TouchableOpacity style={[styles.backBtn, { top: 60 }]} onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={26} color="#fff" />
           </TouchableOpacity>
 
-          {/* Compass Removed - Clean Street View Experience */}
-
-          {/* AR Navigation Info Box - Commented Out (Removed to make space for compass) */}
-          {/* 
-          <View style={styles.infoBox}>
-            <Text style={styles.title}>🧭 AR Navigation</Text>
-            <View style={styles.infoRow}>
-              <Ionicons name="location" size={14} color="#5F93FB" />
-              <Text style={styles.subtitle}>
-                {position ? `${position.latitude.toFixed(4)}, ${position.longitude.toFixed(4)}` : 'Getting location...'}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="flag" size={14} color="#FF4444" />
-              <Text style={styles.subtitle}>
-                {target ? `${target.latitude.toFixed(4)}, ${target.longitude.toFixed(4)}` : 'No destination'}
-              </Text>
-            </View>
-            <View style={styles.infoDivider} />
-            <View style={styles.infoRow}>
-              <Ionicons name="navigate" size={14} color="#fff" />
-              <Text style={styles.subtitle}>Heading: {deviceHeading != null ? `${deviceHeading.toFixed(0)}°` : '--'} ({userOrientation})</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Ionicons name="list" size={14} color="#fff" />
-              <Text style={styles.subtitle}>Step: {currentStepIndex != null && totalSteps ? `${currentStepIndex + 1}/${totalSteps}` : '--'}</Text>
-            </View>
-            {isOffRoute && (
-              <View style={styles.offRouteWarning}>
-                <Ionicons name="warning" size={16} color="#FF4444" />
-                <Text style={styles.offRouteText}>
-                  Off Route - {offRouteDistance ? Math.round(offRouteDistance) : '--'}m
-                </Text>
-              </View>
-            )}
-          </View>
-          */}
-
-          {/* 3D Arrow on Road - Bottom Center (Street View Style) */}
           <View style={[styles.roadArrowContainer, { 
             bottom: showMap ? 120 : 180,
             alignSelf: 'center',
           }]}>
-            {/* 3D Style Arrow with Perspective - Enhanced for Driving Game Style */}
-            {/* <Animated.View style={[styles.roadArrow3D, {
-              transform: [
-                {
-                  rotate: arrowRotation.interpolate({
-                    inputRange: [0, 360],
-                    outputRange: ['0deg', '360deg'],
-                  })
-                },
-                {
-                  scaleY: 0.85, // Enhanced 3D perspective effect
-                },
-                {
-                  perspective: 1000, // 3D perspective
-                },
-              ]
-            }]}>
-              Outer Glow Ring
-              <View style={styles.arrow3DOuterGlow} />
-              
-              Main Arrow Icon - Larger for Road with Enhanced Shadow
-              <View style={styles.arrowIconContainer}>
-                <Ionicons 
-                  name={isOffRoute ? 'close-circle' : arrowIcon} 
-                  size={isOffRoute ? 100 : 120} 
-                  color={arrowColor} 
-                />
-                Inner shadow for depth
-                <View style={styles.arrowInnerShadow} />
-              </View>
-              
-              3D Shadow Effect - Enhanced
-              <View style={styles.arrow3DShadow} />
-              
-              Glow Effect - Enhanced
-              <View style={styles.arrow3DGlow} />
-              
-              Road Base/Platform - Enhanced
-              <View style={styles.arrowRoadBase} />
-            </Animated.View> */}
-            
-            {/* Distance and Instruction Box on Road */}
             <View style={[styles.roadInfoBox, isOffRoute && styles.roadInfoBoxOffRoute]}>
               <Text style={[styles.roadDistanceText, isOffRoute && styles.roadDistanceTextOffRoute]}>
                 {distanceLabel}
@@ -2625,7 +2352,6 @@ export default function ARNavigationScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Destination Box - Top Right (Street View Style) */}
           <View style={[styles.destinationArrowContainer, { 
             top: 60, 
             right: 16, 
@@ -2640,7 +2366,6 @@ export default function ARNavigationScreen({ navigation, route }) {
             <Text style={styles.destinationArrowDistance}>{distanceLabel}</Text>
           </View>
 
-          {/* Map Toggle Button - Top Right (Street View Style) */}
           <TouchableOpacity
             style={[styles.mapToggleBtn, { 
               top: 60, 
@@ -2655,8 +2380,6 @@ export default function ARNavigationScreen({ navigation, route }) {
             <Text style={styles.mapToggleText}>{showMap ? "Hide Map" : "Show Map"}</Text>
           </TouchableOpacity>
 
-          {/* Yellow Arrow - Top Center (Like Driving Game - Static, No Rotation) */}
-          {/* Blue light color circle with direction arrow - Fixed position, shows route direction only */}
           {nextTurnDirection && bearingToTarget !== null && deviceHeading !== null && (
             <Animated.View style={[styles.yellowTurnArrowContainer, {
               transform: [
@@ -2665,15 +2388,12 @@ export default function ARNavigationScreen({ navigation, route }) {
               ]
             }]}>
               <View style={styles.yellowTurnArrowBox}>
-                {/* Blue Light Color Circle (Fixed) */}
                 <View style={styles.yellowArrowCircleContainer}>
-                  {/* Blue Light Circle Background */}
                   <View style={[
                     styles.yellowArrowCircle,
                     isWrongDirection && styles.yellowArrowCircleRed
                   ]} />
                   
-                  {/* Direction Arrow - Static (No Rotation) */}
                   {nextTurnDirection === 'left' && (
                     <Ionicons 
                       name="arrow-back" 
@@ -2708,7 +2428,6 @@ export default function ARNavigationScreen({ navigation, route }) {
                   )}
                 </View>
                 
-                {/* Warning Message if Wrong Direction */}
                 {isWrongDirection && (
                   <View style={styles.yellowArrowWarningBox}>
                     <Ionicons name="warning" size={18} color="#FF4444" />
@@ -2718,7 +2437,6 @@ export default function ARNavigationScreen({ navigation, route }) {
                   </View>
                 )}
                 
-                {/* Distance Below Arrow - White Text (only for turns, not straight) */}
                 {nextTurnDirection !== 'straight' && distanceToNextTurnMeters && (
                   <Text style={styles.yellowArrowDistance}>
                     {Math.round(distanceToNextTurnMeters)} m
@@ -2728,19 +2446,8 @@ export default function ARNavigationScreen({ navigation, route }) {
             </Animated.View>
           )}
 
-          {/* Step Counter - Top Left (Street View Style) */}
-          {/* {currentStepIndex !== null && totalSteps > 0 && (
-            <View style={styles.stepCounterBox}>
-              <Text style={styles.stepCounterText}>
-                Step {currentStepIndex + 1} of {totalSteps}
-              </Text>
-            </View>
-          )} */}
-
-          {/* AR Elements Removed - Clean Street View with Road Arrow */}
           {false && showArMode && (
             <>
-              {/* AR Destination Marker */}
               {arDestinationMarker && arDestinationMarker.visible && (
                 <View style={[styles.arDestinationMarker, { 
                   left: arDestinationMarker.x - 30, 
@@ -2759,7 +2466,6 @@ export default function ARNavigationScreen({ navigation, route }) {
                 </View>
               )}
 
-              {/* AR Path Points */}
               {arPathPoints.map((point, index) => (
                 <View key={`path-${index}`} style={[styles.arPathPoint, { 
                   left: point.x - 8, 
@@ -2770,7 +2476,6 @@ export default function ARNavigationScreen({ navigation, route }) {
                 </View>
               ))}
 
-              {/* AR Distance Markers */}
               {arDistanceMarkers.map((marker, index) => (
                 <View key={`distance-${index}`} style={[styles.arDistanceMarker, { 
                   left: marker.x - 25, 
@@ -2783,10 +2488,7 @@ export default function ARNavigationScreen({ navigation, route }) {
                 </View>
               ))}
 
-              {/* AR Turn Indicators - Center Top (Dynamic Arrow) */}
               {arTurnIndicators.map((indicator, index) => {
-                // Get arrow icon from indicator (dynamic based on turn direction)
-                // Icon automatically points in correct direction (left/right/straight)
                 const turnArrowIcon = indicator.arrowIcon || 'arrow-forward';
                 
                 return (
@@ -2795,13 +2497,10 @@ export default function ARNavigationScreen({ navigation, route }) {
                     top: indicator.y - 40,
                     alignSelf: 'center',
                   }]}>
-                    {/* Next Turn Label */}
                     <View style={styles.nextTurnLabelContainer}>
                       <Text style={styles.nextTurnLabel}>NEXT TURN</Text>
                     </View>
                     <View style={styles.arTurnContainer}>
-                      {/* Dynamic Arrow Icon - changes based on turn direction */}
-                      {/* arrow-back = left, arrow-forward = right, arrow-up = straight, arrow-down = u-turn */}
                       <Ionicons name={turnArrowIcon} size={35} color="#00ff88" />
                       <View style={styles.arTurnPulse} />
                     </View>
@@ -2816,15 +2515,10 @@ export default function ARNavigationScreen({ navigation, route }) {
               })}
             </>
           )}
-
-          {/* AR Mode Toggle Button - Removed for cleaner street view experience */}
-          {/* Arrow is always visible in street view mode */}
         </View>
       </View>
-      {/* Optional Map View - Bottom (Can be toggled) */}
       {showMap && (
         <View style={[styles.mapContainer, { height: mapHeight }]}>
-          {/* Compact Map View for Street View Style */}
           <View style={{ flex: 1 }}>
             <MapView
               style={StyleSheet.absoluteFill}
@@ -2844,7 +2538,6 @@ export default function ARNavigationScreen({ navigation, route }) {
               mapType="standard"
               key={`map-${position?.latitude}-${position?.longitude}`}
             >
-              {/* Route Directions - Auto-updating path from Current Location to Destination */}
               {position && target && (
                 <MapViewDirections
                   key={`route-${position.latitude}-${position.longitude}-${target.latitude}-${target.longitude}`}
@@ -2855,7 +2548,6 @@ export default function ARNavigationScreen({ navigation, route }) {
                   strokeColor="#5F93FB"
                   optimizeWaypoints={true}
                   onReady={(result) => {
-                    // Update route coordinates when route is ready
                     if (result && result.coordinates && result.coordinates.length > 0) {
                       setRouteCoordinates(result.coordinates);
                       console.log('📍 Route updated with', result.coordinates.length, 'points');
@@ -2864,7 +2556,6 @@ export default function ARNavigationScreen({ navigation, route }) {
                 />
               )}
               
-              {/* Start Point Marker (Current Location) */}
               {position && (
                 <Marker
                   coordinate={{
@@ -2877,7 +2568,6 @@ export default function ARNavigationScreen({ navigation, route }) {
                 />
               )}
               
-              {/* Destination Marker (End Point) */}
               {target && (
                 <Marker
                   coordinate={{
@@ -2891,7 +2581,6 @@ export default function ARNavigationScreen({ navigation, route }) {
               )}
             </MapView>
 
-            {/* Steps Toggle Button - Overlay on Map */}
             <TouchableOpacity
               style={styles.stepsToggleBtn}
               onPress={() => setShowSteps(!showSteps)}
@@ -2902,7 +2591,6 @@ export default function ARNavigationScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
 
-          {/* Steps List - Show/Hide based on toggle */}
           {showSteps && (
             <View style={[styles.stepsContainer, { height: mapHeight * 0.6 }]}>
               <View style={styles.stepsHeader}>
@@ -3005,7 +2693,6 @@ const styles = StyleSheet.create({
   title: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 4 },
   subtitle: { color: '#fff', fontSize: 11, marginLeft: 6, flex: 1 },
   distance: { color: '#fff', fontSize: 18, fontWeight: '800', marginTop: 4 },
-  // Main Arrow Container - Street View Style (Top Center)
   mainArrowContainer: {
     position: 'absolute',
     alignSelf: 'center',
@@ -3109,7 +2796,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  // Yellow Arrow - Top Center (Like Driving Game - Static, No Rotation)
   yellowTurnArrowContainer: {
     position: 'absolute',
     top: 120,
@@ -3124,7 +2810,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingVertical: 0,
   },
-  // Blue Light Color Circle Container (Fixed)
   yellowArrowCircleContainer: {
     position: 'relative',
     alignItems: 'center',
@@ -3132,13 +2817,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
   },
-  // Blue Light Color Circle (Like Image)
   yellowArrowCircle: {
     position: 'absolute',
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(95, 147, 251, 0.6)', // Blue light color
+    backgroundColor: 'rgba(95, 147, 251, 0.6)', 
     borderWidth: 3,
     borderColor: 'rgba(95, 147, 251, 0.8)',
     shadowColor: '#5F93FB',
@@ -3153,7 +2837,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 68, 68, 0.8)',
     shadowColor: '#FF4444',
   },
-  // Yellow Arrow Icon - Static (No Rotation, Fixed Direction)
   yellowArrowIconStatic: {
     shadowColor: '#FFD700',
     shadowOffset: { width: 0, height: 0 },
@@ -3162,13 +2845,11 @@ const styles = StyleSheet.create({
     elevation: 15,
     zIndex: 5,
   },
-  // Red Glow Effect for Wrong Direction
   yellowArrowGlowRed: {
     backgroundColor: 'rgba(255, 68, 68, 0.3)',
     shadowColor: '#FF4444',
     shadowOpacity: 0.9,
   },
-  // Warning Box for Wrong Direction
   yellowArrowWarningBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3190,7 +2871,6 @@ const styles = StyleSheet.create({
     textShadowRadius: 2,
     textShadowOffset: { width: 0, height: 1 },
   },
-  // Distance Text Below Arrow
   yellowArrowDistance: {
     color: '#fff',
     fontSize: 28,
@@ -3201,7 +2881,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     letterSpacing: 1,
   },
-  // Turn Indicator - Prominent Top Center (Like Driving Game) - Keep for reference
   turnIndicatorContainer: {
     position: 'absolute',
     top: 100,
@@ -3285,7 +2964,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 6,
   },
-  // 3D Road Arrow Styles - Street View
   roadArrowContainer: {
     position: 'absolute',
     alignSelf: 'center',
@@ -3606,7 +3284,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   
-  // AR Elements Styles - Advanced AR Features
   arDestinationMarker: { position: 'absolute', alignItems: 'center' },
   arMarkerContainer: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
   arMarkerPulse: { 
