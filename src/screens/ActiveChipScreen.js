@@ -1113,6 +1113,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
   );
 };
 
+
 const styles = StyleSheet.create({
   title: {
     fontSize: style.fontSizeLarge.fontSize,
