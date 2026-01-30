@@ -7828,10 +7828,10 @@
 
 
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Dimensions, PermissionsAndroid, Platform, Modal, Animated } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, Polygon } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import Geolocation from '@react-native-community/geolocation';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -7845,7 +7845,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addActiveChip, moveChipToInactive, moveChipToActive, removeInactiveChip } from '../utils/chipManager';
 import { supabase } from '../lib/supabaseClient';
 import { checkChipOnlineStatus } from '../utils/chipStatusAPI';
-import { getMQTTConfig } from '../constants/Constants';
+import { getMQTTConfig, GOOGLE_MAP_API_KEY } from '../constants/Constants';
 import Toast from 'react-native-simple-toast';
 import { useSelector } from 'react-redux';
 import { requestLocationPermission, checkLocationPermission, shouldRequestPermission } from '../utils/locationPermission';
@@ -7918,6 +7918,13 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const [currentStep, setCurrentStep] = useState(null);
   const [routeCoordinates, setRouteCoordinates] = useState([]);
 
+  // API Route Path State
+  const [apiRoutePath, setApiRoutePath] = useState([]);
+  const [apiRouteDistance, setApiRouteDistance] = useState(null);
+
+  // Yard parking slot polygons (same as Yard Polygons Map – jis yard ka vehicle hai uske slots)
+  const [yardPolygons, setYardPolygons] = useState([]);
+
   // Get chip ID from vehicle data (device ID)
   const getChipId = () => {
     return vehicle?.chip || vehicle?.chipId; // Support both chip and chipId fields
@@ -7930,61 +7937,38 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   }, [yardId]);
 
-
-  // API call to get route when all locations are available
+  // Reset route fetch "first run" when vehicle/chip changes so new vehicle gets immediate route
+  const routeFetchDebounceRef = useRef(false);
   useEffect(() => {
-    const fetchRoute = async () => {
-      // Check if all required data is available
-      if (!currentLocation || !carLocation || !yardId) {
-        return;
-      }
+    routeFetchDebounceRef.current = false;
+  }, [vehicle?.id, vehicle?.chip, vehicle?.chipId]);
 
+  // Route re-fetch: when chip location OR current location changes, fetch route again (debounced after first load)
+  useEffect(() => {
+    if (!currentLocation || !carLocation || !yardId) return;
+
+    const fetchRoute = async () => {
       try {
-        // Format locations as [lat, lng] arrays
         const startLocation = [currentLocation.latitude, currentLocation.longitude];
         const destinationLocation = [carLocation.latitude, carLocation.longitude];
-
-        // URL encode the arrays
         const encodedStartLocation = encodeURIComponent(JSON.stringify(startLocation));
         const encodedDestinationLocation = encodeURIComponent(JSON.stringify(destinationLocation));
-
-        // Build the API URL
         const apiUrl = `https://gpsnew.prorevv.com/route?startLocation=${encodedStartLocation}&destinationLocation=${encodedDestinationLocation}&facility_id=${yardId}`;
 
-        console.log('🛣️ [ROUTE API] Calling route API...');
-        console.log('🛣️ [ROUTE API] URL:', apiUrl);
-
-        // Make the API call
         const response = await fetch(apiUrl);
         const data = await response.json();
 
-        console.log('🛣️ [ROUTE API] Response:', JSON.stringify(data, null, 2));
-        console.log('🛣️ [ROUTE API] Status:', data.status);
-        console.log('🛣️ [ROUTE API] Total Distance:', data.total_distance);
-        console.log('🛣️ [ROUTE API] Path:', data.path);
-
-        // Convert API path format to coordinates format for Polyline
         if (data.status === 'success' && data.path && Array.isArray(data.path)) {
-          // Convert API nodes to coordinates format
-          const apiCoordinates = data.path.map(node => ({
+          const pathCoordinates = data.path.map(node => ({
             latitude: node.lat,
             longitude: node.lng
           }));
-
-          // Store only API path nodes (without current location - will add dynamically)
-          // Keep original API coordinates (don't replace last with car location)
-          // We'll use MapViewDirections from second-to-last to car location
-          const pathCoordinates = [...apiCoordinates];
-
           setApiRoutePath(pathCoordinates);
           setApiRouteDistance(data.total_distance);
-
-          console.log('🛣️ [ROUTE API] Path coordinates (will add current location dynamically):', pathCoordinates);
-          console.log('🛣️ [ROUTE API] Current location will be added dynamically at render time');
-          console.log('🛣️ [ROUTE API] API nodes in between:', apiCoordinates.length);
-          console.log('🛣️ [ROUTE API] Will use MapViewDirections from second-to-last coordinate to car location');
+        } else {
+          setApiRoutePath([]);
+          setApiRouteDistance(null);
         }
-
       } catch (error) {
         console.error('❌ [ROUTE API] Error fetching route:', error);
         setApiRoutePath([]);
@@ -7992,8 +7976,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       }
     };
 
-    fetchRoute();
+    // First time we have all data: fetch immediately
+    if (!routeFetchDebounceRef.current) {
+      routeFetchDebounceRef.current = true;
+      fetchRoute();
+      return;
+    }
+
+    // Later: chip or current location changed → debounce 2s then re-fetch
+    const timeoutId = setTimeout(fetchRoute, 2000);
+    return () => clearTimeout(timeoutId);
   }, [currentLocation, carLocation, yardId]);
+
+  // Load yard parking slot polygons when vehicle/yard opens (jis yard ka vehicle hai uske slots)
+  useEffect(() => {
+    loadYardPolygons();
+  }, [yardId, vehicle?.facilityId]);
 
   // Get current user info for history
   const getCurrentUser = () => {
@@ -8213,6 +8211,77 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     }
   };
 
+  // Centroid of polygon (for slot number marker) – coordinates in { latitude, longitude } format
+  const getPolygonCentroid = (coordinates) => {
+    if (!coordinates || !Array.isArray(coordinates) || coordinates.length === 0) return null;
+    const valid = coordinates.filter(
+      (c) => c && typeof (c.latitude ?? c.lat) === 'number' && typeof (c.longitude ?? c.lng) === 'number'
+    );
+    if (valid.length === 0) return null;
+    const lat = valid.reduce((sum, c) => sum + (c.latitude ?? c.lat), 0) / valid.length;
+    const lng = valid.reduce((sum, c) => sum + (c.longitude ?? c.lng), 0) / valid.length;
+    return { latitude: lat, longitude: lng };
+  };
+
+  // Slot number markers from yard polygons (number dikhane ke liye)
+  const yardSlotMarkers = useMemo(() => {
+    return yardPolygons
+      .filter((p) => p.coordinates && p.coordinates.length > 0)
+      .map((polygon) => {
+        const centroid = getPolygonCentroid(polygon.coordinates);
+        if (!centroid) return null;
+        return { id: polygon.id, slotNum: polygon.slotNum, coordinate: centroid };
+      })
+      .filter(Boolean);
+  }, [yardPolygons]);
+
+  // Load yard parking slot polygons (jis yard ka vehicle hai uske drawn slots – same as Yard Polygons Map)
+  const loadYardPolygons = async () => {
+    const facilityId = yardId || vehicle?.facilityId;
+    if (!facilityId) {
+      setYardPolygons([]);
+      return;
+    }
+    try {
+      const facilityIdInt = parseInt(facilityId, 10);
+      if (isNaN(facilityIdInt)) {
+        setYardPolygons([]);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('facility_polygons')
+        .select('*')
+        .eq('facility_id', facilityIdInt);
+
+      if (error) {
+        console.warn('⚠️ [VehicleDetails] Error loading yard polygons:', error);
+        setYardPolygons([]);
+        return;
+      }
+      const processed = (data || []).map((item) => {
+        let coords = [];
+        if (typeof item.coordinates === 'string') {
+          try {
+            coords = JSON.parse(item.coordinates);
+          } catch (e) {
+            coords = [];
+          }
+        } else if (Array.isArray(item.coordinates)) {
+          coords = item.coordinates;
+        }
+        const mapViewCoords = (coords || []).map((c) => ({
+          latitude: c.lat ?? c.latitude,
+          longitude: c.lng ?? c.longitude,
+        }));
+        return { id: item.id, slotNum: item.slot_number || item.slot_num || 'N/A', coordinates: mapViewCoords };
+      }).filter((p) => p.coordinates && p.coordinates.length > 0);
+      setYardPolygons(processed);
+    } catch (err) {
+      console.warn('⚠️ [VehicleDetails] loadYardPolygons error:', err);
+      setYardPolygons([]);
+    }
+  };
+
   // Initialize MQTT connection
   const initializeMqtt = () => {
     try {
@@ -8387,15 +8456,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   // Calculate intermediate waypoint for L-shape route
   const calculateLShapeWaypoint = (origin, destination) => {
     if (!origin || !destination) return null;
-    
+
     // Calculate differences
     const latDiff = destination.latitude - origin.latitude;
     const lngDiff = destination.longitude - origin.longitude;
-    
+
     // Determine which direction has larger change (for L-shape)
     const absLatDiff = Math.abs(latDiff);
     const absLngDiff = Math.abs(lngDiff);
-    
+
     // Create L-shape: go halfway in the larger direction first, then turn
     if (absLatDiff > absLngDiff) {
       // Go halfway in latitude first, then full longitude
@@ -8677,7 +8746,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   useEffect(() => {
     const initializeLocation = async () => {
       const chipId = getChipId();
-      
+
       // Skip dynamic initialization if chip ID ends with "39d" (using static coordinates)
       // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
       //   // console.log('🧪 [TEST] Skipping dynamic initialization for static chip');
@@ -8693,19 +8762,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         try {
           const { data: carData, error: dbError } = await supabase
             .from('cars')
-            .select('latitude, longitude, last_location_update, is_moving, notification_sent_check, parkedNotification')
+            .select('latitude, longitude, last_location_update')
             .eq('chip', chipId)
             .single();
-
-          if (carData) {
-            setCarTableStatus({
-              is_moving: carData.is_moving,
-              notification_sent_check: carData.notification_sent_check,
-              parkedNotification: carData.parkedNotification
-            });
-          } else {
-            setCarTableStatus(null);
-          }
 
           if (!dbError && carData && carData.latitude && carData.longitude) {
             const timestamp = parseDatabaseTimestamp(carData.last_location_update);
@@ -9032,21 +9091,21 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     // Check last segment (second-to-last to last point)
     const secondLast = apiPath[apiPath.length - 2];
     const last = apiPath[apiPath.length - 1];
-    
+
     // Calculate distance from car to last point
     const distanceToLast = calculateDistance(carLoc, last);
     const distanceToSecondLast = calculateDistance(carLoc, secondLast);
-    
+
     // Calculate distance between second-to-last and last
     const segmentDistance = calculateDistance(secondLast, last);
-    
+
     // If car is between second-to-last and last (or very close to last segment)
     // Find closest point on the segment
     if (distanceToLast <= segmentDistance * 1.5 || distanceToSecondLast <= segmentDistance * 1.5) {
       // Find point on segment closest to car
       const closestPointOnSegment = findClosestPointOnSegment(secondLast, last, carLoc);
       const distanceToClosest = calculateDistance(carLoc, closestPointOnSegment);
-      
+
       // If car is very close to the segment, trim path to that point
       if (distanceToClosest < 100) {
         // Trim path: keep all points except last, add closest point
@@ -9054,12 +9113,12 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         return { trimmedPath, connectionPoint: closestPointOnSegment };
       }
     }
-    
+
     // If last point is ahead of car (car is behind), find where to trim
     // Check if car is closer to any point in the path
     let closestIndex = 0;
     let minDist = Infinity;
-    
+
     for (let i = 0; i < apiPath.length; i++) {
       const dist = calculateDistance(carLoc, apiPath[i]);
       if (dist < minDist) {
@@ -9067,14 +9126,14 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         closestIndex = i;
       }
     }
-    
+
     // If closest point is not the last one, and car is significantly closer to it
     if (closestIndex < apiPath.length - 1 && minDist < 100) {
       // Trim path to closest point
       const trimmedPath = apiPath.slice(0, closestIndex + 1);
       return { trimmedPath, connectionPoint: apiPath[closestIndex] };
     }
-    
+
     // Default: use last point
     return { trimmedPath: apiPath, connectionPoint: last };
   };
@@ -9084,29 +9143,29 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     const A = segmentStart;
     const B = segmentEnd;
     const P = point;
-    
+
     // Vector from A to B
     const AB = {
       lat: B.latitude - A.latitude,
       lng: B.longitude - A.longitude
     };
-    
+
     // Vector from A to P
     const AP = {
       lat: P.latitude - A.latitude,
       lng: P.longitude - A.longitude
     };
-    
+
     // Calculate dot product
     const AB2 = AB.lat * AB.lat + AB.lng * AB.lng;
     const AP_AB = AP.lat * AB.lat + AP.lng * AB.lng;
-    
+
     // Calculate the ratio
     const ratio = AB2 > 0 ? AP_AB / AB2 : 0;
-    
+
     // Clamp ratio to [0, 1] to stay on segment
     const clampedRatio = Math.max(0, Math.min(1, ratio));
-    
+
     // Calculate closest point
     return {
       latitude: A.latitude + clampedRatio * AB.lat,
@@ -9897,6 +9956,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           longitudeDelta: 0.01,
         }}
       >
+        {/* Yard parking slot polygons – jis yard ka vehicle hai uske drawn slots (same as Yard Polygons Map) */}
+        {yardPolygons.filter((p) => p.coordinates && p.coordinates.length > 0).map((polygon) => (
+          <Polygon
+            key={polygon.id}
+            coordinates={polygon.coordinates}
+            fillColor="rgba(255, 111, 97, 0.25)"
+            strokeColor="#FF6F61"
+            strokeWidth={2}
+          />
+        ))}
+        {/* Slot number markers – har polygon pe number (Yard Polygons Map jaisa) */}
+        {yardSlotMarkers.map((marker) => (
+          <Marker key={marker.id} coordinate={marker.coordinate} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+            <Text style={styles.slotBadgeText}>{marker.slotNum}</Text>
+          </Marker>
+        ))}
         {currentLocation && (
           <Marker
             coordinate={currentLocation}
@@ -9965,7 +10040,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                   key={`route-to-car-${connectionPoint.latitude}-${connectionPoint.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
                   origin={connectionPoint}
                   destination={carLocation}
-                  apikey="AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE"
+                  apikey={GOOGLE_MAP_API_KEY}
                   strokeWidth={3}
                   strokeColor="#f40d0dff"
                   lineDashPattern={[1]}
@@ -9982,7 +10057,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             key={`route-${currentLocation.latitude}-${currentLocation.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
             origin={currentLocation}
             destination={carLocation}
-            apikey="AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE"
+            apikey={GOOGLE_MAP_API_KEY}
             strokeWidth={3}
             strokeColor="#f40d0dff"
             optimizeWaypoints={true}
@@ -10088,19 +10163,6 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               {vehicle?.chipId ? (vehicle?.isActive ? 'Active' : 'Inactive') : 'Inactive'}
             </Text>
           </View>
-        </View>
-
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Is Moving:</Text>
-          <Text style={styles.infoValue}>{carTableStatus?.is_moving != null ? (carTableStatus.is_moving ? 'Yes' : 'No') : 'N/A'}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Notification Sent Check:</Text>
-          <Text style={styles.infoValue}>{carTableStatus?.notification_sent_check != null ? (carTableStatus.notification_sent_check ? 'Yes' : 'No') : 'N/A'}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Parked Notification:</Text>
-          <Text style={styles.infoValue}>{carTableStatus?.parkedNotification != null ? String(carTableStatus.parkedNotification) : 'N/A'}</Text>
         </View>
       </View>
 
@@ -10641,6 +10703,11 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderBottomColor: '#003F65',
+  },
+  slotBadgeText: {
+    color: blackColor,
+    fontWeight: style.fontWeightBold.fontWeight,
+    fontSize: 10,
   },
   carMarkerContainer: {
     alignItems: 'center',

@@ -16,6 +16,7 @@ import {
   Keyboard,
   Pressable,
   AppState,
+  Animated,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-simple-toast';
@@ -131,6 +132,48 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   // Notifications state
   const notifications = useSelector(state => state.notifications?.items || []);
   const unreadCount = notifications.filter(item => !item.read).length;
+
+  // Search bar highlight animation – border glow + icon pulse (background white hi rehta hai)
+  const searchGlowAnim = useRef(new Animated.Value(0)).current;
+  const searchIconScaleAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const glowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(searchGlowAnim, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchGlowAnim, {
+          toValue: 0,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+      { iterations: -1 }
+    );
+    const iconPulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(searchIconScaleAnim, {
+          toValue: 1.3,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchIconScaleAnim, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]),
+      { iterations: -1 }
+    );
+    glowLoop.start();
+    iconPulse.start();
+    return () => {
+      glowLoop.stop();
+      iconPulse.stop();
+    };
+  }, []);
 
   // Initialize MQTT for battery monitoring
   const initializeMqtt = async () => {
@@ -1023,19 +1066,53 @@ export default function HomeScreen({ navigation, setCheckUser }) {
         </View>
 
         {!isDrawerOpen && (
-          <TouchableOpacity
-            style={styles.beautifulSearchBar}
-            onPress={() => navigation.navigate('SearchScreen')}>
-            <View style={styles.searchIconContainer}>
-              <Ionicons name="search" size={20} color="#003F65" />
-            </View>
-            <Text style={styles.searchText}>
-              Search VIN, Make, Model...
-            </Text>
-            <View style={styles.searchArrow}>
-              <Ionicons name="chevron-forward" size={16} color="#999" />
-            </View>
-          </TouchableOpacity>
+          <Animated.View
+            style={[
+              styles.beautifulSearchBar,
+              styles.searchBarHighlightWrap,
+              {
+                borderWidth: 3,
+                borderColor: searchGlowAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['rgba(0, 63, 101, 0.35)', nissanPrimaryBlue],
+                }),
+              },
+            ]}>
+            <TouchableOpacity
+              style={styles.searchBarInner}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('SearchScreen')}>
+              <Animated.View
+                style={[
+                  styles.searchIconContainer,
+                  { transform: [{ scale: searchIconScaleAnim }] },
+                ]}>
+                <Ionicons name="search" size={22} color="#003F65" />
+              </Animated.View>
+              <View style={styles.searchBarDivider} />
+              <Text style={styles.searchText}>
+                Search VIN, Make, Model...
+              </Text>
+              <View style={styles.searchArrow}>
+                <Ionicons name="chevron-forward" size={16} color="#999" />
+              </View>
+            </TouchableOpacity>
+            {/* Scanner – right side, Scan stack pe jane ke liye, barcode scanner highlighted */}
+            <View style={styles.searchBarDivider} />
+            <TouchableOpacity
+              style={styles.scannerButton}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Scan')}>
+              <Animated.View
+                style={[
+                  styles.scannerIconWrap,
+                  { transform: [{ scale: searchIconScaleAnim }] },
+                ]}>
+                <Ionicons name="barcode-outline" size={26} color="#003F65" />
+              </Animated.View>
+              <Text style={styles.scannerLabel}>Scan</Text>
+            </TouchableOpacity>
+          </Animated.View>
         )}
       </View>
 
@@ -1375,10 +1452,49 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 6,
   },
+  searchBarHighlightWrap: {
+    overflow: 'hidden',
+  },
+  searchBarGlowBg: {
+    backgroundColor: nissanPrimaryBlue,
+    borderRadius: spacings.large,
+  },
+  searchBarInner: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchBarDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: 'rgba(0, 63, 101, 0.2)',
+    marginHorizontal: 4,
+  },
+  scannerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 8,
+    paddingRight: 4,
+  },
+  scannerIconWrap: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scannerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: nissanPrimaryBlue,
+    marginLeft: 2,
+  },
   searchIconContainer: {
     borderRadius: spacings.fontSizeSmall2x,
     padding: spacings.small2x,
     marginRight: spacings.fontSizeSmall2x,
+  },
+  searchNissanLogo: {
+    width: 28,
+    height: 28,
   },
   searchText: {
     flex: 1,

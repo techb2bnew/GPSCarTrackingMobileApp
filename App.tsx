@@ -11,7 +11,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, wit
 import { whiteColor, nissanPrimaryBlue } from './src/constants/Color';
 import { BaseStyle } from './src/constants/Style';
 import InternetChecker from './src/components/InternetChecker';
-import { MAIN_LOGO, SPLASH_IMAGE } from './src/assests/images';
+import { MAIN_LOGO, SPLASH_IMAGE, NISSAN_LOGO } from './src/assests/images';
 import { requestLocationPermission } from './src/utils/locationPermission';
 import { listenAllChipsMotionEvents } from './src/utils/motionEventListener';
 import { requestNotificationPermissions, configurePushNotifications, displayForegroundNotification } from './src/utils/notificationService';
@@ -507,11 +507,11 @@ function AppContent({ setCheckUser }: AppContentProps) {
       <InternetChecker />
       {showSplash ? (
         <View style={styles.splashContainer}>
-          {/* OPTION 1: Animated Logo with Fade & Scale (Currently Active) */}
+          {/* Nissan logo – splash pe sahi se dikhane ke liye */}
           <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
             <Image
-              source={MAIN_LOGO}
-              style={styles.logo}
+              source={NISSAN_LOGO}
+              style={styles.splashLogo}
               resizeMode="contain"
             />
           </Animated.View>
@@ -635,6 +635,12 @@ const styles = StyleSheet.create({
   logo: {
     width: 200,
     height: 200,
+  },
+  splashLogo: {
+    width: 200,
+    height: 200,
+    maxWidth: '80%',
+    maxHeight: 200,
   },
   textContainer: {
     alignItems: 'center',

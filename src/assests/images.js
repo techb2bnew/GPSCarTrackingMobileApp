@@ -57,4 +57,5 @@ export const MAHINDRA = require('./car_logo/mahindra.jpeg');
 export const TATA = require('./car_logo/tata.jpg');
 export const KIA = require('./car_logo/kia.png');
 
+export const NISSAN_LOGO = require('./car_logo/nissan.png');
 

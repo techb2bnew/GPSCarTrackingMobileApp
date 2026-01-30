@@ -894,6 +894,7 @@ export const SingleVehInparkingYard = [
 ];
 
 
+export const GOOGLE_MAP_API_KEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE';
 
 export const SENSECAP_BASE_URL = 'https://sensecap.seeed.cc/openapi';
 export const SENSECAP_AUTH = 'MzdHNzVaME82U1NRQlI5Mzo5QjFDNjkxMzE5N0E0QzU2QjVFQzMxRjFDRUJBRUNGOUU3QzcyMzVCMDE1QjQ1NkRCMEVDNTc3QkQ3QzE2N0Yz';

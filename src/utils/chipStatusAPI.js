@@ -1,8 +1,15 @@
 import { CHIP_STATUS_API_URL, CHIP_STATUS_API_AUTH } from '../constants/Constants';
 
+// SenseCAP API expects only device EUIs (16 hex chars). VINs or other IDs cause 11303.
+const isValidDeviceEui = (id) => {
+  if (!id || typeof id !== 'string') return false;
+  const trimmed = id.trim();
+  return /^[0-9A-Fa-f]{16}$/.test(trimmed);
+};
+
 /**
  * Check online status for multiple chips using SenseCap API
- * @param {Array<string>} deviceEuis - Array of chip IDs (device EUIs)
+ * @param {Array<string>} deviceEuis - Array of chip IDs (device EUIs only; VINs filtered out)
  * @returns {Promise<Object>} Map of chipId -> { online_status: 0|1, ... }
  */
 export const checkChipOnlineStatus = async (deviceEuis) => {
@@ -12,7 +19,15 @@ export const checkChipOnlineStatus = async (deviceEuis) => {
       return {};
     }
 
-    // console.log(`🔄 [CHIP_STATUS_API] Checking online status for ${deviceEuis.length} chips...`);
+    const validEuis = deviceEuis.filter(isValidDeviceEui);
+    const skipped = deviceEuis.filter((id) => !isValidDeviceEui(id));
+    if (skipped.length > 0) {
+      console.log(`⚠️ [CHIP_STATUS] Skipping non-EUI IDs (VIN etc): ${skipped.join(', ')}`);
+    }
+    if (validEuis.length === 0) {
+      console.log('⚠️ [CHIP_STATUS_API] No valid device EUIs (16 hex chars) to check');
+      return {};
+    }
 
     const response = await fetch(CHIP_STATUS_API_URL, {
       method: 'POST',
@@ -21,7 +36,7 @@ export const checkChipOnlineStatus = async (deviceEuis) => {
         'Authorization': `Basic ${CHIP_STATUS_API_AUTH}`,
       },
       body: JSON.stringify({
-        device_euis: deviceEuis,
+        device_euis: validEuis,
       }),
     });
 

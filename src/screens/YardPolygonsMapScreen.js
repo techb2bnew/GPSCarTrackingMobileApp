@@ -7,7 +7,7 @@ import { heightPercentageToDP as hp } from '../utils';
 import { spacings, style } from '../constants/Fonts';
 import { blackColor, whiteColor } from '../constants/Color';
 import mqtt from "mqtt/dist/mqtt";
-import { getMQTTConfig } from '../constants/Constants';
+import { getMQTTConfig, GOOGLE_MAP_API_KEY } from '../constants/Constants';
 import { useFocusEffect } from '@react-navigation/native';
 
 const COLOR_PRIMARY = '#FF6F61';
@@ -95,7 +95,7 @@ const getRegionFromPolygons = (polygons) => {
     };
 };
 
-// Get map region from vehicle locations
+// Get map region from vehicle locations (jaha bhi vehicles hon – sab dikh jaye)
 const getRegionFromVehicleLocations = (vehicleLocations) => {
     if (!vehicleLocations || Object.keys(vehicleLocations).length === 0) {
         return null;
@@ -121,8 +121,8 @@ const getRegionFromVehicleLocations = (vehicleLocations) => {
 
     const latitude = (minLat + maxLat) / 2;
     const longitude = (minLng + maxLng) / 2;
-    const latDelta = Math.max((maxLat - minLat) * 1.2, 0.001);
-    const lonDelta = Math.max((maxLng - minLng) * 1.2, 0.001);
+    const latDelta = Math.max((maxLat - minLat) * 1.3, 0.002);
+    const lonDelta = Math.max((maxLng - minLng) * 1.3, 0.002);
 
     return {
         latitude,
@@ -151,9 +151,8 @@ const geocodeAddress = async (address) => {
             return null;
         }
 
-        const API_KEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE';
         const encodedAddress = encodeURIComponent(address.trim());
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${API_KEY}`;
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GOOGLE_MAP_API_KEY}`;
 
         console.log('🔄 [Geocoding] Fetching coordinates for address:', address);
         console.log('🔄 [Geocoding] URL:', url);
@@ -634,19 +633,24 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
         setSelectedVehicle(null);
     };
 
-    // Handle vehicle count badge click - focus on vehicles
+    // Handle vehicle count badge click – focus map on vehicles (jaha bhi ho)
     const handleVehicleBadgeClick = () => {
-        if (!mapRef.current || Object.keys(vehicleLocations).length === 0) {
+        if (!mapRef.current) return;
+
+        const locationCount = Object.keys(vehicleLocations).length;
+        if (locationCount > 0) {
+            const vehicleRegion = getRegionFromVehicleLocations(vehicleLocations);
+            if (vehicleRegion) {
+                console.log('🚗 [YardPolygonsMapScreen] Focusing on vehicles:', vehicleRegion);
+                mapRef.current.animateToRegion(vehicleRegion, 1000);
+            }
             return;
         }
 
-        const vehicleRegion = getRegionFromVehicleLocations(vehicleLocations);
-        
-        if (vehicleRegion) {
-            console.log('🚗 [YardPolygonsMapScreen] Focusing on vehicles:', vehicleRegion);
-            mapRef.current.animateToRegion(vehicleRegion, 1000);
-        } else {
-            console.log('⚠️ [YardPolygonsMapScreen] Could not calculate vehicle region');
+        // Locations nahi hai: refresh karo – uske andar hi map vehicles par focus ho jata hai
+        if (vehicles.length > 0) {
+            console.log('🚗 [YardPolygonsMapScreen] No vehicle locations – refreshing, then map will focus on vehicles');
+            handleRefreshLocations();
         }
     };
 
@@ -1001,8 +1005,8 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                     </View>
                 )}
 
-                {/* Vehicle Count Badge */}
-                {Object.keys(vehicleLocations).length > 0 && (
+                {/* Vehicle Count Badge – click = map focus on vehicles (jaha bhi ho) */}
+                {vehicles.length > 0 && (
                     <TouchableOpacity 
                         style={styles.vehicleCountBadge}
                         onPress={handleVehicleBadgeClick}
@@ -1010,7 +1014,7 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                     >
                         <Ionicons name="car" size={16} color={COLOR_PRIMARY} />
                         <Text style={styles.vehicleCountText}>
-                            {Object.keys(vehicleLocations).length} vehicles
+                            {Object.keys(vehicleLocations).length || vehicles.length} vehicles
                         </Text>
                     </TouchableOpacity>
                 )}

@@ -940,6 +940,7 @@ import MapView, { Polyline, Marker } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { ScrollView } from 'react-native';
 import { magnetometer, setUpdateIntervalForType, SensorTypes } from 'react-native-sensors';
+import { GOOGLE_MAP_API_KEY } from '../constants/Constants';
 
 // Simple bearing/distance helpers
 function toRadians(deg) {
@@ -2543,7 +2544,7 @@ export default function ARNavigationScreen({ navigation, route }) {
                   key={`route-${position.latitude}-${position.longitude}-${target.latitude}-${target.longitude}`}
                   origin={position}
                   destination={target}
-                  apikey="AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE"
+                  apikey={GOOGLE_MAP_API_KEY}
                   strokeWidth={6}
                   strokeColor="#5F93FB"
                   optimizeWaypoints={true}
