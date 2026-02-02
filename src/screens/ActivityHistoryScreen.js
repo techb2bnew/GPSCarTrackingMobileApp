@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,16 @@ import {
   Pressable,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NOTIFICATION } from '../assests/images';
 import { supabase } from '../lib/supabaseClient';
 import { useFocusEffect } from '@react-navigation/native';
 import { spacings, style } from '../constants/Fonts';
 import { heightPercentageToDP } from '../utils';
+
+const ACTIVITY_HISTORY_CACHE_KEY = 'activity_history_screen';
+const FACILITY_LIST_CACHE_KEY = 'facility_list';
+const ACTIVITY_SELECTED_FACILITY_KEY = 'activity_history_selected_facility';
 
 const ActivityHistoryScreen = ({ navigation }) => {
   const [filter, setFilter] = useState('all');
@@ -34,11 +39,30 @@ const ActivityHistoryScreen = ({ navigation }) => {
     selectedFacilities: 0,
     totalFacilities: 0,
   });
+  const hasShownCacheRef = useRef(false);
+  const hasShownFacilityCacheRef = useRef(false);
 
-  // Load all facilities from Supabase
+  // Load facilities: pehle local storage se dikhao, phir API se update + cache save
   const loadFacilities = async () => {
+    let hadCachedFacilities = false;
+    hasShownFacilityCacheRef.current = false;
+    setLoadingFacilities(true);
+
     try {
-      setLoadingFacilities(true);
+      const cachedRaw = await AsyncStorage.getItem(FACILITY_LIST_CACHE_KEY);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          const list = Array.isArray(cached?.facilities) ? cached.facilities : (Array.isArray(cached) ? cached : []);
+          setFacilities(list);
+          hadCachedFacilities = true;
+          hasShownFacilityCacheRef.current = true;
+          setLoadingFacilities(false);
+        } catch (e) {
+          // ignore invalid cache
+        }
+      }
+
       const { data, error } = await supabase
         .from('facility')
         .select('id, name')
@@ -46,32 +70,46 @@ const ActivityHistoryScreen = ({ navigation }) => {
 
       if (error) {
         console.error('❌ Error loading facilities:', error);
-        setFacilities([]);
+        if (!hadCachedFacilities) setFacilities([]);
         return;
       }
 
-      console.log(`✅ Loaded ${data?.length || 0} facilities`);
-      // Debug: Log facility IDs
-      if (data && data.length > 0) {
-        console.log(`📋 Facility IDs:`, data.map(f => ({ id: f.id, name: f.name })));
-      }
-      setFacilities(data || []);
+      const list = data || [];
+      setFacilities(list);
+      await AsyncStorage.setItem(FACILITY_LIST_CACHE_KEY, JSON.stringify({ facilities: list }));
     } catch (error) {
       console.error('❌ Error loading facilities:', error);
-      setFacilities([]);
+      if (!hadCachedFacilities) setFacilities([]);
     } finally {
       setLoadingFacilities(false);
     }
   };
 
-  // Load activity data from Supabase
+  // Load activity data: pehle local storage se dikhao, phir API se update + cache save
   const loadActivityData = async () => {
+    let hadCachedData = false;
+    hasShownCacheRef.current = false;
+    setLoading(true);
+
     try {
-      setLoading(true);
+      // 1) Pehle cache se load – turant list dikhe, loading band
+      const cachedRaw = await AsyncStorage.getItem(ACTIVITY_HISTORY_CACHE_KEY);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          const list = Array.isArray(cached?.activities) ? cached.activities : (Array.isArray(cached) ? cached : []);
+          setActivityData(list);
+          hadCachedData = true;
+          hasShownCacheRef.current = true;
+          setLoading(false);
+        } catch (e) {
+          // ignore invalid cache
+        }
+      }
+
       console.log('🔍 Loading activity history from Supabase...');
 
       // Get all vehicles with their history
-      // Use assigneddate column (as per database schema)
       const { data: vehicles, error } = await supabase
         .from('cars')
         .select('*')
@@ -89,7 +127,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
 
         if (fallbackError) {
           console.error('❌ Error loading activity (fallback):', fallbackError);
-          setActivityData([]);
+          if (!hadCachedData) setActivityData([]);
           return;
         }
 
@@ -144,6 +182,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
         });
 
         setActivityData(activities);
+        await AsyncStorage.setItem(ACTIVITY_HISTORY_CACHE_KEY, JSON.stringify({ activities }));
         return;
       }
 
@@ -200,20 +239,38 @@ const ActivityHistoryScreen = ({ navigation }) => {
       });
 
       console.log(`✅ Loaded ${activities.length} activities`);
-      // Debug: Log facility IDs in activities
       const uniqueFacilityIds = [...new Set(activities.map(a => a.facilityId).filter(Boolean))];
       console.log(`📋 Unique facility IDs in activities:`, uniqueFacilityIds);
       setActivityData(activities);
+      await AsyncStorage.setItem(ACTIVITY_HISTORY_CACHE_KEY, JSON.stringify({ activities }));
     } catch (error) {
       console.error('❌ Error loading activity:', error);
-      setActivityData([]);
+      if (!hadCachedData) setActivityData([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Load saved facility selection from local storage (taaki filter local storage data pe bhi chale)
+  const loadSavedFacilitySelection = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(ACTIVITY_SELECTED_FACILITY_KEY);
+      if (saved !== null && saved !== undefined) {
+        try {
+          const parsed = JSON.parse(saved);
+          setSelectedFacility(parsed);
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
   // Load data on mount
   useEffect(() => {
+    loadSavedFacilitySelection();
     loadFacilities();
     loadActivityData();
   }, []);
@@ -540,7 +597,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
               Choose a facility to filter history:
             </Text>
 
-            {loadingFacilities ? (
+            {(loadingFacilities && !hasShownFacilityCacheRef.current) ? (
               <View style={styles.loadingFacilitiesContainer}>
                 <ActivityIndicator size="small" color="#003F65" />
                 <Text style={styles.loadingFacilitiesText}>Loading facilities...</Text>
@@ -560,9 +617,14 @@ const ActivityHistoryScreen = ({ navigation }) => {
                         styles.facilityCard,
                         selectedFacility === item.id && styles.selectedFacilityCard,
                       ]}
-                      onPress={() => {
+                      onPress={async () => {
                         setSelectedFacility(item.id);
                         setShowFacilityModal(false);
+                        try {
+                          await AsyncStorage.setItem(ACTIVITY_SELECTED_FACILITY_KEY, JSON.stringify(item.id));
+                        } catch (e) {
+                          // ignore
+                        }
                       }}>
                       <View style={styles.facilityCardContent}>
                         <Text
@@ -596,7 +658,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
         </Pressable>
       </Modal>
 
-      {loading ? (
+      {(loading && !hasShownCacheRef.current) ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Loading activities...</Text>

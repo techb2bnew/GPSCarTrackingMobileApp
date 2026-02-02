@@ -248,10 +248,30 @@ const ActiveChipScreen = ({ navigation, route }) => {
     }
   };
 
-  // Load chip data from Supabase database
+  // Cache key: type-based (active / inactive / lowBattery)
+  const getChipDataCacheKey = () => `active_chip_${type}`;
+
+  // Load chip data: pehle local storage se dikhao, phir API se update + cache save
   const loadChipData = async () => {
+    const cacheKey = getChipDataCacheKey();
+    let hadCachedData = false;
+    setIsLoading(false);
+
     try {
-      setIsLoading(true);
+      const cachedRaw = await AsyncStorage.getItem(cacheKey);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          const list = Array.isArray(cached?.list) ? cached.list : [];
+          setAllChips(list);
+          setFilteredData(list);
+          hadCachedData = true;
+        } catch (e) {
+          // ignore invalid cache
+        }
+      }
+      if (!hadCachedData) setIsLoading(true);
+
       console.log(`🔄 Loading ${type} chips from Supabase...`);
 
       // Get all cars from Supabase
@@ -261,6 +281,10 @@ const ActiveChipScreen = ({ navigation, route }) => {
 
       if (carsError) {
         console.error('❌ Error fetching cars from Supabase:', carsError);
+        if (!hadCachedData) {
+          setAllChips([]);
+          setFilteredData([]);
+        }
         return;
       }
 
@@ -499,10 +523,18 @@ const ActiveChipScreen = ({ navigation, route }) => {
       }
 
       setAllChips(chipsData);
+      setFilteredData(chipsData);
       console.log(`✅ Loaded ${type} chips from Supabase:`, chipsData.length);
+
+      // Local storage me save – naya data aate hi purane ke sath update
+      await AsyncStorage.setItem(cacheKey, JSON.stringify({ type, list: chipsData }));
 
     } catch (error) {
       console.error('❌ Error loading chip data from Supabase:', error);
+      if (!hadCachedData) {
+        setAllChips([]);
+        setFilteredData([]);
+      }
     } finally {
       setIsLoading(false);
     }

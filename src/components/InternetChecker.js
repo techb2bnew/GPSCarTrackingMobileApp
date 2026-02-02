@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, AppState, Animated } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const InternetChecker = () => {
+const InternetChecker = ({ navigationRef, navigationReady }) => {
   const [isConnected, setIsConnected] = useState(true);
   const [showBanner, setShowBanner] = useState(false);
   const appState = useRef(AppState.currentState);
@@ -12,14 +12,12 @@ const InternetChecker = () => {
   const isInitialMount = useRef(true);
 
   useEffect(() => {
-    // Initial check - but don't show banner on first load if connected
+    // Initial check - show banner if no internet when app opens
     checkInitialConnection();
 
-    // Subscribe to network state changes
+    // Subscribe to network state changes (disconnect / reconnect)
     const unsubscribeNetInfo = NetInfo.addEventListener(state => {
       const connected = state.isConnected && state.isInternetReachable !== false;
-      
-      // Only show banner if connection changed to disconnected
       if (!connected && isConnected) {
         setIsConnected(false);
         showInternetBanner();
@@ -29,13 +27,12 @@ const InternetChecker = () => {
       }
     });
 
-    // Subscribe to app state changes (when app comes to foreground)
+    // App comes to foreground – recheck
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        // App has come to the foreground
         checkInternetConnection();
       }
       appState.current = nextAppState;
@@ -49,6 +46,22 @@ const InternetChecker = () => {
       }
     };
   }, [isConnected]);
+
+  // Jab screen/route change ho aur internet na ho – nayi screen pe no-internet dikhao
+  useEffect(() => {
+    if (!navigationReady || !navigationRef?.current?.addListener) return;
+    const unsubscribe = navigationRef.current.addListener('state', async () => {
+      const state = await NetInfo.fetch();
+      const connected = state.isConnected && state.isInternetReachable !== false;
+      if (!connected) {
+        setIsConnected(false);
+        showInternetBanner();
+      }
+    });
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [navigationReady, navigationRef]);
 
   const checkInitialConnection = async () => {
     const state = await NetInfo.fetch();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,25 +7,50 @@ import {
   StyleSheet,
   SafeAreaView,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabaseClient';
 import { heightPercentageToDP as hp } from '../utils';
 import { spacings, style } from '../constants/Fonts';
 import { useFocusEffect } from '@react-navigation/native';
+
+const YARD_LIST_CACHE_KEY = 'yard_list_screen';
 
 const YardListScreen = ({ navigation }) => {
   const [yards, setYards] = useState([]);
   const [filteredYards, setFilteredYards] = useState([]);
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
+  const hasShownCacheRef = useRef(false);
 
-  // Load yards from Supabase
+  // Load yards: pehle local storage se dikhao, phir API se update + cache save
   const loadYards = async () => {
-    try {
-      setLoading(true);
-      console.log('🔄 [YardListScreen] Loading yards from Supabase...');
+    let hadCachedData = false;
+    hasShownCacheRef.current = false;
+    setLoading(true);
 
+    try {
+      // 1) Pehle cache se load – turant list dikhe, loading band
+      const cachedRaw = await AsyncStorage.getItem(YARD_LIST_CACHE_KEY);
+      if (cachedRaw) {
+        try {
+          const parsed = JSON.parse(cachedRaw);
+          const list = Array.isArray(parsed?.yards) ? parsed.yards : (Array.isArray(parsed) ? parsed : []);
+          if (list.length >= 0) {
+            setYards(list);
+            setFilteredYards(list);
+            hadCachedData = true;
+            hasShownCacheRef.current = true;
+            setLoading(false);
+          }
+        } catch (e) {
+          // ignore invalid cache
+        }
+      }
+
+      // 2) API se fetch
       const { data: supabaseYards, error } = await supabase
         .from('facility')
         .select('*')
@@ -33,15 +58,14 @@ const YardListScreen = ({ navigation }) => {
 
       if (error) {
         console.error('❌ [YardListScreen] Supabase fetch error:', error);
-        setYards([]);
-        setFilteredYards([]);
+        if (!hadCachedData) {
+          setYards([]);
+          setFilteredYards([]);
+        }
         return;
       }
 
-      console.log('✅ [YardListScreen] Fetched from Supabase:', supabaseYards.length, 'yards');
-
-      // Map Supabase data to app format
-      const mappedYards = supabaseYards.map(yard => ({
+      const mappedYards = (supabaseYards || []).map(yard => ({
         id: yard.id.toString(),
         name: yard.name || 'Unnamed Yard',
         address: yard.address ? `${yard.address}${yard.city ? ', ' + yard.city : ''}` : 'No Address',
@@ -50,12 +74,13 @@ const YardListScreen = ({ navigation }) => {
 
       setYards(mappedYards);
       setFilteredYards(mappedYards);
-
-      console.log('📊 [YardListScreen] Yards loaded:', mappedYards.length);
+      await AsyncStorage.setItem(YARD_LIST_CACHE_KEY, JSON.stringify({ yards: mappedYards }));
     } catch (error) {
       console.error('❌ [YardListScreen] Error loading yards:', error);
-      setYards([]);
-      setFilteredYards([]);
+      if (!hadCachedData) {
+        setYards([]);
+        setFilteredYards([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -139,10 +164,11 @@ const YardListScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* List */}
-        {loading ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Loading yards...</Text>
+        {/* List – cache mila to loading mat dikhao */}
+        {(loading && !hasShownCacheRef.current) ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#003F65" />
+            <Text style={styles.loadingText}>Loading yards...</Text>
           </View>
         ) : filteredYards.length > 0 ? (
           <FlatList
@@ -254,6 +280,17 @@ const styles = StyleSheet.create({
   },
   arrowContainer: {
     marginLeft: spacings.small,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacings.ExtraLarge3x || 40,
+  },
+  loadingText: {
+    marginTop: spacings.large,
+    fontSize: style.fontSizeNormal.fontSize,
+    color: '#666',
   },
   emptyContainer: {
     alignItems: 'center',

@@ -39,6 +39,7 @@ interface AppContentProps {
 
 function AppContent({ setCheckUser }: AppContentProps) {
   const [showSplash, setShowSplash] = useState(true);
+  const [navigationReady, setNavigationReady] = useState(false);
   const userData = useSelector((state: RootState) => state.user.userData);
   const dispatch = useDispatch();
   const tokenSaveInProgress = useRef(false);
@@ -504,7 +505,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
 
   return (
     <View style={styles.container}>
-      <InternetChecker />
+      <InternetChecker navigationRef={navigationRef} navigationReady={navigationReady} />
       {showSplash ? (
         <View style={styles.splashContainer}>
           {/* Nissan logo – splash pe sahi se dikhane ke liye */}
@@ -578,6 +579,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
             <NavigationContainer 
               ref={navigationRef}
               onReady={() => {
+                setNavigationReady(true);
                 handleNavigationStateChange();
               }}
               onStateChange={handleNavigationStateChange}>
@@ -588,6 +590,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
           <NavigationContainer 
             ref={navigationRef}
             onReady={() => {
+              setNavigationReady(true);
               handleNavigationStateChange();
             }}
             onStateChange={handleNavigationStateChange}>

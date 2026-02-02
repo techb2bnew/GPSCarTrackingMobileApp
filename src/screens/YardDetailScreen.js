@@ -158,6 +158,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   const { yardId, yardName, fromScreen } = route?.params || {};
   const duplicateTimeoutRef = useRef(null);
   const slotCheckTimeoutRef = useRef(null);
+  const hasShownCacheRef = useRef(false);
 
   // Get yard name - first check dynamic yards, then static yards
   const [currentYard, setCurrentYard] = useState(null);
@@ -241,18 +242,46 @@ const YardDetailScreen = ({ navigation, route }) => {
     }
   };
 
-  // Load vehicles from Supabase for current yard
+  // Local storage key: yard id based (yard_123_vehicles) – number/string dono same key
+  const getYardCacheKey = () => (yardId != null ? `yard_${String(yardId)}_vehicles` : null);
+
+  // Load vehicles: pehle local storage se dikhao (agar hai), phir API se fetch karke list + cache update
   const loadVehiclesFromStorage = async () => {
+    const cacheKey = getYardCacheKey();
+    if (!yardId) return;
+
+    let hadCachedData = false;
+    hasShownCacheRef.current = false;
+    setIsLoading(false);
+
     try {
-      setIsLoading(true);
-      // First load the current yard information
+      const cachedRaw = await AsyncStorage.getItem(cacheKey);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          const list = Array.isArray(cached?.vehicles) ? cached.vehicles : (Array.isArray(cached) ? cached : []);
+          const slot = cached?.slotInfo && !Array.isArray(cached)
+            ? cached.slotInfo
+            : { total: 50, occupied: list.length, available: Math.max(0, 50 - list.length) };
+          setVehicles(list);
+          setFilteredVehicles(list);
+          setSlotInfo(slot);
+          setHasBeenInitialized(true);
+          hadCachedData = true;
+          hasShownCacheRef.current = true;
+          setIsLoading(false);
+        } catch (e) {
+          // invalid cache ignore
+        }
+      }
+
+      if (!hadCachedData) {
+        setIsLoading(true);
+      }
+
+      // 2) Yard info + API se vehicles lo
       const yardData = await loadCurrentYard();
 
-      console.log(`🔍 Loading vehicles for yard: "${displayYardName}"`);
-      console.log(`🔍 Yard ID: ${yardId}`);
-      console.log(`🔍 Current Yard:`, currentYard);
-
-      // Fetch vehicles from Supabase for this specific facility/yard using facility ID
       const { data, error } = await supabase
         .from('cars')
         .select('*')
@@ -260,17 +289,15 @@ const YardDetailScreen = ({ navigation, route }) => {
 
       if (error) {
         console.error('❌ Error loading vehicles from Supabase:', error);
-        Toast.show('Failed to load vehicles', Toast.SHORT);
-        setVehicles([]);
-        setFilteredVehicles([]);
-        setHasBeenInitialized(true);
+        if (!hadCachedData) {
+          Toast.show('Failed to load vehicles', Toast.SHORT);
+          setVehicles([]);
+          setFilteredVehicles([]);
+          setHasBeenInitialized(true);
+        }
         return;
       }
 
-      console.log(`✅ Loaded ${data?.length || 0} vehicles from Supabase for facility ID "${yardId}"`);
-      console.log(`🔍 Raw data from Supabase:`, data);
-
-      // Transform Supabase data to match app format
       const parsedVehicles = (data || []).map(vehicle => ({
         id: vehicle.id,
         vin: vehicle.vin,
@@ -287,17 +314,30 @@ const YardDetailScreen = ({ navigation, route }) => {
         lastLocationUpdate: vehicle.last_location_update || null,
       }));
 
+      const slotData = calculateSlotInfo(parsedVehicles, yardData);
+
       setVehicles(parsedVehicles);
       setFilteredVehicles(parsedVehicles);
+      setSlotInfo(slotData);
       setHasBeenInitialized(true);
 
-      // Calculate slot information using the loaded yard data
-      const slotData = calculateSlotInfo(parsedVehicles, yardData);
-      setSlotInfo(slotData);
+      // 3) Yard id + name ke sath local storage me save – naya API response aate hi purana update
+      const toSave = {
+        yardId,
+        yardName: yardData?.name || displayYardName || 'Parking Yard',
+        vehicles: parsedVehicles,
+        slotInfo: slotData,
+      };
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(toSave));
 
     } catch (error) {
       console.error('❌ Error loading vehicles:', error);
-      Toast.show('Failed to load vehicles', Toast.SHORT);
+      if (!hadCachedData) {
+        Toast.show('Failed to load vehicles', Toast.SHORT);
+        setVehicles([]);
+        setFilteredVehicles([]);
+        setHasBeenInitialized(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -651,7 +691,7 @@ const YardDetailScreen = ({ navigation, route }) => {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
 
       const config = {
-        license: 't0104HAEAAG7Dm4Jh1NwYjEncE1DwQ3PoLN8IGycyCDZYryphPYFWpnrP1k0QClW8V7xicZuouoY1Tws36ry55YNMpTeLlCEYBgh1s2dNrgO+6MhL9We24VgzO8VE/HYqrs7s7gnTDXGhObw=;t0108HAEAAFPKsrZ27uslPcr2wdyQOHBDc6EGjtH5bSaSp8NEtcRQ9KWp/dI0WLG9Nu0aAf0FsoA6E/18gSqVAQeI1SECiZYdEBPAMMCSm/e1hHb4R0fsN1yfWYfjntkpJuKxU3531ogomD5/QDnK',
+        license: 't0105HAEAAIpnVSOFO9T+7CjQpSZ8UwDYJar+lpFw+mMsIc4CSImfJ/yUKSP0bTDKtWTiRCxNiNtXl/8m8fAnLxVPJW9L6B7QDbDUzZ41bNrhi/a8VHuWcnfMGZ0i8t8pn50xr8orfgH5bTql;t0109HAEAADym4Ba4lFuMbBibBRZjWnA0nyE2NAkxq7HefdYCVXGwuLn8zB26O40N65EORC7Qky3fITbbNf8wo6/nQTEeWPQHxA1gGGCKzfuaqlb4R0fsN5yfpTYcz9ydovDeKX86S8tqGT8A9rU6pA==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -1206,7 +1246,7 @@ const YardDetailScreen = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      {isLoading ? (
+      {(isLoading && !hasShownCacheRef.current) ? (
         <View style={[styles.loadingContainer, alignJustifyCenter]}>
           <ActivityIndicator size="large" color="#003F65" />
           <Text style={styles.loadingText}>Fetching vehicle details...</Text>

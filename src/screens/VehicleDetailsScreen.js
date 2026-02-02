@@ -7922,6 +7922,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   const [apiRoutePath, setApiRoutePath] = useState([]);
   const [apiRouteDistance, setApiRouteDistance] = useState(null);
 
+  // When API route nahi hai: Google MapViewDirections use karte hain (road route). Offline/error par direct Polyline
+  const [directionsError, setDirectionsError] = useState(false);
+
   // Yard parking slot polygons (same as Yard Polygons Map – jis yard ka vehicle hai uske slots)
   const [yardPolygons, setYardPolygons] = useState([]);
 
@@ -7939,15 +7942,40 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
   // Reset route fetch "first run" when vehicle/chip changes so new vehicle gets immediate route
   const routeFetchDebounceRef = useRef(false);
+  // Track if we have a road-based route (API or cache) – don't overwrite with direct when offline
+  const hasRoadRouteRef = useRef(false);
   useEffect(() => {
     routeFetchDebounceRef.current = false;
+    hasRoadRouteRef.current = false;
+    setDirectionsError(false);
   }, [vehicle?.id, vehicle?.chip, vehicle?.chipId]);
 
   // Route re-fetch: when chip location OR current location changes, fetch route again (debounced after first load)
+  // Online: use API road route (current → road → … → car). Offline: keep cached road route; only if no cache use direct line
   useEffect(() => {
-    if (!currentLocation || !carLocation || !yardId) return;
+    if (!currentLocation || !carLocation) return;
+
+    const directPath = [
+      { latitude: currentLocation.latitude, longitude: currentLocation.longitude },
+      { latitude: carLocation.latitude, longitude: carLocation.longitude }
+    ];
+
+    const setDirectRoute = () => {
+      setApiRoutePath(directPath);
+      const directDist = haversine(
+        { lat: currentLocation.latitude, lng: currentLocation.longitude },
+        { lat: carLocation.latitude, lng: carLocation.longitude }
+      );
+      setApiRouteDistance(Math.round(directDist));
+      const chipId = getChipId();
+      if (chipId) saveVehicleDetailCache(chipId, { apiRoutePath: directPath, apiRouteDistance: Math.round(directDist) });
+    };
 
     const fetchRoute = async () => {
+      if (!yardId) {
+        setDirectRoute();
+        return;
+      }
       try {
         const startLocation = [currentLocation.latitude, currentLocation.longitude];
         const destinationLocation = [carLocation.latitude, carLocation.longitude];
@@ -7963,16 +7991,19 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
             latitude: node.lat,
             longitude: node.lng
           }));
+          hasRoadRouteRef.current = true;
           setApiRoutePath(pathCoordinates);
           setApiRouteDistance(data.total_distance);
+          const chipId = getChipId();
+          if (chipId) await saveVehicleDetailCache(chipId, { apiRoutePath: pathCoordinates, apiRouteDistance: data.total_distance });
         } else {
-          setApiRoutePath([]);
-          setApiRouteDistance(null);
+          // API returned no path – use direct only if we don't already have road route (e.g. from cache)
+          if (!hasRoadRouteRef.current) setDirectRoute();
         }
       } catch (error) {
-        console.error('❌ [ROUTE API] Error fetching route:', error);
-        setApiRoutePath([]);
-        setApiRouteDistance(null);
+        // Offline/error – keep existing road route from cache; use direct only if we never got road route
+        console.warn('❌ [ROUTE API] Offline or error – keeping cached road route if any:', error?.message || error);
+        if (!hasRoadRouteRef.current) setDirectRoute();
       }
     };
 
@@ -7987,6 +8018,11 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     const timeoutId = setTimeout(fetchRoute, 2000);
     return () => clearTimeout(timeoutId);
   }, [currentLocation, carLocation, yardId]);
+
+  // API route milne par Google Directions error reset – next time no-API state pe dubara try karenge
+  useEffect(() => {
+    if (apiRoutePath && apiRoutePath.length >= 2) setDirectionsError(false);
+  }, [apiRoutePath]);
 
   // Load yard parking slot polygons when vehicle/yard opens (jis yard ka vehicle hai uske slots)
   useEffect(() => {
@@ -8059,11 +8095,10 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         .eq('id', vehicle.id)
         .single();
 
-      if (data?.history?.chip_history) {
-        setChipHistory(data.history.chip_history);
-      } else {
-        setChipHistory([]);
-      }
+      const list = data?.history?.chip_history || [];
+      setChipHistory(list);
+      const chipId = getChipId();
+      if (chipId) await saveVehicleDetailCache(chipId, { chipHistory: list });
     } catch (error) {
       console.error('📚 [HISTORY] Error loading chip history:', error);
     }
@@ -8092,13 +8127,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         return;
       }
 
-      if (data && data.length > 0) {
-        // console.log('📚 [VEHICLE HISTORY] Found', data.length, 'entries');
-        setVehicleHistory(data);
-      } else {
-        // console.log('📚 [VEHICLE HISTORY] No history found');
-        setVehicleHistory([]);
-      }
+      const list = data && data.length > 0 ? data : [];
+      setVehicleHistory(list);
+      await saveVehicleDetailCache(chipId, { vehicleHistory: list });
     } catch (error) {
       console.error('📚 [VEHICLE HISTORY] Error loading vehicle history:', error);
       setVehicleHistory([]);
@@ -8131,6 +8162,40 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
       console.error('Error loading chip location:', error);
     }
     return null;
+  };
+
+  // Vehicle detail cache key by chip ID (location, route, polygons, histories)
+  const VEHICLE_DETAIL_CACHE_PREFIX = 'vehicle_detail_chip_';
+
+  const loadVehicleDetailCache = async (chipId) => {
+    try {
+      if (!chipId) return null;
+      const key = `${VEHICLE_DETAIL_CACHE_PREFIX}${String(chipId)}`;
+      const raw = await AsyncStorage.getItem(key);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.chipId === String(chipId)) return parsed;
+      return null;
+    } catch (error) {
+      console.error('Error loading vehicle detail cache:', error);
+      return null;
+    }
+  };
+
+  const saveVehicleDetailCache = async (chipId, updates) => {
+    try {
+      if (!chipId) return;
+      const key = `${VEHICLE_DETAIL_CACHE_PREFIX}${String(chipId)}`;
+      const existing = await loadVehicleDetailCache(chipId);
+      const merged = {
+        ...(existing || { chipId: String(chipId) }),
+        ...updates,
+        chipId: String(chipId),
+      };
+      await AsyncStorage.setItem(key, JSON.stringify(merged));
+    } catch (error) {
+      console.error('Error saving vehicle detail cache:', error);
+    }
   };
 
   // Helper function to parse database timestamp to UTC milliseconds
@@ -8254,7 +8319,15 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         .eq('facility_id', facilityIdInt);
 
       if (error) {
-        console.warn('⚠️ [VehicleDetails] Error loading yard polygons:', error);
+        console.warn('⚠️ [VehicleDetails] Error loading yard polygons (offline?) – trying cache:', error);
+        const chipId = getChipId();
+        if (chipId) {
+          const cached = await loadVehicleDetailCache(chipId);
+          if (cached?.yardPolygons && Array.isArray(cached.yardPolygons) && cached.yardPolygons.length > 0) {
+            setYardPolygons(cached.yardPolygons);
+            return;
+          }
+        }
         setYardPolygons([]);
         return;
       }
@@ -8276,8 +8349,20 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         return { id: item.id, slotNum: item.slot_number || item.slot_num || 'N/A', coordinates: mapViewCoords };
       }).filter((p) => p.coordinates && p.coordinates.length > 0);
       setYardPolygons(processed);
+      const chipId = getChipId();
+      if (chipId) await saveVehicleDetailCache(chipId, { yardPolygons: processed });
     } catch (err) {
-      console.warn('⚠️ [VehicleDetails] loadYardPolygons error:', err);
+      console.warn('⚠️ [VehicleDetails] loadYardPolygons error (offline?) – trying cache:', err);
+      const chipId = getChipId();
+      if (chipId) {
+        try {
+          const cached = await loadVehicleDetailCache(chipId);
+          if (cached?.yardPolygons && Array.isArray(cached.yardPolygons) && cached.yardPolygons.length > 0) {
+            setYardPolygons(cached.yardPolygons);
+            return;
+          }
+        } catch (e) { }
+      }
       setYardPolygons([]);
     }
   };
@@ -8352,7 +8437,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               // console.log('🚗 [CAR LOCATION] Car location updated:', { latitude, longitude });
               setMqttDataReceived(true);
               setLastUpdateTime(new Date().toLocaleTimeString());
-              setTimeAgo(getTimeAgo(currentTime));
+              const timeAgoVal = getTimeAgo(currentTime);
+              setTimeAgo(timeAgoVal);
+              saveVehicleDetailCache(targetChipId, { carLocation: nextCoords, savedLocation: updatedLocation, timeAgo: timeAgoVal });
 
               if (mqttLocationCallbackRef.current) {
                 mqttLocationCallbackRef.current(nextCoords);
@@ -8429,6 +8516,73 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
     const bearing = Math.atan2(y, x);
     return (bearing * 180 / Math.PI + 360) % 360;
+  };
+
+  // Get turn indication: phone heading vs ROUTE direction (where route wants you to go next)
+  // Uses bearing to next point on path, NOT direct bearing to car
+  const getHeadingBasedTurnIndication = () => {
+    if (!currentLocation || !carLocation || distanceToCar === null) return null;
+
+    let routeBearing;
+    let displayDistance = distanceToCar;
+
+    if (apiRoutePath && apiRoutePath.length >= 2) {
+      const nearest = findNearestPointOnPath(currentLocation, apiRoutePath);
+      let targetPathPoint = null;
+      let targetPathIndex = nearest.index;
+
+      if (distanceToCar < 10) {
+        return {
+          type: 'arrived',
+          message: 'You have arrived',
+          iconName: 'checkmark-circle',
+          distance: 0,
+          distanceText: '',
+        };
+      }
+
+      if (nearest.distance > 10) {
+        targetPathPoint = nearest.point;
+      } else if (nearest.index < apiRoutePath.length - 1) {
+        targetPathIndex = nearest.index + 1;
+        targetPathPoint = apiRoutePath[targetPathIndex];
+      } else {
+        targetPathPoint = apiRoutePath[apiRoutePath.length - 1];
+      }
+      if (!targetPathPoint) targetPathPoint = apiRoutePath[nearest.index] || apiRoutePath[0];
+
+      routeBearing = calculateBearing(currentLocation, targetPathPoint);
+    } else {
+      routeBearing = typeof bearingToCar === 'number' ? bearingToCar : calculateBearing(currentLocation, carLocation);
+    }
+
+    const heading = typeof deviceHeading === 'number' && !isNaN(deviceHeading) ? deviceHeading : 0;
+    let relativeAngle = (routeBearing - heading + 360) % 360;
+    if (relativeAngle > 180) relativeAngle -= 360;
+
+    let type, message, iconName;
+    if (Math.abs(relativeAngle) > 150) {
+      type = 'turn-back';
+      message = 'Turn back';
+      iconName = 'sync';
+    } else if (relativeAngle < -30) {
+      type = 'turn-left';
+      message = 'Turn left';
+      iconName = 'arrow-back-circle';
+    } else if (relativeAngle > 30) {
+      type = 'turn-right';
+      message = 'Turn right';
+      iconName = 'arrow-forward-circle';
+    } else {
+      type = 'straight';
+      message = 'Continue straight';
+      iconName = 'arrow-up-circle';
+    }
+
+    const distanceText = displayDistance < 1000
+      ? `${displayDistance}m`
+      : `${(displayDistance / 1000).toFixed(1)}km`;
+    return { type, message, iconName, distance: displayDistance, distanceText };
   };
 
   // Calculate distance between two points using Haversine formula
@@ -8747,15 +8901,29 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     const initializeLocation = async () => {
       const chipId = getChipId();
 
-      // Skip dynamic initialization if chip ID ends with "39d" (using static coordinates)
-      // if (chipId && chipId.toString().toLowerCase().endsWith('39d')) {
-      //   // console.log('🧪 [TEST] Skipping dynamic initialization for static chip');
-      //   loadChipHistory();
-      //   loadVehicleHistory();
-      //   setIsLoading(false);
-      //   setLastUpdateTime(new Date().toLocaleTimeString());
-      //   return;
-      // }
+      // Cache-first: load vehicle detail cache for this chip and show immediately if same chip
+      if (chipId) {
+        const cached = await loadVehicleDetailCache(chipId);
+        if (cached && cached.chipId === String(chipId)) {
+          if (cached.carLocation) {
+            setCarLocation(cached.carLocation);
+            setChipLocation(cached.carLocation);
+            setMqttDataReceived(true);
+          }
+          if (cached.savedLocation) setSavedLocation(cached.savedLocation);
+          if (cached.timeAgo != null) setTimeAgo(cached.timeAgo);
+          if (cached.distanceToCar != null) setDistanceToCar(cached.distanceToCar);
+          if (Array.isArray(cached.yardPolygons) && cached.yardPolygons.length > 0) setYardPolygons(cached.yardPolygons);
+          if (Array.isArray(cached.chipHistory) && cached.chipHistory.length > 0) setChipHistory(cached.chipHistory);
+          if (Array.isArray(cached.vehicleHistory) && cached.vehicleHistory.length > 0) setVehicleHistory(cached.vehicleHistory);
+          if (Array.isArray(cached.apiRoutePath) && cached.apiRoutePath.length > 0) {
+            setApiRoutePath(cached.apiRoutePath);
+            if (cached.apiRouteDistance != null) setApiRouteDistance(cached.apiRouteDistance);
+            if (cached.apiRoutePath.length > 2) hasRoadRouteRef.current = true;
+          }
+          setIsLoading(false);
+        }
+      }
 
       // Normal dynamic initialization for other chips
       if (chipId) {
@@ -8768,34 +8936,44 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
 
           if (!dbError && carData && carData.latitude && carData.longitude) {
             const timestamp = parseDatabaseTimestamp(carData.last_location_update);
-            setSavedLocation({
+            const savedLocationVal = {
               latitude: carData.latitude,
               longitude: carData.longitude,
               timestamp: timestamp,
               lastUpdated: new Date(timestamp).toLocaleTimeString()
-            });
-            setChipLocation({ latitude: carData.latitude, longitude: carData.longitude });
-            setCarLocation({ latitude: carData.latitude, longitude: carData.longitude });
+            };
+            setSavedLocation(savedLocationVal);
+            const carLoc = { latitude: carData.latitude, longitude: carData.longitude };
+            setChipLocation(carLoc);
+            setCarLocation(carLoc);
             setMqttDataReceived(true);
-            setTimeAgo(getTimeAgo(timestamp));
+            const timeAgoVal = getTimeAgo(timestamp);
+            setTimeAgo(timeAgoVal);
+            await saveVehicleDetailCache(chipId, { carLocation: carLoc, savedLocation: savedLocationVal, timeAgo: timeAgoVal });
           } else {
             const saved = await loadChipLocation(chipId);
             if (saved) {
               setSavedLocation(saved);
-              setChipLocation({ latitude: saved.latitude, longitude: saved.longitude });
-              setCarLocation({ latitude: saved.latitude, longitude: saved.longitude });
+              const carLoc = { latitude: saved.latitude, longitude: saved.longitude };
+              setChipLocation(carLoc);
+              setCarLocation(carLoc);
               setMqttDataReceived(true);
-              setTimeAgo(getTimeAgo(saved.timestamp));
+              const timeAgoVal = getTimeAgo(saved.timestamp);
+              setTimeAgo(timeAgoVal);
+              await saveVehicleDetailCache(chipId, { carLocation: carLoc, savedLocation: saved, timeAgo: timeAgoVal });
             }
           }
         } catch (error) {
           const saved = await loadChipLocation(chipId);
           if (saved) {
             setSavedLocation(saved);
-            setChipLocation({ latitude: saved.latitude, longitude: saved.longitude });
-            setCarLocation({ latitude: saved.latitude, longitude: saved.longitude });
+            const carLoc = { latitude: saved.latitude, longitude: saved.longitude };
+            setChipLocation(carLoc);
+            setCarLocation(carLoc);
             setMqttDataReceived(true);
-            setTimeAgo(getTimeAgo(saved.timestamp));
+            const timeAgoVal = getTimeAgo(saved.timestamp);
+            setTimeAgo(timeAgoVal);
+            await saveVehicleDetailCache(chipId, { carLocation: carLoc, savedLocation: saved, timeAgo: timeAgoVal });
           }
         }
         initializeMqtt();
@@ -9750,7 +9928,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
     try {
       const { BarcodeScanner, EnumScanningMode, EnumResultStatus } = require('dynamsoft-capture-vision-react-native');
       const config = {
-        license: 't0104HAEAAG7Dm4Jh1NwYjEncE1DwQ3PoLN8IGycyCDZYryphPYFWpnrP1k0QClW8V7xicZuouoY1Tws36ry55YNMpTeLlCEYBgh1s2dNrgO+6MhL9We24VgzO8VE/HYqrs7s7gnTDXGhObw=;t0108HAEAAFPKsrZ27uslPcr2wdyQOHBDc6EGjtH5bSaSp8NEtcRQ9KWp/dI0WLG9Nu0aAf0FsoA6E/18gSqVAQeI1SECiZYdEBPAMMCSm/e1hHb4R0fsN1yfWYfjntkpJuKxU3531ogomD5/QDnK',
+        license: 't0105HAEAAIpnVSOFO9T+7CjQpSZ8UwDYJar+lpFw+mMsIc4CSImfJ/yUKSP0bTDKtWTiRCxNiNtXl/8m8fAnLxVPJW9L6B7QDbDUzZ41bNrhi/a8VHuWcnfMGZ0i8t8pn50xr8orfgH5bTql;t0109HAEAADym4Ba4lFuMbBibBRZjWnA0nyE2NAkxq7HefdYCVXGwuLn8zB26O40N65EORC7Qky3fITbbNf8wo6/nQTEeWPQHxA1gGGCKzfuaqlb4R0fsN5yfpTYcz9ydovDeKX86S8tqGT8A9rU6pA==',
         scanningMode: EnumScanningMode.SM_SINGLE,
       };
 
@@ -9871,39 +10049,67 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   };
 
 
+  const headingTurnInfo = getHeadingBasedTurnIndication();
+
   const renderMap = () => (
     <View style={[styles.mapContainer, isMapFullscreen && styles.mapContainerFullscreen]}>
-      {/* Navigation Step Display - Top of Map */}
-      {currentStep && (
-        <View style={[styles.stepContainer, {
-          top: isMapFullscreen ? 50 : 10,
-        }]}>
-          <View style={styles.stepContent}>
-            <View style={[styles.stepIconContainer, {
-              transform: [{ rotate: `${currentStep.arrowRotation || 0}deg` }]
-            }]}>
-              <Ionicons
-                name={currentStep.arrowIcon || "arrow-up-circle"}
-                size={28}
-                color="#003F65"
-                style={styles.stepIcon}
-              />
-            </View>
-            <View style={styles.stepTextContainer}>
-              <Text style={styles.stepInstruction} numberOfLines={2}>
-                {currentStep.instruction}
-              </Text>
-              {currentStep.distance > 0 && (
-                <Text style={styles.stepDistance}>
-                  {currentStep.distance < 1000
-                    ? `${currentStep.distance}m`
-                    : `${(currentStep.distance / 1000).toFixed(1)}km`}
+      {/* Navigation Steps Wrapper - Top Left */}
+      <View style={[styles.stepsWrapper, { top: isMapFullscreen ? 50 : 10 }]}>
+        {/* Box 1: Route-based step (existing) */}
+        {currentStep && (
+          <View style={styles.stepContainer}>
+            <View style={styles.stepContent}>
+              <View style={[styles.stepIconContainer, {
+                transform: [{ rotate: `${currentStep.arrowRotation || 0}deg` }]
+              }]}>
+                <Ionicons
+                  name={currentStep.arrowIcon || "arrow-up-circle"}
+                  size={28}
+                  color="#003F65"
+                  style={styles.stepIcon}
+                />
+              </View>
+              <View style={styles.stepTextContainer}>
+                <Text style={styles.stepInstruction} numberOfLines={2}>
+                  {currentStep.instruction}
                 </Text>
-              )}
+                {currentStep.distance > 0 && (
+                  <Text style={styles.stepDistance}>
+                    {currentStep.distance < 1000
+                      ? `${currentStep.distance}m`
+                      : `${(currentStep.distance / 1000).toFixed(1)}km`}
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
-        </View>
-      )}
+        )}
+        {/* Box 2: Phone heading-based turn indication */}
+        {getChipId() && headingTurnInfo && (
+          <View style={styles.headingTurnContainer}>
+            <View style={styles.stepContent}>
+              <View style={styles.stepIconContainer}>
+                <Ionicons
+                  name={headingTurnInfo.iconName}
+                  size={28}
+                  color="#003F65"
+                  style={styles.stepIcon}
+                />
+              </View>
+              <View style={styles.stepTextContainer}>
+                <Text style={styles.stepInstruction} numberOfLines={2}>
+                  {headingTurnInfo.message}
+                </Text>
+                {headingTurnInfo.distance > 0 && (
+                  <Text style={styles.stepDistance}>
+                    {headingTurnInfo.distanceText}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
 
       {!getChipId() && (
         <View style={styles.noChipNote}>
@@ -10022,92 +10228,61 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
           </Marker>
         )}
 
-        {/* API Route Path from backend - Show path from current location, trimmed to car location */}
-        {apiRoutePath && apiRoutePath.length > 0 && currentLocation && carLocation && (() => {
-          const { trimmedPath, connectionPoint } = trimPathToCarLocation(apiRoutePath, carLocation);
+        {/* 1) API route (backend) – road route jab API se aata hai / cache se */}
+        {apiRoutePath && apiRoutePath.length >= 2 && currentLocation && carLocation && (() => {
+          const { trimmedPath } = trimPathToCarLocation(apiRoutePath, carLocation);
+          const routeCoords = [currentLocation, ...(trimmedPath && trimmedPath.length > 0 ? trimmedPath : [carLocation])];
           return (
-            <>
-              {/* Show API path from current location to trimmed point (near car location) */}
-              <Polyline
-                coordinates={[currentLocation, ...trimmedPath]}
-                strokeWidth={3}
-                strokeColor="#f40d0dff"
-                lineDashPattern={[1]}
-              />
-              {/* Use MapViewDirections from trimmed connection point to car location */}
-              {connectionPoint && (
-                <MapViewDirections
-                  key={`route-to-car-${connectionPoint.latitude}-${connectionPoint.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
-                  origin={connectionPoint}
-                  destination={carLocation}
-                  apikey={GOOGLE_MAP_API_KEY}
-                  strokeWidth={3}
-                  strokeColor="#f40d0dff"
-                  lineDashPattern={[1]}
-                  optimizeWaypoints={true}
-                />
-              )}
-            </>
+            <Polyline
+              coordinates={routeCoords}
+              strokeWidth={3}
+              strokeColor="#f40d0dff"
+              lineDashPattern={[1]}
+            />
           );
         })()}
 
-        {/* 🧪 TESTING: Show route even without chip ID for testing */}
-        {currentLocation && carLocation && !apiRoutePath.length && (
-          <MapViewDirections
-            key={`route-${currentLocation.latitude}-${currentLocation.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
-            origin={currentLocation}
-            destination={carLocation}
-            apikey={GOOGLE_MAP_API_KEY}
-            strokeWidth={3}
-            strokeColor="#f40d0dff"
-            optimizeWaypoints={true}
-            onReady={(result) => {
-              // Extract route steps
-              if (result && result.legs && result.legs.length > 0) {
-                const allSteps = [];
-                result.legs.forEach(leg => {
-                  if (leg.steps) {
-                    allSteps.push(...leg.steps);
-                  }
-                });
-                setRouteSteps(allSteps);
-                setRouteCoordinates(result.coordinates || []);
-
-                // Console log all steps with details
-                // console.log('📍 [STEPS] Total route steps loaded:', allSteps.length);
-                console.log('═══════════════════════════════════════════════════');
-                allSteps.forEach((step, index) => {
-                  const cleanInstruction = step.html_instructions?.replace(/<[^>]*>/g, '') || step.instructions || 'Continue';
-                  const direction = parseDirectionFromStep(step, cleanInstruction);
-                  const arrowInfo = getArrowIcon(direction);
-
-                  // console.log(`📍 [STEP ${index + 1}/${allSteps.length}]`, {
-                  //   index: index,
-                  //   instruction: cleanInstruction.substring(0, 80),
-                  //   maneuver: step.maneuver || 'none',
-                  //   direction: direction,
-                  //   arrowIcon: arrowInfo.name,
-                  //   arrowRotation: arrowInfo.rotation,
-                  //   distance: step.distance?.text || step.distance?.value + 'm' || 'N/A',
-                  //   duration: step.duration?.text || 'N/A',
-                  // });
-                });
-                // console.log('═══════════════════════════════════════════════════');
-              }
-
-              // Zoom to region
-              if (mapRef.current && currentLocation && carLocation && !hasZoomedRef.current) {
-                const region = calculateMapRegion(currentLocation, carLocation);
-                mapRef.current.animateToRegion(region, 1000);
-                hasZoomedRef.current = true; // Lock
-              }
-            }}
-            onError={(errorMessage) => {
-              console.log('❌ [DIRECTIONS] Error:', errorMessage);
-              setRouteSteps([]);
-              setCurrentStep(null);
-            }}
-          />
+        {/* 2) API route nahi hai: Google Directions (road route). onReady mein route cache mein save – offline pe cache se wahi dikhe */}
+        {currentLocation && carLocation && (!apiRoutePath || apiRoutePath.length < 2) && (
+          directionsError ? (
+            /* Offline/Google error: direct line sirf jab cached route bhi na ho */
+            <Polyline
+              coordinates={[currentLocation, carLocation]}
+              strokeWidth={3}
+              strokeColor="#f40d0dff"
+              lineDashPattern={[1]}
+            />
+          ) : (
+            <MapViewDirections
+              key={`route-dirs-${currentLocation.latitude}-${currentLocation.longitude}-${carLocation.latitude}-${carLocation.longitude}`}
+              origin={currentLocation}
+              destination={carLocation}
+              apikey={GOOGLE_MAP_API_KEY}
+              strokeWidth={3}
+              strokeColor="#f40d0dff"
+              optimizeWaypoints={true}
+              onReady={(result) => {
+                if (result?.coordinates?.length > 0) {
+                  const coords = result.coordinates.map(c => ({ latitude: c.latitude, longitude: c.longitude }));
+                  setApiRoutePath(coords);
+                  hasRoadRouteRef.current = true;
+                  setRouteCoordinates(result.coordinates);
+                  const steps = result?.legs?.flatMap(l => l?.steps || []) || [];
+                  setRouteSteps(steps);
+                  const dist = result?.legs?.reduce((sum, leg) => sum + (leg?.distance?.value ?? 0), 0) || null;
+                  setApiRouteDistance(dist ? Math.round(dist) : null);
+                  const chipId = getChipId();
+                  if (chipId) saveVehicleDetailCache(chipId, { apiRoutePath: coords, apiRouteDistance: dist ? Math.round(dist) : null });
+                }
+                if (mapRef.current && currentLocation && carLocation && !hasZoomedRef.current) {
+                  const region = calculateMapRegion(currentLocation, carLocation);
+                  mapRef.current.animateToRegion(region, 1000);
+                  hasZoomedRef.current = true;
+                }
+              }}
+              onError={() => setDirectionsError(true)}
+            />
+          )
         )}
       </MapView>
     </View>
@@ -10600,21 +10775,33 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
     textAlign: 'center',
   },
-  // Navigation Step Display Styles
-  stepContainer: {
+  // Navigation Steps Wrapper (holds both step boxes)
+  stepsWrapper: {
     position: 'absolute',
     left: 10,
-    right: 10,
+    zIndex: 1002,
+    width: '30%',
+  },
+  stepContainer: {
     backgroundColor: 'rgba(254, 254, 254, 1)',
     borderRadius: 12,
     padding: 8,
-    zIndex: 1002,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 8,
-    width: "30%"
+  },
+  headingTurnContainer: {
+    marginTop: 8,
+    backgroundColor: 'rgba(254, 254, 254, 1)',
+    borderRadius: 12,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
   },
   stepContent: {
     flexDirection: 'row',

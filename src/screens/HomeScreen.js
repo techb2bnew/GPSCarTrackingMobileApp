@@ -51,6 +51,8 @@ import { spacings, style } from '../constants/Fonts';
 import messaging from '@react-native-firebase/messaging';
 import {useSelector} from 'react-redux';
 
+const HOME_CACHE_CHIP_STATS = 'home_cache_chip_stats';
+
 // Dynamic card data function - Keep original 3 cards, just update terminology
 const getCardData = (chipStats) => [
   {
@@ -133,45 +135,50 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   const notifications = useSelector(state => state.notifications?.items || []);
   const unreadCount = notifications.filter(item => !item.read).length;
 
-  // Search bar highlight animation – border glow + icon pulse (background white hi rehta hai)
+  // Search bar highlight – bar border + icon: ek bar bounce, dusri bar rotate (alternate)
   const searchGlowAnim = useRef(new Animated.Value(0)).current;
-  const searchIconScaleAnim = useRef(new Animated.Value(1)).current;
+  const iconBounceRotateAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const glowLoop = Animated.loop(
       Animated.sequence([
         Animated.timing(searchGlowAnim, {
           toValue: 1,
-          duration: 700,
+          duration: 1000,
           useNativeDriver: true,
         }),
         Animated.timing(searchGlowAnim, {
           toValue: 0,
-          duration: 700,
+          duration: 1000,
           useNativeDriver: true,
         }),
       ]),
       { iterations: -1 }
     );
-    const iconPulse = Animated.loop(
+    const iconLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(searchIconScaleAnim, {
-          toValue: 1.3,
-          duration: 500,
+        Animated.timing(iconBounceRotateAnim, {
+          toValue: 1,
+          duration: 750,
           useNativeDriver: true,
         }),
-        Animated.timing(searchIconScaleAnim, {
-          toValue: 1,
-          duration: 500,
+        Animated.timing(iconBounceRotateAnim, {
+          toValue: 2,
+          duration: 950,
+          useNativeDriver: true,
+        }),
+        Animated.timing(iconBounceRotateAnim, {
+          toValue: 0,
+          duration: 0,
           useNativeDriver: true,
         }),
       ]),
       { iterations: -1 }
     );
     glowLoop.start();
-    iconPulse.start();
+    iconLoop.start();
     return () => {
       glowLoop.stop();
-      iconPulse.stop();
+      iconLoop.stop();
     };
   }, []);
 
@@ -306,25 +313,44 @@ export default function HomeScreen({ navigation, setCheckUser }) {
   };
 
 
+  // Pehle cache se 4 card counts dikhao – 0 na dikhe, phir API se update
+  const loadChipStatsFromCache = async () => {
+    try {
+      const cached = await AsyncStorage.getItem(HOME_CACHE_CHIP_STATS);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed.activeChips === 'number') {
+          setChipStats(parsed);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
   // Load yards, chip stats, and user data from AsyncStorage
   useEffect(() => {
     console.log('🚀 HomeScreen: Initializing data loading...');
     loadYards();
-    loadChipStats();
+    const init = async () => {
+      await loadChipStatsFromCache();
+      loadChipStats();
+    };
+    init();
     loadUserData();
 
     // Initialize MQTT for battery monitoring first
     initializeMqtt();
-
-
-
-    // Don't set mock data - wait for real MQTT data
   }, []);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      loadChipStats();
+      const refresh = async () => {
+        await loadChipStatsFromCache();
+        loadChipStats();
+      };
+      refresh();
       loadUserData();
     }, [])
   );
@@ -456,6 +482,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
       if (carsError) {
         console.error('❌ Error fetching cars from Supabase:', carsError);
+        const cached = await AsyncStorage.getItem(HOME_CACHE_CHIP_STATS);
+        if (cached) {
+          try {
+            setChipStats(JSON.parse(cached));
+          } catch (e) {}
+        }
         return;
       }
 
@@ -529,12 +561,14 @@ export default function HomeScreen({ navigation, setCheckUser }) {
       // console.log(`📋 Unassigned vehicles: ${unassignedVehicles}`);
       // console.log(`📋 Total vehicles: ${totalVehicles}`);
 
-      setChipStats({
+      const stats = {
         activeChips: activeChipsCount,
         inactiveChips: inactiveChipsCount,
         lowBatteryChips: lowBatteryChips,
         totalVehicles: totalVehicles,
-      });
+      };
+      setChipStats(stats);
+      await AsyncStorage.setItem(HOME_CACHE_CHIP_STATS, JSON.stringify(stats));
 
       // console.log('📊 Final chip stats:', {
       //   activeChips: activeChipsCount,
@@ -545,6 +579,12 @@ export default function HomeScreen({ navigation, setCheckUser }) {
 
     } catch (error) {
       console.error('❌ Error loading chip stats:', error);
+      const cached = await AsyncStorage.getItem(HOME_CACHE_CHIP_STATS);
+      if (cached) {
+        try {
+          setChipStats(JSON.parse(cached));
+        } catch (e) {}
+      }
     }
   };
 
@@ -1071,10 +1111,10 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               styles.beautifulSearchBar,
               styles.searchBarHighlightWrap,
               {
-                borderWidth: 3,
+                borderWidth: 4.5,
                 borderColor: searchGlowAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ['rgba(0, 63, 101, 0.35)', nissanPrimaryBlue],
+                  outputRange: ['rgba(0, 63, 101, 0.5)', nissanPrimaryBlue],
                 }),
               },
             ]}>
@@ -1082,13 +1122,27 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               style={styles.searchBarInner}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('SearchScreen')}>
-              <Animated.View
-                style={[
-                  styles.searchIconContainer,
-                  { transform: [{ scale: searchIconScaleAnim }] },
-                ]}>
-                <Ionicons name="search" size={22} color="#003F65" />
-              </Animated.View>
+              <View style={styles.searchIconContainer}>
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        scale: iconBounceRotateAnim.interpolate({
+                          inputRange: [0, 0.5, 1, 2],
+                          outputRange: [0.9, 1.2, 1, 1],
+                        }),
+                      },
+                      {
+                        rotate: iconBounceRotateAnim.interpolate({
+                          inputRange: [0, 1, 2],
+                          outputRange: ['0deg', '0deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  }}>
+                  <Ionicons name="search" size={22} color="#003F65" />
+                </Animated.View>
+              </View>
               <View style={styles.searchBarDivider} />
               <Text style={styles.searchText}>
                 Search VIN, Make, Model...
@@ -1103,13 +1157,27 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               style={styles.scannerButton}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Scan')}>
-              <Animated.View
-                style={[
-                  styles.scannerIconWrap,
-                  { transform: [{ scale: searchIconScaleAnim }] },
-                ]}>
-                <Ionicons name="barcode-outline" size={26} color="#003F65" />
-              </Animated.View>
+              <View style={styles.scannerIconWrap}>
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        scale: iconBounceRotateAnim.interpolate({
+                          inputRange: [0, 0.5, 1, 2],
+                          outputRange: [0.9, 1.2, 1, 1],
+                        }),
+                      },
+                      {
+                        rotate: iconBounceRotateAnim.interpolate({
+                          inputRange: [0, 1, 2],
+                          outputRange: ['0deg', '0deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  }}>
+                  <Ionicons name="barcode-outline" size={26} color="#003F65" />
+                </Animated.View>
+              </View>
               <Text style={styles.scannerLabel}>Scan</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -1443,7 +1511,7 @@ const styles = StyleSheet.create({
     backgroundColor: whiteColor,
     borderRadius: spacings.large,
     paddingHorizontal: spacings.large,
-    paddingVertical: Platform.OS === 'ios' ? spacings.large : spacings.normal,
+    paddingVertical: Platform.OS === 'ios' ? spacings.medium : spacings.normal,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: blackColor,

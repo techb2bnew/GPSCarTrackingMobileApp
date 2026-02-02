@@ -11,6 +11,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { heightPercentageToDP as hp } from '../utils';
 import { useFocusEffect } from '@react-navigation/native';
@@ -83,10 +84,30 @@ const ChipAssignmentScreen = ({ navigation }) => {
     }
   };
 
-  // Load vehicle data
+  const CHIP_ASSIGNMENT_CACHE_KEY = 'chip_assignment_screen';
+
+  // Load vehicle data: pehle local storage se dikhao, phir API se update + cache save
   const loadVehicleData = async () => {
+    let hadCachedData = false;
+    setIsLoading(false);
+
     try {
-      setIsLoading(true);
+      const cachedRaw = await AsyncStorage.getItem(CHIP_ASSIGNMENT_CACHE_KEY);
+      if (cachedRaw) {
+        try {
+          const cached = JSON.parse(cachedRaw);
+          const list = Array.isArray(cached?.allVehicles) ? cached.allVehicles : [];
+          const stats = cached?.stats || { assigned: 0, unassigned: 0, total: 0 };
+          setAllVehicles(list);
+          setStats(stats);
+          filterVehicles(list, activeTab, searchText);
+          hadCachedData = true;
+        } catch (e) {
+          // ignore invalid cache
+        }
+      }
+      if (!hadCachedData) setIsLoading(true);
+
       console.log('🔄 Loading vehicle data...');
 
       // Get all cars from Supabase
@@ -96,7 +117,11 @@ const ChipAssignmentScreen = ({ navigation }) => {
 
       if (carsError) {
         console.error('❌ Error fetching cars from Supabase:', carsError);
-        setIsLoading(false);
+        if (!hadCachedData) {
+          setAllVehicles([]);
+          setStats({ assigned: 0, unassigned: 0, total: 0 });
+          setFilteredData([]);
+        }
         return;
       }
 
@@ -141,13 +166,24 @@ const ChipAssignmentScreen = ({ navigation }) => {
         total: vehiclesData.length,
       });
       filterVehicles(vehiclesData, activeTab, searchText);
-      setIsLoading(false);
+
+      // Local storage me save – naya data aate hi purane ke sath update
+      await AsyncStorage.setItem(CHIP_ASSIGNMENT_CACHE_KEY, JSON.stringify({
+        allVehicles: vehiclesData,
+        stats: { assigned: assignedCount, unassigned: unassignedCount, total: vehiclesData.length },
+      }));
 
       console.log(`✅ Loaded ${vehiclesData.length} vehicles`);
       console.log(`📋 Assigned: ${assignedCount}`);
       console.log(`📋 Unassigned: ${unassignedCount}`);
     } catch (error) {
       console.error('❌ Error loading vehicle data:', error);
+      if (!hadCachedData) {
+        setAllVehicles([]);
+        setStats({ assigned: 0, unassigned: 0, total: 0 });
+        setFilteredData([]);
+      }
+    } finally {
       setIsLoading(false);
     }
   };
