@@ -49,7 +49,7 @@ import ParkingYardScreen from './ParkingYardScreen';
 import { blackColor, blackOpacity5, darkgrayColor, grayColor, nissanPrimaryBlue, redColor, whiteColor } from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
 import messaging from '@react-native-firebase/messaging';
-import {useSelector} from 'react-redux';
+import { useSelector } from 'react-redux';
 
 const HOME_CACHE_CHIP_STATS = 'home_cache_chip_stats';
 
@@ -1075,13 +1075,13 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </View>
 
           <View style={styles.headerIcons}>
-            {/* AR Navigation Button */}
+            {/* Scan Text – opens TextScanScreen */}
             {/* <TouchableOpacity
-              onPress={handleOpenAR}
+              onPress={() => navigation.navigate('TextScanScreen')}
               style={styles.iconBtn}>
-              <Ionicons name="navigate" size={24} color="#fff" />
+              <Ionicons name="document-text" size={22} color="#fff" />
             </TouchableOpacity> */}
-  
+
             {/* Notification Bell */}
             <TouchableOpacity
               onPress={() => navigation.navigate('NotificationScreen')}

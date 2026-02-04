@@ -43,6 +43,7 @@ const YardDetailScreen = ({ navigation, route }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [hasBeenInitialized, setHasBeenInitialized] = useState(false);
   const [showVinModal, setShowVinModal] = useState(false);
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
   const [scannedVinData, setScannedVinData] = useState(null);
   const [isScanningChip, setIsScanningChip] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
@@ -629,11 +630,29 @@ const YardDetailScreen = ({ navigation, route }) => {
   };
 
   const handleAddVehicle = () => {
+    setShowAddVehicleModal(true);
+  };
+
+  const handleAddVehicleScanVin = () => {
+    setShowAddVehicleModal(false);
     navigation.navigate('ScannerScreen', {
       returnTo: 'YardDetailScreen',
       yardId: yardId,
       yardName: displayYardName,
       existingVehicles: vehicles, // Pass current vehicles to preserve them
+    });
+  };
+
+  const handleAddVehicleReadVin = () => {
+    setShowAddVehicleModal(false);
+    navigation.navigate('TextScanScreen', {
+      mode: 'vin',
+      autoOpen: true,
+      hideResult: true,
+      suppressConsole: true,
+      returnTo: 'YardDetailScreen',
+      yardId: yardId,
+      yardName: displayYardName,
     });
   };
 
@@ -1255,6 +1274,68 @@ const YardDetailScreen = ({ navigation, route }) => {
         vehicles.length === 0 ? renderNoVehicles() : renderVehicleList()
       )}
 
+      {/* Add Vehicle Options Modal */}
+      <Modal
+        visible={showAddVehicleModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAddVehicleModal(false)}
+      >
+        <View style={styles.centeredModalOverlay}>
+          <View style={styles.addVehicleChoiceModal}>
+            <View style={styles.addVehicleChoiceHeader}>
+              <View style={styles.addVehicleChoiceBadge}>
+                <Ionicons name="car-outline" size={20} color="#003F65" />
+              </View>
+              <View>
+                <Text style={styles.addVehicleChoiceTitle}>Add Vehicle</Text>
+                <Text style={styles.addVehicleChoiceSubtitle}>
+                  Choose how you want to capture the VIN number
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.addVehicleChoiceOption, styles.addVehicleChoiceOptionPrimary]}
+              onPress={handleAddVehicleScanVin}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.addVehicleChoiceIconWrap, { backgroundColor: 'rgba(0,63,101,0.12)' }]}>
+                <Ionicons name="scan-outline" size={22} color="#003F65" />
+              </View>
+              <View style={styles.addVehicleChoiceContent}>
+                <Text style={styles.addVehicleChoiceOptionTitle}>Scan VIN</Text>
+                <Text style={styles.addVehicleChoiceOptionText}>
+                  Capture the VIN instantly with the barcode scanner
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#003F65" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.addVehicleChoiceOption, styles.addVehicleChoiceOptionSecondary]}
+              onPress={handleAddVehicleReadVin}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.addVehicleChoiceIconWrap, { backgroundColor: 'rgba(46,125,50,0.15)' }]}>
+                <Ionicons name="document-text-outline" size={22} color="#2E7D32" />
+              </View>
+              <View style={styles.addVehicleChoiceContent}>
+                <Text style={styles.addVehicleChoiceOptionTitle}>Read VIN</Text>
+                <Text style={styles.addVehicleChoiceOptionText}>
+                  Use camera or gallery photo with text recognition
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#2E7D32" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addVehicleChoiceCancel}
+              onPress={() => setShowAddVehicleModal(false)}
+            >
+              <Text style={styles.addVehicleChoiceCancelText}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* VIN Details Modal */}
       <Modal
         visible={showVinModal}
@@ -1852,6 +1933,86 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  addVehicleChoiceModal: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 22,
+    width: '93%',
+    maxWidth: 420,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+  addVehicleChoiceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 18,
+  },
+  addVehicleChoiceBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,63,101,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addVehicleChoiceTitle: {
+    fontSize: 18,
+    fontWeight: style.fontWeightBold.fontWeight,
+    color: '#003F65',
+  },
+  addVehicleChoiceSubtitle: {
+    fontSize: 13,
+    color: '#555',
+  },
+  addVehicleChoiceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1.5,
+    marginBottom: 14,
+  },
+  addVehicleChoiceOptionPrimary: {
+    borderColor: 'rgba(0,63,101,0.2)',
+    backgroundColor: 'rgba(0,63,101,0.04)',
+  },
+  addVehicleChoiceOptionSecondary: {
+    borderColor: 'rgba(46,125,50,0.25)',
+    backgroundColor: 'rgba(46,125,50,0.05)',
+  },
+  addVehicleChoiceIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  addVehicleChoiceContent: {
+    flex: 1,
+  },
+  addVehicleChoiceOptionTitle: {
+    fontSize: 16,
+    fontWeight: style.fontWeightBold.fontWeight,
+    color: '#222',
+  },
+  addVehicleChoiceOptionText: {
+    fontSize: 13,
+    color: '#555',
+    marginTop: 4,
+  },
+  addVehicleChoiceCancel: {
+    alignSelf: 'center',
+    marginTop: 4,
+  },
+  addVehicleChoiceCancelText: {
+    color: '#888',
+    fontSize: 14,
   },
   modalContent: {
     backgroundColor: '#fff',
