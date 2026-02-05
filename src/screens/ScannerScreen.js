@@ -311,16 +311,21 @@ const ScannerScreen = ({ navigation, route }) => {
             // Handle Add Vehicle flow
             if (isAddingVehicle) {
               if (found) {
-                // Vehicle already exists - show message and go back
-                Toast.show('Vehicle already exists with this VIN number', Toast.LONG);
-                navigation.goBack();
+                // Vehicle already exists - navigate back with vehicle exists flag
+                const addVehicleScreen = returnTo === 'AddVehicleScreen' ? 'AddVehicleScreen' : 'ScanScreen';
+                navigation.navigate(addVehicleScreen, {
+                  vehicleExists: true,
+                  existingVehicle: found.vehicle,
+                  yardName: found.yardName
+                });
               } else {
-                // Vehicle not found - navigate directly to yard selection
-                navigation.navigate('ScanScreen', {
+                // Vehicle not found - navigate to yard selection (Scan or AddVehicle stack)
+                const addVehicleScreen = returnTo === 'AddVehicleScreen' ? 'AddVehicleScreen' : 'ScanScreen';
+                navigation.navigate(addVehicleScreen, {
                   notFoundData: {
                     type: 'vin',
                     scannedValue: vin,
-                    isAddingVehicle: true // Flag to show yard selection for Add Vehicle
+                    isAddingVehicle: true
                   }
                 });
               }

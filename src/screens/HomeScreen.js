@@ -1105,7 +1105,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
           </View>
         </View>
 
-        {!isDrawerOpen && (
+        {/* {!isDrawerOpen && (
           <Animated.View
             style={[
               styles.beautifulSearchBar,
@@ -1151,7 +1151,6 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                 <Ionicons name="chevron-forward" size={16} color="#999" />
               </View>
             </TouchableOpacity>
-            {/* Scanner – right side, Scan stack pe jane ke liye, barcode scanner highlighted */}
             <View style={styles.searchBarDivider} />
             <TouchableOpacity
               style={styles.scannerButton}
@@ -1181,7 +1180,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
               <Text style={styles.scannerLabel}>Scan</Text>
             </TouchableOpacity>
           </Animated.View>
-        )}
+        )} */}
       </View>
 
       <Modal
@@ -1428,7 +1427,7 @@ const styles = StyleSheet.create({
   beautifulHeader: {
     backgroundColor: nissanPrimaryBlue,
     paddingTop: Platform.OS === 'ios' ? heightPercentageToDP(6) : heightPercentageToDP(1),
-    paddingBottom: spacings.Large1x,
+    paddingBottom: spacings.large,
     paddingHorizontal: Platform.OS === 'ios' ? spacings.xxxxLarge : spacings.xLarge,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,

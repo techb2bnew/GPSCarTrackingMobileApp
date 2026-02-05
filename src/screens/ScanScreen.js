@@ -11,6 +11,7 @@ import Header from '../components/Header';
 
 export default function ScanScreen({ navigation, route }) {
   const [showModal, setShowModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
   const [showYardSelectionModal, setShowYardSelectionModal] = useState(false);
@@ -19,6 +20,48 @@ export default function ScanScreen({ navigation, route }) {
   const [notFoundData, setNotFoundData] = useState(null);
   const [yards, setYards] = useState([]);
   const [actualYardName, setActualYardName] = useState('');
+
+  // Search vehicle by VIN from Supabase (for Read VIN flow)
+  const findVehicleByVinText = async (vin) => {
+    try {
+      const { data, error } = await supabase
+        .from('cars')
+        .select('*')
+        .ilike('vin', vin);
+
+      if (error) {
+        console.error('❌ Error searching VIN in Supabase:', error);
+        return { status: 'error' };
+      }
+
+      if (data && data.length > 0) {
+        const foundVehicle = data[0];
+        const yardName = await getActualYardName(foundVehicle.facilityId);
+        return {
+          status: 'found',
+          vehicle: {
+            id: foundVehicle.id,
+            vin: foundVehicle.vin,
+            make: foundVehicle.make,
+            model: foundVehicle.model,
+            color: foundVehicle.color,
+            slotNo: foundVehicle.slotNo,
+            chipId: foundVehicle.chip,
+            chip: foundVehicle.chip,
+            facilityId: foundVehicle.facilityId,
+            yardId: foundVehicle.facilityId,
+            isActive: foundVehicle.chip ? true : false,
+          },
+          yardName,
+        };
+      }
+
+      return { status: 'not_found' };
+    } catch (e) {
+      console.error('❌ Error searching VIN:', e);
+      return { status: 'error' };
+    }
+  };
 
   // Fetch yards data from Supabase
   const fetchYards = async () => {
@@ -71,6 +114,7 @@ export default function ScanScreen({ navigation, route }) {
       return `Yard ${yardId}`;
     }
   };
+
 
   // Check if we're returning from ScannerScreen with vehicle data
   React.useEffect(() => {
@@ -127,20 +171,48 @@ export default function ScanScreen({ navigation, route }) {
     // Check if we're returning from ScannerScreen with not found data
     if (route?.params?.notFoundData) {
       const notFound = route.params.notFoundData;
+      console.log('🔍 Not found data received:', notFound);
       setNotFoundData(notFound);
       
       // If isAddingVehicle flag is true, skip popup and directly show yard selection
       if (notFound?.isAddingVehicle) {
+        console.log('📦 Adding vehicle - showing yard selection directly');
         fetchYards().then(() => {
           setShowYardSelectionModal(true);
         });
         setShowNotFoundModal(false);
       } else {
+        console.log('❌ VIN not found - showing not found modal');
         setShowNotFoundModal(true);
       }
       
       // Clear the params so the modal doesn't show again
       navigation.setParams({ notFoundData: null });
+    }
+
+    // Handle Read VIN result (OCR) and search from this screen
+    if (route?.params?.textScanResult?.type === 'vin' && route?.params?.textScanResult?.value) {
+      const vin = String(route.params.textScanResult.value).toUpperCase();
+      navigation.setParams({ textScanResult: null });
+      (async () => {
+        const result = await findVehicleByVinText(vin);
+        if (result.status === 'found') {
+          setFoundVehicle(result.vehicle);
+          setFoundYardName(result.yardName);
+          // Show tick/success animation first, then open details modal
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+            setShowDetailModal(true);
+          }, 1400);
+        } else if (result.status === 'not_found') {
+          setNotFoundData({ type: 'vin', scannedValue: vin });
+          setShowNotFoundModal(true);
+        } else {
+          setNotFoundData({ type: 'vin', scannedValue: vin });
+          setShowNotFoundModal(true);
+        }
+      })();
     }
   }, [route?.params]);
 
@@ -162,23 +234,22 @@ export default function ScanScreen({ navigation, route }) {
         {/* Welcome Text */}
         <View style={styles.welcomeSection}>
           <View style={styles.titleWrapper}>
-            <Text style={styles.welcomeTitle}>Scan & Search</Text>
+            <Text style={styles.welcomeTitle}>Search Vehicles</Text>
           </View>
           <Text style={styles.welcomeSubtitle}>
-            Add new vehicle or search existing vehicles by scanning VIN or tracker chip
+            Scan a VIN barcode or tracker chip to find a vehicle and view details.
           </Text>
         </View>
 
         {/* Buttons Container */}
         <View style={styles.buttonsContainer}>
           {/* Add Vehicle Card */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.addVehicleCard}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('ScannerScreen', { scanType: 'vin', isAddingVehicle: true })}
           >
             <View style={styles.cardInner}>
-              {/* Icon Container */}
               <View style={[styles.iconContainer, styles.addVehicleIconContainer]}>
                 <Ionicons
                   name="add-circle"
@@ -188,7 +259,6 @@ export default function ScanScreen({ navigation, route }) {
                 />
               </View>
 
-              {/* Content */}
               <View style={styles.cardContent}>
                 <Text style={styles.addVehicleTitle}>Add New Vehicle</Text>
                 <Text style={styles.addVehicleDescription}>
@@ -196,19 +266,18 @@ export default function ScanScreen({ navigation, route }) {
                 </Text>
               </View>
 
-              {/* Arrow Icon */}
               <View style={styles.arrowContainer}>
                 <Ionicons name="chevron-forward" size={20} color="#003F65" />
               </View>
             </View>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           {/* Divider */}
-          <View style={styles.dividerContainer}>
+          {/* <View style={styles.dividerContainer}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Search Options</Text>
+            <Text style={styles.dividerText}>Scan options</Text>
             <View style={styles.dividerLine} />
-          </View>
+          </View> */}
 
           {/* VIN Scan Card */}
           <TouchableOpacity
@@ -243,6 +312,43 @@ export default function ScanScreen({ navigation, route }) {
 
             {/* Decorative Background */}
             {/* <View style={[styles.cardBackground, styles.vinCardBackground]} /> */}
+          </TouchableOpacity>
+
+          {/* VIN Read Card */}
+          <TouchableOpacity
+            style={styles.scanCard}
+            activeOpacity={0.8}
+            onPress={() =>
+              navigation.navigate('TextScanScreen', {
+                mode: 'vin',
+                autoOpen: true,
+                hideResult: true,
+                returnTo: 'ScanScreen',
+                asSearchFlow: true,
+              })
+            }
+          >
+            <View style={styles.cardInner}>
+              <View style={[styles.iconContainer, styles.vinIconContainer]}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={30}
+                  color="#003F65"
+                  style={styles.cardIcon}
+                />
+              </View>
+
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>Search VIN (Photo)</Text>
+                <Text style={styles.cardDescription}>
+                  Use camera or gallery photo and we’ll read the VIN
+                </Text>
+              </View>
+
+              <View style={styles.arrowContainer}>
+                <Ionicons name="chevron-forward" size={20} color="#003F65" />
+              </View>
+            </View>
           </TouchableOpacity>
 
           {/* Chip Scan Card */}
@@ -302,6 +408,21 @@ export default function ScanScreen({ navigation, route }) {
                 style={{ width: 180, height: 300 }}
               />
             </>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Success Tick Modal (for VIN Photo search + reuse anywhere) */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <AnimatedLottieView
+              source={require('../assets/successfully.json')}
+              autoPlay
+              loop={false}
+              style={{ width: 180, height: 180 }}
+            />
+            <Text style={styles.successText}>Found</Text>
           </View>
         </View>
       </Modal>
@@ -420,35 +541,45 @@ export default function ScanScreen({ navigation, route }) {
       </Modal>
 
       {/* Not Found Modal */}
-      <Modal visible={showNotFoundModal} transparent animationType="slide">
+      <Modal visible={showNotFoundModal} transparent animationType="slide" onRequestClose={() => setShowNotFoundModal(false)}>
         <View style={styles.notFoundModalOverlay}>
           <View style={styles.notFoundModalContent}>
-            <View style={styles.notFoundModalHeader}>
-              <Text style={styles.notFoundQuestion}>
-                {notFoundData?.isNotAssigned
-                  ? 'This tracker chip is not assigned to any vehicle.'
-                  : notFoundData?.type === 'vin'
-                  ? 'This VIN number is not found in any parking yard.'
-                  : 'This tracker chip is not found in any parking yard.'
-                }
-              </Text>
-
+            <Pressable 
+              onPress={() => {
+                setShowNotFoundModal(false);
+                setNotFoundData(null);
+              }} 
+              style={styles.notFoundCloseButton}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </Pressable>
+            
+            <View style={styles.notFoundIconContainer}>
+              <Ionicons 
+                name={notFoundData?.isNotAssigned ? "alert-circle" : "search-outline"} 
+                size={64} 
+                color="#FF6B6B" 
+              />
             </View>
+
+            <Text style={styles.notFoundQuestion}>
+              {notFoundData?.isNotAssigned
+                ? 'Chip Not Assigned'
+                : notFoundData?.type === 'vin'
+                ? 'VIN Not Found'
+                : 'Chip Not Found'}
+            </Text>
 
             <View style={styles.notFoundContent}>
               <Text style={styles.notFoundText}>
                 {notFoundData?.isNotAssigned
-                  ? 'Please assign this chip to a vehicle first.'
-                  : 'Would you like to add it to a yard?'
-                }
+                  ? 'This tracker chip is not assigned to any vehicle. Please assign this chip to a vehicle first.'
+                  : notFoundData?.type === 'vin'
+                  ? 'This VIN number is not found in any parking yard. Would you like to add it to a yard?'
+                  : 'This tracker chip is not found in any parking yard. Would you like to add it to a yard?'}
               </Text>
             </View>
-            <Pressable onPress={() => {
-              setShowNotFoundModal(false);
-              setNotFoundData(null);
-            }} style={{ position: 'absolute', top: 10, right: 10 }}>
-              <Ionicons name="close" size={28} color="#666" />
-            </Pressable>
+
             <View style={[styles.notFoundButtons, notFoundData?.isNotAssigned && styles.singleButtonContainer]}>
               <Pressable
                 style={[styles.notFoundButton, styles.noButton, notFoundData?.isNotAssigned && styles.singleButton]}
@@ -515,7 +646,7 @@ export default function ScanScreen({ navigation, route }) {
                         vinNumber: notFoundData?.scannedValue,
                         yardId: item.id,
                         yardName: item.name,
-                        fromScreen: 'ScannerScreen'
+                        fromScreen: 'ScanScreen'
                       });
                       setNotFoundData(null);
                     }}>
@@ -556,7 +687,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   welcomeSection: {
-    marginBottom: hp(4),
+    marginBottom: hp(2.8),
     alignItems: 'center',
     paddingHorizontal: spacings.medium,
   },
@@ -575,13 +706,13 @@ const styles = StyleSheet.create({
     color: '#646E77',
     textAlign: 'center',
     paddingHorizontal: spacings.large,
-    lineHeight: 20,
+    lineHeight: 21,
     marginTop: spacings.xxsmall,
   },
   buttonsContainer: {
     width: '100%',
-    gap: spacings.xLarge,
-    paddingBottom: hp(6),
+    gap: spacings.large,
+    paddingBottom: hp(8),
   },
   addVehicleCard: {
     width: '100%',
@@ -621,7 +752,7 @@ const styles = StyleSheet.create({
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: spacings.xLarge,
+    marginVertical: spacings.large,
     paddingHorizontal: spacings.small,
   },
   dividerLine: {
@@ -646,11 +777,11 @@ const styles = StyleSheet.create({
     // Enhanced Shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.10,
     shadowRadius: 12,
     elevation: 5,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: 'rgba(0, 0, 0, 0.07)',
   },
   cardInner: {
     flexDirection: 'row',
@@ -707,7 +838,7 @@ const styles = StyleSheet.create({
     marginLeft: spacings.medium,
     padding: spacings.xsmall,
     borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    backgroundColor: 'rgba(0, 0, 0, 0.03)',
   },
   cardBackground: {
     position: 'absolute',
@@ -726,7 +857,7 @@ const styles = StyleSheet.create({
   },
   floatingSearchButton: {
     position: 'absolute',
-    bottom: hp(15),
+    bottom: hp(14),
     right: spacings.Large1x,
     width: hp(7.5),
     height: hp(7.5),
@@ -757,6 +888,12 @@ const styles = StyleSheet.create({
     padding: spacings.large,
     alignItems: 'center',
     width: widthPercentageToDP(80),
+  },
+  successText: {
+    marginTop: 10,
+    fontSize: style.fontSizeMedium1x.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
+    color: '#003F65',
   },
 
   // Detail Modal Styles
@@ -859,48 +996,57 @@ const styles = StyleSheet.create({
   // Not Found Modal Styles
   notFoundModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   notFoundModalContent: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: spacings.Large1x,
-    width: widthPercentageToDP(85),
+    borderRadius: 24,
+    padding: spacings.Large1x + 10,
+    width: widthPercentageToDP(88),
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  notFoundModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  notFoundCloseButton: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    padding: 5,
+    zIndex: 10,
+  },
+  notFoundIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
     alignItems: 'center',
-    width: '100%',
+    justifyContent: 'center',
     marginBottom: 20,
-  },
-  notFoundModalTitle: {
-    fontSize: style.fontSizeLargeX.fontSize,
-    fontWeight: style.fontWeightBold.fontWeight,
-    color: '#ff6b6b',
-    flex: 1,
-    textAlign: 'center',
-    marginLeft: -40, // Center the title (accounting for close button)
+    marginTop: 10,
   },
   notFoundContent: {
     alignItems: 'center',
-    marginBottom: 25,
+    marginBottom: 30,
+    marginTop: 10,
   },
   notFoundText: {
     fontSize: style.fontSizeNormal.fontSize,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 15,
-    lineHeight: 22,
+    lineHeight: 24,
+    paddingHorizontal: 10,
   },
   notFoundQuestion: {
-    fontSize: style.fontSizeMedium1x.fontSize,
-    color: 'black',
-    fontWeight: style.fontWeightMedium.fontWeight,
+    fontSize: style.fontSizeLargeX.fontSize,
+    color: '#252837',
+    fontWeight: style.fontWeightBold.fontWeight,
     textAlign: 'center',
+    marginBottom: 15,
   },
   notFoundButtons: {
     flexDirection: 'row',

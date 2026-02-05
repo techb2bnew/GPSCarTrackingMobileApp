@@ -79,6 +79,36 @@ const TextScanScreen = ({ navigation, route }) => {
           Alert.alert('VIN not found', 'VIN could not be detected. Please crop again and retry.');
           return;
         }
+        // If used for Search flow: after reading VIN, return to screen and trigger search
+        if (route?.params?.asSearchFlow) {
+          navigation.navigate({
+            name: returnTo,
+            params: {
+              textScanResult: {
+                type: 'vin',
+                value: vin,
+              },
+            },
+            merge: true,
+          });
+          return;
+        }
+        // If used from Add Vehicle flow: after reading VIN, open yard selection flow (same as scan add flow)
+        if (route?.params?.asAddVehicleFlow) {
+          navigation.navigate({
+            name: returnTo,
+            params: {
+              notFoundData: {
+                type: 'vin',
+                scannedValue: vin,
+                isAddingVehicle: true,
+              },
+            },
+            merge: true,
+          });
+          return;
+        }
+
         navigation.navigate({
           name: returnTo,
           params: {

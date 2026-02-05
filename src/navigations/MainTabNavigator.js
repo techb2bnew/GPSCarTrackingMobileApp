@@ -209,6 +209,7 @@ import ParkingYardStack from './ParkingYardStack';
 import MapStack from './MapStack';
 import HistoryStack from './HistoryStack';
 import ScanStack from './ScanStack';
+import AddVehicleStack from './AddVehicleStack';
 import CustomTabBar from '../components/CustomTabBar';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
@@ -226,54 +227,25 @@ export default function MainTabNavigator({setCheckUser}) {
       screenOptions={({route}) => ({
         headerShown: false,
         tabBarIcon: ({focused, color, size}) => {
+          const iconColor = color ?? (focused ? '#003F65' : '#6B7280');
           let iconComponent;
-
           if (route.name === 'Home') {
-            iconComponent = (
-              <Feather
-                name="home"
-                size={22}
-                color={focused ? '#003F65' : 'white'}
-              />
-            );
+            iconComponent = <Feather name="home" size={22} color={iconColor} />;
           } else if (route.name === 'Map') {
-            iconComponent = (
-              <Ionicons
-                name="map-outline"
-                size={22}
-                color={focused ? '#003F65' : 'white'}
-              />
-            );
+            iconComponent = <Ionicons name="map-outline" size={22} color={iconColor} />;
           } else if (route.name === 'Scan') {
-            iconComponent = (
-              <Ionicons
-                name="qr-code"
-                size={22}
-                color={focused ? '#003F65' : 'white'}
-              />
-            );
+            iconComponent = <Ionicons name="qr-code" size={22} color={iconColor} />;
+          } else if (route.name === 'AddVehicle') {
+            iconComponent = <Ionicons name="add-circle" size={24} color={iconColor} />;
           } else if (route.name === 'History') {
-            iconComponent = (
-              <Feather
-                name="clock"
-                size={22}
-                color={focused ? '#003F65' : 'white'}
-              />
-            );
+            iconComponent = <Feather name="clock" size={22} color={iconColor} />;
           } else if (route.name === 'Facility') {
-            iconComponent = (
-              <Ionicons
-                name="car-sport-outline"
-                size={27}
-                color={focused ? '#003F65' : 'white'}
-              />
-            );
+            iconComponent = <Ionicons name="car-sport-outline" size={27} color={iconColor} />;
           }
-
           return iconComponent;
         },
 
-        tabBarLabel: route.name,
+        tabBarLabel: route.name === 'AddVehicle' ? 'Add Vehicle' : route.name,
       })}>
       <Tab.Screen
         name="Home"
@@ -308,16 +280,30 @@ export default function MainTabNavigator({setCheckUser}) {
       <Tab.Screen
         name="Scan"
         component={ScanStack}
-        listeners={({navigation}) => ({
-          tabPress: e => {
-            // Prevent default behaviour
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
             e.preventDefault();
-            // Reset the stack to HomeScreen
             navigation.dispatch(
               CommonActions.reset({
                 index: 0,
-                routes: [{name: 'Scan'}], // 'Home' is your Tab name
-              }),
+                routes: [{ name: 'Scan' }],
+              })
+            );
+          },
+        })}
+      />
+      <Tab.Screen
+        name="AddVehicle"
+        component={AddVehicleStack}
+        options={{ tabBarLabel: 'Add' }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: 'AddVehicle' }],
+              })
             );
           },
         })}
@@ -340,7 +326,6 @@ export default function MainTabNavigator({setCheckUser}) {
         })}
       /> */}
       <Tab.Screen name="Facility" component={ParkingYardStack} />
-      {/* <Tab.Screen name="Search" component={VinListStack} /> */}
     </Tab.Navigator>
   );
 }

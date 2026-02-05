@@ -18,7 +18,7 @@ import {
   Keyboard,
 } from 'react-native';
 // Removed AsyncStorage import - now using Supabase directly
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CommonActions } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-simple-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -169,8 +169,24 @@ const YardDetailScreen = ({ navigation, route }) => {
 
   // Handle back navigation based on source screen
   const handleBackNavigation = () => {
-    if (fromScreen === 'ScannerScreen') {
-      // If coming from ScannerScreen, switch to Home tab
+    if (fromScreen === 'ScanScreen') {
+      // Navigate back to Scan tab (resets to ScanScreen without modals)
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Scan' }],
+        })
+      );
+    } else if (fromScreen === 'AddVehicleScreen') {
+      // Navigate back to AddVehicle tab (resets to AddVehicleScreen without modals)
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'AddVehicle' }],
+        })
+      );
+    } else if (fromScreen === 'ScannerScreen') {
+      // Legacy support - navigate to Home
       navigation.navigate('HomeScreen');
     } else {
       // Otherwise use normal back navigation
