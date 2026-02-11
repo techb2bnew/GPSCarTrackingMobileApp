@@ -107,6 +107,9 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
   };
 
   const centerRoute = routes.find((r) => r?.name === CENTER_TAB_NAME);
+  const isCenterFocused =
+    !!centerRoute &&
+    state.index === routes.findIndex((r) => r.key === centerRoute.key);
 
   return (
     <View style={styles.wrapper}>
@@ -132,9 +135,16 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => onPress(centerRoute)}
-                style={styles.centerButton}
+                style={[
+                  styles.centerButton,
+                  isCenterFocused && styles.centerButtonFocused,
+                ]}
               >
-                <Ionicons name="search" size={26} color={whiteColor} />
+                <Ionicons
+                  name="search"
+                  size={26}
+                  color={isCenterFocused ? nissanPrimaryBlue : whiteColor}
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -230,5 +240,9 @@ const styles = StyleSheet.create({
     elevation: 12,
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.9)',
+  },
+  centerButtonFocused: {
+    backgroundColor: whiteColor,
+    borderColor: nissanPrimaryBlue,
   },
 });

@@ -214,11 +214,11 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.errorText}>{generalError}</Text>
         ) : null}
 
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={{ alignSelf: 'flex-end' }}
           onPress={() => navigation.navigate('ForgetPasswordFlow')}>
           <Text style={styles.forgot}>Forget Password?</Text>
-        </TouchableOpacity> */}
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           {loading ? (

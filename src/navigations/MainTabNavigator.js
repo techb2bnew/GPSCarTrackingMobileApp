@@ -240,7 +240,8 @@ export default function MainTabNavigator({setCheckUser}) {
           } else if (route.name === 'History') {
             iconComponent = <Feather name="clock" size={22} color={iconColor} />;
           } else if (route.name === 'Facility') {
-            iconComponent = <Ionicons name="car-sport-outline" size={27} color={iconColor} />;
+            // Facility ke liye car ki jagah building-type icon
+            iconComponent = <Ionicons name="business" size={24} color={iconColor} />;
           }
           return iconComponent;
         },

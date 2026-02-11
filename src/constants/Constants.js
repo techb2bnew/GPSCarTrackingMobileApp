@@ -899,6 +899,9 @@ export const GOOGLE_MAP_API_KEY = 'AIzaSyBtb6hSmwJ9_OznDC5e8BcZM90ms4WD_DE';
 export const SENSECAP_BASE_URL = 'https://sensecap.seeed.cc/openapi';
 export const SENSECAP_AUTH = 'MzdHNzVaME82U1NRQlI5Mzo5QjFDNjkxMzE5N0E0QzU2QjVFQzMxRjFDRUJBRUNGOUU3QzcyMzVCMDE1QjQ1NkRCMEVDNTc3QkQ3QzE2N0Yz';
 
+// Forgot Password API (change localhost to your machine IP when testing on physical device)
+export const FORGOT_PASSWORD_API_BASE =  'https://ba57-122-161-196-251.ngrok-free.app'; // Replace with your production API URL
+
 // Chip Status API Configuration
 export const CHIP_STATUS_API_URL = 'https://sensecap.seeed.cc/openapi/view_device_running_status';
 export const CHIP_STATUS_API_AUTH = 'MzdHNzVaME82U1NRQlI5Mzo5QjFDNjkxMzE5N0E0QzU2QjVFQzMxRjFDRUJBRUNGOUU3QzcyMzVCMDE1QjQ1NkRCMEVDNTc3QkQ3QzE2N0Yz';

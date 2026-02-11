@@ -125,7 +125,7 @@ export default function ScanScreen({ navigation, route }) {
       const vehicle = route.params.foundVehicle;
       setFoundVehicle(vehicle);
       setFoundYardName(route.params.foundYardName);
-      
+
       // Check chip online status from API if chipId exists
       const checkChipStatus = async () => {
         if (vehicle?.chipId) {
@@ -133,11 +133,11 @@ export default function ScanScreen({ navigation, route }) {
             console.log(`🔄 Checking online status for chip: ${vehicle.chipId}`);
             const statusMap = await checkChipOnlineStatus([vehicle.chipId]);
             const chipStatus = statusMap[vehicle.chipId];
-            
+
             if (chipStatus) {
               const isActive = chipStatus.online_status === 1;
               console.log(`✅ Chip ${vehicle.chipId} status: ${isActive ? 'Active' : 'Inactive'}`);
-              
+
               // Update vehicle with actual status from API
               setFoundVehicle({
                 ...vehicle,
@@ -173,7 +173,7 @@ export default function ScanScreen({ navigation, route }) {
       const notFound = route.params.notFoundData;
       console.log('🔍 Not found data received:', notFound);
       setNotFoundData(notFound);
-      
+
       // If isAddingVehicle flag is true, skip popup and directly show yard selection
       if (notFound?.isAddingVehicle) {
         console.log('📦 Adding vehicle - showing yard selection directly');
@@ -185,7 +185,7 @@ export default function ScanScreen({ navigation, route }) {
         console.log('❌ VIN not found - showing not found modal');
         setShowNotFoundModal(true);
       }
-      
+
       // Clear the params so the modal doesn't show again
       navigation.setParams({ notFoundData: null });
     }
@@ -239,6 +239,25 @@ export default function ScanScreen({ navigation, route }) {
           <Text style={styles.welcomeSubtitle}>
             Scan a VIN barcode or tracker chip to find a vehicle and view details.
           </Text>
+        </View>
+
+        {/* Inline Search Bar that opens full Search screen (same style as SearchScreen) */}
+        <View style={styles.inlineSearchWrapper}>
+          <TouchableOpacity
+            style={styles.inlineSearchBar}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('SearchScreen')}
+          >
+            <Ionicons
+              name="search"
+              size={22}
+              color="#555"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.inlineSearchPlaceholder}>
+              Search VIN, Make, Model, Year
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Buttons Container */}
@@ -388,15 +407,6 @@ export default function ScanScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Floating Search Button */}
-      <TouchableOpacity
-        style={styles.floatingSearchButton}
-        activeOpacity={0.7}
-        onPress={() => navigation.navigate("SearchScreen")}
-      >
-        <Ionicons name="search" size={26} color="white" />
-      </TouchableOpacity>
-
       <Modal visible={showModal} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -488,15 +498,15 @@ export default function ScanScreen({ navigation, route }) {
 
               {foundVehicle?.chipId && (
                 <View style={styles.detailRow}>
-                  <Ionicons 
-                    name={foundVehicle?.isActive ? "checkmark-circle" : "close-circle"} 
-                    size={24} 
-                    color={foundVehicle?.isActive ? "#28a745" : "#F24369"} 
+                  <Ionicons
+                    name={foundVehicle?.isActive ? "checkmark-circle" : "close-circle"}
+                    size={24}
+                    color={foundVehicle?.isActive ? "#28a745" : "#F24369"}
                   />
                   <View style={styles.detailTextContainer}>
                     <Text style={styles.detailLabel}>Status</Text>
                     <Text style={[
-                      styles.detailValue, 
+                      styles.detailValue,
                       { color: foundVehicle?.isActive ? '#28a745' : '#F24369' }
                     ]}>
                       {foundVehicle?.isActive ? 'Active' : 'Inactive'}
@@ -544,21 +554,21 @@ export default function ScanScreen({ navigation, route }) {
       <Modal visible={showNotFoundModal} transparent animationType="slide" onRequestClose={() => setShowNotFoundModal(false)}>
         <View style={styles.notFoundModalOverlay}>
           <View style={styles.notFoundModalContent}>
-            <Pressable 
+            <Pressable
               onPress={() => {
                 setShowNotFoundModal(false);
                 setNotFoundData(null);
-              }} 
+              }}
               style={styles.notFoundCloseButton}
             >
               <Ionicons name="close" size={24} color="#666" />
             </Pressable>
-            
+
             <View style={styles.notFoundIconContainer}>
-              <Ionicons 
-                name={notFoundData?.isNotAssigned ? "alert-circle" : "search-outline"} 
-                size={64} 
-                color="#FF6B6B" 
+              <Ionicons
+                name={notFoundData?.isNotAssigned ? "alert-circle" : "search-outline"}
+                size={64}
+                color="#FF6B6B"
               />
             </View>
 
@@ -566,8 +576,8 @@ export default function ScanScreen({ navigation, route }) {
               {notFoundData?.isNotAssigned
                 ? 'Chip Not Assigned'
                 : notFoundData?.type === 'vin'
-                ? 'VIN Not Found'
-                : 'Chip Not Found'}
+                  ? 'VIN Not Found'
+                  : 'Chip Not Found'}
             </Text>
 
             <View style={styles.notFoundContent}>
@@ -575,8 +585,8 @@ export default function ScanScreen({ navigation, route }) {
                 {notFoundData?.isNotAssigned
                   ? 'This tracker chip is not assigned to any vehicle. Please assign this chip to a vehicle first.'
                   : notFoundData?.type === 'vin'
-                  ? 'This VIN number is not found in any parking yard. Would you like to add it to a yard?'
-                  : 'This tracker chip is not found in any parking yard. Would you like to add it to a yard?'}
+                    ? 'This VIN number is not found in any parking yard. Would you like to add it to a yard?'
+                    : 'This tracker chip is not found in any parking yard. Would you like to add it to a yard?'}
               </Text>
             </View>
 
@@ -708,6 +718,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacings.large,
     lineHeight: 21,
     marginTop: spacings.xxsmall,
+  },
+  inlineSearchWrapper: {
+    width: '100%',
+    // marginBottom: 20,
+  },
+  inlineSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f2f2f2',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 20,
+    height: Platform.OS === 'ios' ? hp(5) : hp(5.5),
+  },
+  inlineSearchPlaceholder: {
+    flex: 1,
+    fontSize: style.fontSizeNormal.fontSize,
+    color: '#333',
   },
   buttonsContainer: {
     width: '100%',
@@ -854,27 +882,6 @@ const styles = StyleSheet.create({
   },
   chipCardBackground: {
     backgroundColor: '#28a745',
-  },
-  floatingSearchButton: {
-    position: 'absolute',
-    bottom: hp(14),
-    right: spacings.Large1x,
-    width: hp(7.5),
-    height: hp(7.5),
-    borderRadius: hp(3.75),
-    backgroundColor: '#003F65',
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Enhanced Shadow
-    shadowColor: '#003F65',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 10,
-    zIndex: 1000,
-    // Border for better definition
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   modalContainer: {
     flex: 1,

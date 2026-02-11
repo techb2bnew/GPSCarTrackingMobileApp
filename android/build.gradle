@@ -6,6 +6,11 @@ buildscript {
         targetSdkVersion = 35
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.0.21"
+        // Overrides for react-native-text-recognition library
+        TextRecognition_buildToolsVersion = buildToolsVersion
+        TextRecognition_minSdkVersion = minSdkVersion
+        TextRecognition_compileSdkVersion = compileSdkVersion
+        TextRecognition_targetSdkVersion = targetSdkVersion
     }
     repositories {
         google()
