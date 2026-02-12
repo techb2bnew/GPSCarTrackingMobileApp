@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import MapView, { Marker, Callout } from 'react-native-maps';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 
 const AssetMap = () => {
   const [location, setLocation] = useState(null);
@@ -30,7 +39,20 @@ const AssetMap = () => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       {location && (
         <MapView
           style={styles.map}
@@ -59,6 +81,7 @@ const AssetMap = () => {
         </MapView>
       )}
     </View>
+    </LinearGradient>
   );
 };
 

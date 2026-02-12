@@ -10,9 +10,19 @@ import {
   ImageBackground,
   Image,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import {IMAGE_BACKGROUND_IMAGE, MAIN_LOGO} from '../assests/images';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import {orangeColor} from '../constants/Color';
+import {
+  orangeColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+} from '../constants/Color';
 
 const RegisterScreen = ({navigation}) => {
   const [email, setEmail] = useState('');
@@ -78,10 +88,19 @@ const RegisterScreen = ({navigation}) => {
   };
 
   return (
-    <ImageBackground
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
       style={styles.container}
-      // source={IMAGE_BACKGROUND_IMAGE}
-      resizeMode="cover">
+    >
       <View style={{}}>
         <View
           style={{
@@ -179,7 +198,7 @@ const RegisterScreen = ({navigation}) => {
           </Text>
         </TouchableOpacity>
       </View>
-    </ImageBackground>
+    </LinearGradient>
   );
 };
 
@@ -235,7 +254,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   loginButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',

@@ -11,7 +11,19 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { supabase } from '../lib/supabaseClient';
+import LinearGradient from 'react-native-linear-gradient';
 import { spacings, style } from '../constants/Fonts';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { heightPercentageToDP as hp } from '../utils';
 
 export default function AddVehicleScreen({ navigation, route }) {
@@ -77,7 +89,20 @@ export default function AddVehicleScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.contentContainer}>
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>Add New Vehicle</Text>
@@ -94,7 +119,7 @@ export default function AddVehicleScreen({ navigation, route }) {
           >
             <View style={styles.cardInner}>
               <View style={[styles.iconContainer, styles.scanIconContainer]}>
-                <Ionicons name="scan-outline" size={32} color="#003F65" />
+                <Ionicons name="scan-outline" size={32} color={blackColor} />
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.addVehicleTitle}>Scan VIN</Text>
@@ -103,7 +128,7 @@ export default function AddVehicleScreen({ navigation, route }) {
                 </Text>
               </View>
               <View style={styles.arrowContainer}>
-                <Ionicons name="chevron-forward" size={20} color="#003F65" />
+                <Ionicons name="chevron-forward" size={20} color={blackColor} />
               </View>
             </View>
           </TouchableOpacity>
@@ -217,7 +242,7 @@ export default function AddVehicleScreen({ navigation, route }) {
               {existingVehicle && (
                 <View style={styles.vehicleExistsDetails}>
                   <View style={styles.vehicleExistsDetailRow}>
-                    <Ionicons name="information-circle" size={20} color="#003F65" />
+                    <Ionicons name="information-circle" size={20} color={blackColor} />
                     <View style={styles.vehicleExistsDetailTextContainer}>
                       <Text style={styles.vehicleExistsDetailLabel}>VIN Number</Text>
                       <Text style={styles.vehicleExistsDetailValue}>{existingVehicle.vin}</Text>
@@ -226,7 +251,7 @@ export default function AddVehicleScreen({ navigation, route }) {
 
                   {existingVehicle.make && (
                     <View style={styles.vehicleExistsDetailRow}>
-                      <Ionicons name="car" size={20} color="#003F65" />
+                      <Ionicons name="car" size={20} color={blackColor} />
                       <View style={styles.vehicleExistsDetailTextContainer}>
                         <Text style={styles.vehicleExistsDetailLabel}>Make</Text>
                         <Text style={styles.vehicleExistsDetailValue}>{existingVehicle.make}</Text>
@@ -236,7 +261,7 @@ export default function AddVehicleScreen({ navigation, route }) {
 
                   {existingVehicle.model && (
                     <View style={styles.vehicleExistsDetailRow}>
-                      <Ionicons name="calendar" size={20} color="#003F65" />
+                      <Ionicons name="calendar" size={20} color={blackColor} />
                       <View style={styles.vehicleExistsDetailTextContainer}>
                         <Text style={styles.vehicleExistsDetailLabel}>Model</Text>
                         <Text style={styles.vehicleExistsDetailValue}>{existingVehicle.model}</Text>
@@ -245,7 +270,7 @@ export default function AddVehicleScreen({ navigation, route }) {
                   )}
 
                   <View style={styles.vehicleExistsDetailRow}>
-                    <Ionicons name="business" size={20} color="#003F65" />
+                    <Ionicons name="business" size={20} color={blackColor} />
                     <View style={styles.vehicleExistsDetailTextContainer}>
                       <Text style={styles.vehicleExistsDetailLabel}>Parking Yard</Text>
                       <Text style={styles.vehicleExistsDetailValue}>{existingYardName}</Text>
@@ -269,6 +294,7 @@ export default function AddVehicleScreen({ navigation, route }) {
         </View>
       </Modal>
     </View>
+    </LinearGradient>
   );
 }
 
@@ -312,19 +338,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'visible',
     minHeight: hp(13),
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.14,
     shadowRadius: 16,
     elevation: 8,
     borderWidth: 2,
-    borderColor: 'rgba(0, 63, 101, 0.10)',
+    borderColor: lightBlackBorder,
     marginBottom: 0,
   },
   scanIconContainer: {
-    backgroundColor: 'rgba(0, 63, 101, 0.10)',
+    backgroundColor: lightBlackBackground,
     borderWidth: 1,
-    borderColor: 'rgba(0, 63, 101, 0.18)',
+    borderColor: lightBlackBorder,
   },
   readIconContainer: {
     backgroundColor: 'rgba(46, 125, 50, 0.12)',
@@ -524,7 +550,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   vehicleExistsCloseButtonMain: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

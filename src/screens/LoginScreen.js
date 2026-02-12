@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  ImageBackground,
   Image,
   ActivityIndicator,
   Modal,
   Linking,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import bcrypt from 'bcryptjs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +21,17 @@ import { useDispatch } from 'react-redux';
 import { setUser } from '../redux/userSlice';
 import { spacings, style } from '../constants/Fonts';
 import { getAndSaveFCMToken } from '../utils/fcmTokenManager';
+import {
+  nissanPrimaryBlue,
+  whiteColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+} from '../constants/Color';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -127,7 +138,7 @@ const LoginScreen = ({ navigation }) => {
       console.log('Login successful:', data);
       dispatch(setUser(data));
       await AsyncStorage.setItem('user', JSON.stringify(data));
-      
+
       // Save FCM token to database after successful login
       try {
         console.log('📱 [LOGIN] Saving FCM token for user:', data.id);
@@ -136,7 +147,7 @@ const LoginScreen = ({ navigation }) => {
         console.error('⚠️ [LOGIN] Error saving FCM token (non-blocking):', fcmError);
         // Don't block login if FCM token save fails
       }
-      
+
       setLoading(false);
 
       // Navigate to main screens
@@ -149,7 +160,19 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <ImageBackground style={styles.container} resizeMode="cover">
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={styles.gradientContainer}
+    >
       <View style={styles.container}>
         <Image
           source={MAIN_LOGO}
@@ -183,7 +206,7 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.passwordRow}>
           <Text style={styles.label}>Password</Text>
         </View>
-        <View style={[  styles.passwordContainer, passwordError ? styles.inputError : null]}>
+        <View style={[styles.passwordContainer, passwordError ? styles.inputError : null]}>
           <TextInput
             style={[styles.passwordInput]}
             placeholder="**********"
@@ -222,7 +245,7 @@ const LoginScreen = ({ navigation }) => {
 
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={whiteColor} />
           ) : (
             <Text style={styles.loginButtonText}>Login</Text>
           )}
@@ -289,48 +312,70 @@ const LoginScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+    </LinearGradient>
   );
 };
 
 export default LoginScreen;
 
 const styles = StyleSheet.create({
+  gradientContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    paddingVertical: spacings.large,
+    paddingVertical: spacings.xxLarge,
     paddingHorizontal: spacings.large,
     marginTop: spacings.ExtraLarge2x,
   },
   label: {
     fontSize: style.fontSizeSmall1x.fontSize,
-    fontWeight: style.fontWeightMedium.fontWeight,
+    fontWeight: '600',
     marginBottom: spacings.small,
     marginTop: spacings.normal,
+    color: '#212121',
   },
   input: {
     height: 45,
-    borderColor: '#aaa',
-    borderWidth: 1,
+    borderColor: 'rgba(33, 33, 33, 0.2)',
+    borderWidth: 1.5,
     borderRadius: 8,
     paddingHorizontal: spacings.small2x,
     marginBottom: spacings.normal,
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
+    color: '#333',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderColor: '#aaa',
-    borderWidth: 1,
+    borderColor: 'rgba(33, 33, 33, 0.2)',
+    borderWidth: 1.5,
     borderRadius: 8,
     marginBottom: spacings.normal,
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
   },
   passwordInput: {
     flex: 1,
     height: 45,
     paddingHorizontal: spacings.small2x,
     borderWidth: 0,
+    color: '#333',
   },
   eyeButton: {
     paddingHorizontal: spacings.small2x,
@@ -346,17 +391,25 @@ const styles = StyleSheet.create({
   forgot: {
     fontSize: style.fontSizeSmall2x.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: '#212121',
   },
   loginButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     borderRadius: 8,
     paddingVertical: spacings.xLarge,
     alignItems: 'center',
     marginVertical: spacings.ExtraLarge2x,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   loginButtonText: {
-    color: '#fff',
+    color: whiteColor,
     fontWeight: style.fontWeightBold.fontWeight,
     fontSize: style.fontSizeNormal.fontSize,
   },
@@ -369,7 +422,7 @@ const styles = StyleSheet.create({
   },
   signupLink: {
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: blackColor,
   },
   errorContainer: {
     backgroundColor: '#ffebee',
@@ -396,16 +449,24 @@ const styles = StyleSheet.create({
     marginLeft: spacings.xsmall,
   },
   supportButton: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     paddingVertical: spacings.xLarge,
     alignItems: 'center',
     marginTop: spacings.large,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    borderWidth: 1.5,
+    borderColor: 'rgba(33, 33, 33, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   supportButtonText: {
-    color: '#003F65',
+    color: '#212121',
     fontWeight: style.fontWeightMedium.fontWeight,
     fontSize: style.fontSizeSmall1x.fontSize,
   },

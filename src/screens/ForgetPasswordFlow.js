@@ -17,7 +17,17 @@ import { FORGOT_1, FORGOT_2 } from '../assests/images';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AnimatedLottieView from 'lottie-react-native';
 import { heightPercentageToDP, widthPercentageToDP } from '../utils';
+import LinearGradient from 'react-native-linear-gradient';
 import { spacings, style } from '../constants/Fonts';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+} from '../constants/Color';
 import { FORGOT_PASSWORD_API_BASE } from '../constants/Constants';
 
 const ForgetPasswordFlow = () => {
@@ -228,8 +238,21 @@ const ForgetPasswordFlow = () => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
+      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
         {/* Header with Back Button */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
@@ -297,7 +320,7 @@ const ForgetPasswordFlow = () => {
                     if (otpError) setOtpError('');
                   }}
                   inputCount={4}
-                  tintColor="#003F65"
+                  tintColor={blackColor}
                   offTintColor="#ccc"
                   containerStyle={styles.otpWrapper}
                   textInputStyle={styles.otpInput}
@@ -323,7 +346,7 @@ const ForgetPasswordFlow = () => {
                 <View style={styles.resendRow}>
                   <Text style={styles.resendText}>Didn't get OTP ? </Text>
                   {resendLoading ? (
-                    <ActivityIndicator size="small" color="#003F65" />
+                    <ActivityIndicator size="small" color={blackColor} />
                   ) : resendCooldown > 0 ? (
                     <Text style={styles.resendText}>00:{String(resendCooldown).padStart(2, '0')}</Text>
                   ) : (
@@ -431,6 +454,7 @@ const ForgetPasswordFlow = () => {
         </Modal>
       </View>
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -493,7 +517,7 @@ const styles = StyleSheet.create({
   emailDisplay: {
     textAlign: 'center',
     marginBottom: spacings.large,
-    color: '#003F65',
+    color: blackColor,
     fontSize: style.fontSizeSmall1x.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
@@ -547,7 +571,7 @@ const styles = StyleSheet.create({
     height: 50,
   },
   button: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: spacings.xLarge,
     borderRadius: 8,
     alignItems: 'center',
@@ -574,7 +598,7 @@ const styles = StyleSheet.create({
   },
   resendLink: {
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: blackColor,
   },
   modalContainer1: {
     flex: 1,
@@ -611,7 +635,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacings.small,
   },
   modalButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.ExtraLarge2x,
     borderRadius: 8,

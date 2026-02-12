@@ -13,8 +13,20 @@ import Icon from 'react-native-vector-icons/Ionicons'; // vector-icons
 import { useFocusEffect } from '@react-navigation/native';
 import {heightPercentageToDP} from '../utils';
 import { supabase } from '../lib/supabaseClient';
+import LinearGradient from 'react-native-linear-gradient';
 import { spacings, style } from '../constants/Fonts';
-import { greenColor } from '../constants/Color';
+import {
+  greenColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 
 const SearchScreen = ({navigation}) => {
   const [searchText, setSearchText] = useState('');
@@ -149,7 +161,20 @@ const SearchScreen = ({navigation}) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-back" size={24} color="#000" />
@@ -198,6 +223,7 @@ const SearchScreen = ({navigation}) => {
         />
       )}
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -220,12 +246,19 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f2f2f2',
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    backgroundColor: lightBlackBackground,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     marginBottom: 20,
     marginHorizontal: spacings.xLarge,
-    height: Platform.OS === 'ios' ? heightPercentageToDP(5) : heightPercentageToDP(5.5),
+    height: Platform.OS === 'ios' ? heightPercentageToDP(5.5) : heightPercentageToDP(6),
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   input: {
     flex: 1,
@@ -286,7 +319,7 @@ const styles = StyleSheet.create({
   },
   yardInfo: {
     fontSize: style.fontSizeSmall2x.fontSize,
-    color: '#003F65',
+    color: blackColor,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   slotInfo: {

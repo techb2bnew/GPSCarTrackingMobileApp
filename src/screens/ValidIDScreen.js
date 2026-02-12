@@ -11,8 +11,17 @@ import {
 import Feather from 'react-native-vector-icons/Feather';
 import {NOTIFICATION, TICK} from '../assests/images';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import {widthPercentageToDP} from '../utils';
 import AnimatedLottieView from 'lottie-react-native';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 
 const ValidIDScreen = ({navigation}) => {
   const [showModal, setShowModal] = useState(false);
@@ -26,7 +35,20 @@ const ValidIDScreen = ({navigation}) => {
     }, 2000);
   };
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -132,6 +154,7 @@ const ValidIDScreen = ({navigation}) => {
         </Modal>
       </View>
     </View>
+    </LinearGradient>
   );
 };
 

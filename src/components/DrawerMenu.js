@@ -19,7 +19,7 @@ import AnimatedLottieView from 'lottie-react-native';
 import { heightPercentageToDP, widthPercentageToDP } from '../utils';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../redux/userSlice';
-import { whiteColor } from '../constants/Color';
+import { whiteColor, blackColor } from '../constants/Color';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { clearAllChips, clearAllAsyncStorageData } from '../utils/chipManager';
 import { spacings, style } from '../constants/Fonts';
@@ -159,10 +159,10 @@ export default function DrawerMenu({
           <Ionicons
             name="log-out-outline"
             size={20}
-            color="#003F65"
+            color={blackColor}
             style={{ marginRight: 10 }}
           />
-          <Text style={{ color: '#003F65' }}>Logout</Text>
+          <Text style={{ color: blackColor }}>Logout</Text>
         </TouchableOpacity>
       </View>
 
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     height: 80,
     width: 80,
     borderRadius: 40,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     marginHorizontal: 5,
-    backgroundColor: 'red',
+    backgroundColor: blackColor,
     padding: spacings.large,
     borderRadius: 5,
     alignItems: 'center',

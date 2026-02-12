@@ -6,11 +6,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  ImageBackground,
   RefreshControl,
   Alert,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 import {useDispatch, useSelector} from 'react-redux';
 import {useFocusEffect} from '@react-navigation/native';
 import {
@@ -111,8 +119,21 @@ export default function NotificationScreen({navigation}) {
   );
 
   return (
-    <SafeAreaView style={{flex: 1}}>
-      <ImageBackground style={styles.container} resizeMode="cover">
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#000" />
@@ -156,8 +177,9 @@ export default function NotificationScreen({navigation}) {
             }
           />
         )}
-      </ImageBackground>
+      </View>
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 

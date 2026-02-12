@@ -16,7 +16,21 @@ import Toast from 'react-native-simple-toast';
 import { useSelector } from 'react-redux';
 import { supabase } from '../lib/supabaseClient';
 import { spacings, style } from '../constants/Fonts';
-import { blackColor, grayColor, redColor, whiteColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  blackColor,
+  grayColor,
+  redColor,
+  whiteColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 
 const ReportIssueScreen = ({ navigation }) => {
   const [issueTitle, setIssueTitle] = useState('');
@@ -128,7 +142,20 @@ const ReportIssueScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={[  styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : spacings.xLarge }]}>
         <TouchableOpacity
@@ -154,7 +181,7 @@ const ReportIssueScreen = ({ navigation }) => {
           {/* Info Card */}
           <View style={styles.infoCard}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="information-circle" size={24} color="#003F65" />
+              <Ionicons name="information-circle" size={24} color={blackColor} />
             </View>
             <View style={styles.infoTextContainer}>
               <Text style={styles.infoTitle}>Need Help?</Text>
@@ -169,7 +196,7 @@ const ReportIssueScreen = ({ navigation }) => {
             {/* Issue Title */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                <Ionicons name="alert-circle-outline" size={16} color="#003F65" /> Issue Title *
+                <Ionicons name="alert-circle-outline" size={16} color={blackColor} /> Issue Title *
               </Text>
               <View style={[styles.inputWrapper, errors.issueTitle && styles.inputError]}>
                 <Ionicons name="create-outline" size={20} color="#999" style={styles.inputIcon} />
@@ -196,7 +223,7 @@ const ReportIssueScreen = ({ navigation }) => {
             {/* Issue Category (Optional) */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                <Ionicons name="list-outline" size={16} color="#003F65" /> Category (Optional)
+                <Ionicons name="list-outline" size={16} color={blackColor} /> Category (Optional)
               </Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="folder-outline" size={20} color="#999" style={styles.inputIcon} />
@@ -214,7 +241,7 @@ const ReportIssueScreen = ({ navigation }) => {
             {/* Issue Description */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>
-                <Ionicons name="document-text-outline" size={16} color="#003F65" /> Issue Description *
+                <Ionicons name="document-text-outline" size={16} color={blackColor} /> Issue Description *
               </Text>
               <View style={[styles.inputWrapper, styles.textAreaWrapper, errors.issueDescription && styles.inputError]}>
                 <TextInput
@@ -278,6 +305,7 @@ const ReportIssueScreen = ({ navigation }) => {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
+    </LinearGradient>
   );
 };
 
@@ -310,14 +338,14 @@ const styles = StyleSheet.create({
     paddingTop: spacings.large,
   },
   infoCard: {
-    backgroundColor: '#F3F0FF',
+    backgroundColor: lightBlackBackground,
     borderRadius: 16,
     padding: spacings.large,
     marginBottom: spacings.xLarge,
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#E0D4FF',
+    borderColor: lightBlackBorder,
   },
   infoIconContainer: {
     marginRight: spacings.medium,
@@ -329,12 +357,12 @@ const styles = StyleSheet.create({
   infoTitle: {
     fontSize: style.fontSizeNormal.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: blackColor,
     marginBottom: spacings.xsmall,
   },
   infoText: {
     fontSize: style.fontSizeSmall1x.fontSize,
-    color: '#003F65',
+    color: blackColor,
     lineHeight: 20,
   },
   formSection: {
@@ -416,14 +444,14 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightThin1x.fontWeight,
   },
   submitButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacings.xLarge,
     borderRadius: 12,
     marginTop: spacings.large,
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

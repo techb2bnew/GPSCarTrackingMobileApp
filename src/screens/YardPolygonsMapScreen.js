@@ -5,7 +5,17 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { supabase } from '../lib/supabaseClient';
 import { heightPercentageToDP as hp } from '../utils';
 import { spacings, style } from '../constants/Fonts';
-import { blackColor, whiteColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  blackColor,
+  whiteColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 import mqtt from "mqtt/dist/mqtt";
 import { getMQTTConfig, GOOGLE_MAP_API_KEY } from '../constants/Constants';
 import { useFocusEffect } from '@react-navigation/native';
@@ -873,7 +883,20 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
     }, [polygons]);
 
     return (
-        <View style={styles.container}>
+        <LinearGradient
+            colors={[
+                gradientSoftTop,
+                gradientSoftMid1,
+                gradientSoftMid2,
+                gradientSoftMid3,
+                gradientSoftMid4,
+                gradientSoftBottom,
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={{ flex: 1 }}
+        >
+        <View style={[styles.container, { backgroundColor: 'transparent' }]}>
             {/* Header */}
             <View style={styles.headerContainer}>
                 <TouchableOpacity
@@ -1059,7 +1082,7 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                             {selectedVehicle && (
                                 <View style={styles.tooltipContent}>
                                     <View style={styles.tooltipRow}>
-                                        <Ionicons name="car" size={20} color="#003F65" />
+                                        <Ionicons name="car" size={20} color={blackColor} />
                                         <Text style={styles.tooltipLabel}>VIN:</Text>
                                         <Text style={styles.tooltipValue}>{selectedVehicle.vin || 'N/A'}</Text>
                                     </View>
@@ -1109,6 +1132,7 @@ const YardPolygonsMapScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
             </Modal>
         </View>
+        </LinearGradient>
     );
 };
 
@@ -1189,7 +1213,7 @@ const styles = StyleSheet.create({
     },
     noPolygonsNote: {
         position: 'absolute',
-        top: 10,
+        top: 50,
         left: 10,
         right: 10,
         backgroundColor: '#FFF5F5',
@@ -1210,7 +1234,7 @@ const styles = StyleSheet.create({
         fontSize: style.fontSizeSmall1x.fontSize,
         fontWeight: style.fontWeightMedium.fontWeight,
         textAlign: 'center',
-        flex: 1,
+        // flex: 1,
     },
     slotBadgeText: {
         color: blackColor,

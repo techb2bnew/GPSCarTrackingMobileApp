@@ -941,6 +941,15 @@ import MapViewDirections from 'react-native-maps-directions';
 import { ScrollView } from 'react-native';
 import { magnetometer, setUpdateIntervalForType, SensorTypes } from 'react-native-sensors';
 import { GOOGLE_MAP_API_KEY } from '../constants/Constants';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 
 // Simple bearing/distance helpers
 function toRadians(deg) {
@@ -2306,7 +2315,20 @@ export default function ARNavigationScreen({ navigation, route }) {
   const mapHeight = screenHeight * 0.55;
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={[styles.cameraContainer, { height: cameraHeight }]}>
         {showCamera ? (
           <Camera 
@@ -2627,6 +2649,7 @@ export default function ARNavigationScreen({ navigation, route }) {
       )}
 
     </View>
+    </LinearGradient>
   );
 }
 

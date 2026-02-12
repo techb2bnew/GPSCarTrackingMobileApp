@@ -13,7 +13,16 @@ import {useRoute} from '@react-navigation/native';
 import {IMAGE_BACKGROUND_IMAGE} from '../assests/images';
 import ParkingMap from '../components/ParkingMap';
 import {heightPercentageToDP} from '../utils';
+import LinearGradient from 'react-native-linear-gradient';
 import {parkingYard, SingleVehInparkingYard} from '../constants/Constants';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 
 const ParkingDetailsScreen = ({navigation}) => {
   const route = useRoute();
@@ -36,8 +45,20 @@ const ParkingDetailsScreen = ({navigation}) => {
     }
   };
   return (
-    <SafeAreaView style={{flex: 1}}>
-      {/* <ImageBackground style={styles.container} source={IMAGE_BACKGROUND_IMAGE} resizeMode="cover"> */}
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView contentContainerStyle={{}}>
         {/* Header */}
         <View style={styles.headerRow}>
@@ -121,6 +142,7 @@ const ParkingDetailsScreen = ({navigation}) => {
       </ScrollView>
       {/* </ImageBackground> */}
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 

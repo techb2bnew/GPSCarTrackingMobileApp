@@ -28,7 +28,23 @@ import { useSelector } from 'react-redux';
 import CustomButton from '../components/CustomButton';
 import { parkingYards } from '../constants/Constants';
 import { spacings, style } from '../constants/Fonts';
-import { blackColor, blueColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  blackColor,
+  blueColor,
+  grayColor,
+  greenColor,
+  lightGrayColor,
+  whiteColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
@@ -1246,7 +1262,20 @@ const YardDetailScreen = ({ navigation, route }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={[styles.header, flexDirectionRow, alignItemsCenter, justifyContentSpaceBetween]}>
         <View style={[flexDirectionRow, alignItemsCenter, { flex: 1 }]}>
           <TouchableOpacity
@@ -1277,13 +1306,13 @@ const YardDetailScreen = ({ navigation, route }) => {
         <TouchableOpacity
           onPress={handleEditYard}
           style={styles.headerEditButton}>
-          <Ionicons name="pencil" size={22} color="#003F65" />
+          <Ionicons name="pencil" size={22} color={blackColor} />
         </TouchableOpacity>
       </View>
 
       {(isLoading && !hasShownCacheRef.current) ? (
         <View style={[styles.loadingContainer, alignJustifyCenter]}>
-          <ActivityIndicator size="large" color="#003F65" />
+          <ActivityIndicator size="large" color={blackColor} />
           <Text style={styles.loadingText}>Fetching vehicle details...</Text>
         </View>
       ) : (
@@ -1301,7 +1330,7 @@ const YardDetailScreen = ({ navigation, route }) => {
           <View style={styles.addVehicleChoiceModal}>
             <View style={styles.addVehicleChoiceHeader}>
               <View style={styles.addVehicleChoiceBadge}>
-                <Ionicons name="car-outline" size={20} color="#003F65" />
+                <Ionicons name="car-outline" size={20} color={blackColor} />
               </View>
               <View>
                 <Text style={styles.addVehicleChoiceTitle}>Add Vehicle</Text>
@@ -1316,7 +1345,7 @@ const YardDetailScreen = ({ navigation, route }) => {
               activeOpacity={0.9}
             >
               <View style={[styles.addVehicleChoiceIconWrap, { backgroundColor: 'rgba(0,63,101,0.12)' }]}>
-                <Ionicons name="scan-outline" size={22} color="#003F65" />
+                <Ionicons name="scan-outline" size={22} color={blackColor} />
               </View>
               <View style={styles.addVehicleChoiceContent}>
                 <Text style={styles.addVehicleChoiceOptionTitle}>Scan VIN</Text>
@@ -1324,7 +1353,7 @@ const YardDetailScreen = ({ navigation, route }) => {
                   Capture the VIN instantly with the barcode scanner
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#003F65" />
+              <Ionicons name="chevron-forward" size={20} color={blackColor} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.addVehicleChoiceOption, styles.addVehicleChoiceOptionSecondary]}
@@ -1447,7 +1476,7 @@ const YardDetailScreen = ({ navigation, route }) => {
                       />
                       {isCheckingSlot && (
                         <View style={styles.checkingIndicator}>
-                          <ActivityIndicator size="small" color="#003F65" />
+                          <ActivityIndicator size="small" color={blackColor} />
                           <Text style={styles.checkingText}>Checking availability...</Text>
                         </View>
                       )}
@@ -1732,6 +1761,7 @@ const YardDetailScreen = ({ navigation, route }) => {
         </View>
       </Modal>
     </View>
+    </LinearGradient>
   );
 };
 
@@ -1764,7 +1794,7 @@ const styles = StyleSheet.create({
   },
   slotInfoText: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#003F65',
+    color: blackColor,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   fullYardHeaderContainer: {
@@ -1846,7 +1876,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   addVehicleButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: spacings.large,
     paddingHorizontal: 40,
     borderRadius: 25,
@@ -1855,7 +1885,7 @@ const styles = StyleSheet.create({
     backgroundColor: whiteColor,
     borderRadius: 12,
     padding: spacings.xLarge,
-    marginBottom: spacings.xxLarge,
+    marginBottom: spacings.large,
     borderWidth: 1,
     borderColor: '#e0e0e0',
     shadowColor: blackColor,
@@ -1903,7 +1933,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightThin1x.fontWeight,
   },
   assignButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingHorizontal: spacings.large,
     paddingVertical: spacings.large,
     borderRadius: spacings.xxLarge,
@@ -1918,17 +1948,17 @@ const styles = StyleSheet.create({
     marginBottom: hp(13),
   },
   addMoreButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.large,
     borderRadius: 30,
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
     borderWidth: 1.5,
-    borderColor: '#003F65',
+    borderColor: blackColor,
     transform: [{ scale: 1 }],
   },
   addMoreButtonText: {
@@ -1979,7 +2009,7 @@ const styles = StyleSheet.create({
   addVehicleChoiceTitle: {
     fontSize: 18,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: blackColor,
   },
   addVehicleChoiceSubtitle: {
     fontSize: 13,
@@ -2086,7 +2116,7 @@ const styles = StyleSheet.create({
     padding: spacings.normalx,
     borderRadius: 8,
     borderLeftWidth: 4,
-    borderLeftColor: '#003F65',
+    borderLeftColor: blackColor,
   },
   vinInput: {
     fontSize: style.fontSizeNormal.fontSize,
@@ -2129,7 +2159,7 @@ const styles = StyleSheet.create({
   },
   checkingText: {
     fontSize: 11,
-    color: '#003F65',
+    color: blackColor,
     marginLeft: 5,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
@@ -2154,11 +2184,11 @@ const styles = StyleSheet.create({
   },
   assignChipButton: {
     flex: 1,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 15,
     borderRadius: 12,
     alignItems: 'center',
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -2226,7 +2256,7 @@ const styles = StyleSheet.create({
   duplicateYardText: {
     fontSize: 18,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: blackColor,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -2247,14 +2277,14 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   duplicateCloseButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 18,
     paddingHorizontal: 24,
     borderRadius: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -2275,7 +2305,7 @@ const styles = StyleSheet.create({
   },
   duplicateActionButton: {
     flex: 1,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
@@ -2309,12 +2339,18 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: lightBlackBackground,
     borderRadius: 12,
-    paddingHorizontal: spacings.large,
-    paddingVertical: spacings.medium,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    minHeight: Platform.OS === 'ios' ? hp(5.5) : hp(6),
   },
   searchIcon: {
     marginRight: spacings.medium,
@@ -2347,9 +2383,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   headerEditButton: {
-    backgroundColor: '#f3f0ff',
+    backgroundColor: lightBlackBackground,
     padding: 10,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   formContainer: {
     // marginBottom: 20,
@@ -2372,7 +2410,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   submitButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

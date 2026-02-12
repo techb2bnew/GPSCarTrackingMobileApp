@@ -3,7 +3,8 @@
 // ============================================
 
 // Primary Colors
-export const nissanPrimaryBlue = '#003F65'; 
+// Previously Nissan Blue, now using black as the primary dark tone
+export const nissanPrimaryBlue = '#000000'; 
 export const nissanBackgroundLight = '#F8F8F8'; // Light gray background
 export const whiteColor = "#fff";
 export const nissanBlack = '#000000';
@@ -36,6 +37,24 @@ export const lightOrangeColor = '#EF502E';
 export const ExtraExtralightOrangeColor = '#FFF4F1';
 export const lightBlueColor = "#ECEEFF";
 
-// Primary Brand Color (Nissan Blue) - Use this as main theme color
-export const blueColor = nissanPrimaryBlue; // #003F65
+// Primary Brand Color (now primary dark) - Use this as main theme color
+export const blueColor = nissanPrimaryBlue;
+
+// Soft blue-grey gradient colors (for backgrounds)
+export const gradientSoftTop = '#FFFFFF';
+export const gradientSoftMid1 = '#F3F7FB';
+export const gradientSoftMid2 = '#E1E5EC';
+export const gradientSoftMid3 = '#C3CBD8';
+export const gradientSoftMid4 = '#9AA3B5';
+export const gradientSoftBottom = '#9CA3AF';
+
+// Light "blackish" shades for subtle backgrounds/borders
+export const lightBlackBackground = 'rgba(0,0,0,0.04)';
+export const lightBlackBorder = 'rgba(0,0,0,0.12)';
+
+// Stat card colors (HomeScreen top 4 cards)
+export const cardActiveBg = '#15803D'; // green
+export const cardInactiveBg = '#4B5563'; // grey
+export const cardLowBatteryBg = '#B91C1C'; // red
+export const cardAssignmentBg = '#797d86d3'; // almost black
 

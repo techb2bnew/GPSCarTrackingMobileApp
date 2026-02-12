@@ -1,5 +1,6 @@
 import React from 'react';
 import {View, StyleSheet} from 'react-native';
+import { blackColor } from '../constants/Color';
 
 const DotIndicator = ({totalSteps, currentStep}) => {
   return (
@@ -13,7 +14,7 @@ const DotIndicator = ({totalSteps, currentStep}) => {
               styles.dot,
               {
                 opacity: currentStep === index ? 1 : 0.3,
-                backgroundColor: currentStep === index ? '#003F65' : '#888',
+                backgroundColor: currentStep === index ? blackColor : '#888',
               },
             ]}
           />

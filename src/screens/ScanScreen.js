@@ -5,7 +5,19 @@ import { widthPercentageToDP, heightPercentageToDP as hp } from '../utils';
 import AnimatedLottieView from 'lottie-react-native';
 import BleTesting from '../components/BleTesting';
 import { supabase } from '../lib/supabaseClient';
+import LinearGradient from 'react-native-linear-gradient';
 import { spacings, style } from '../constants/Fonts';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { checkChipOnlineStatus } from '../utils/chipStatusAPI';
 import Header from '../components/Header';
 
@@ -225,7 +237,20 @@ export default function ScanScreen({ navigation, route }) {
     }, 2000);
   };
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       {/* <Header title="Scan Options" backArrow={false} showSearch={false} /> */}
 
@@ -682,6 +707,7 @@ export default function ScanScreen({ navigation, route }) {
         </View>
       </Modal>
     </View>
+    </LinearGradient>
   );
 }
 
@@ -726,11 +752,18 @@ const styles = StyleSheet.create({
   inlineSearchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f2f2f2',
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    backgroundColor: lightBlackBackground,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     marginBottom: 20,
-    height: Platform.OS === 'ios' ? hp(5) : hp(5.5),
+    height: Platform.OS === 'ios' ? hp(5.5) : hp(6),
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inlineSearchPlaceholder: {
     flex: 1,
@@ -878,7 +911,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 100,
   },
   vinCardBackground: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
   },
   chipCardBackground: {
     backgroundColor: '#28a745',
@@ -900,7 +933,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: style.fontSizeMedium1x.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: blackColor,
   },
 
   // Detail Modal Styles
@@ -955,7 +988,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   closeButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -990,7 +1023,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   viewDetailsButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -1079,7 +1112,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   yesButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
   },
   noButtonText: {
     color: '#666',

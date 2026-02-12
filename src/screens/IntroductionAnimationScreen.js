@@ -165,6 +165,16 @@ import RelaxView from '../components/introComponents/RelaxView';
 import CareView from '../components/introComponents/CareView';
 import MoodDiaryView from '../components/introComponents/MoodDiaryView';
 import DotIndicator from '../components/DotIndicator';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+} from '../constants/Color';
 
 const { height } = Dimensions.get('window');
 
@@ -239,7 +249,20 @@ const IntroductionAnimationScreen = ({ navigation }) => {
   }));
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {showWelcome ? (
         <WelcomeView onStartClick={onStartClick} />
       ) : (
@@ -271,6 +294,7 @@ const IntroductionAnimationScreen = ({ navigation }) => {
         </>
       )}
     </View>
+    </LinearGradient>
   );
 };
 
@@ -297,10 +321,10 @@ const styles = StyleSheet.create({
   },
   skip: {
     fontSize: 16,
-    color: '#888',
+    color: '#383737',
   },
   nextButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,

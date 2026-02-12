@@ -13,7 +13,19 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabaseClient';
 import { heightPercentageToDP as hp } from '../utils';
+import LinearGradient from 'react-native-linear-gradient';
 import { spacings, style } from '../constants/Fonts';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { useFocusEffect } from '@react-navigation/native';
 
 const YARD_LIST_CACHE_KEY = 'yard_list_screen';
@@ -120,7 +132,7 @@ const YardListScreen = ({ navigation }) => {
         }}>
         <View style={styles.cardContent}>
           <View style={styles.iconContainer}>
-            <Ionicons name="business" size={24} color="#003F65" />
+            <Ionicons name="business" size={24} color={blackColor} />
           </View>
           <View style={styles.textContainer}>
             <Text style={styles.name}>{item.name}</Text>
@@ -136,7 +148,20 @@ const YardListScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.contentContainer}>
         <View style={styles.headerContainer}>
           <View style={styles.headerLeft}>
@@ -167,7 +192,7 @@ const YardListScreen = ({ navigation }) => {
         {/* List – cache mila to loading mat dikhao */}
         {(loading && !hasShownCacheRef.current) ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#003F65" />
+            <ActivityIndicator size="large" color={blackColor} />
             <Text style={styles.loadingText}>Loading yards...</Text>
           </View>
         ) : filteredYards.length > 0 ? (
@@ -188,6 +213,7 @@ const YardListScreen = ({ navigation }) => {
         )}
       </View>
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -219,13 +245,18 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#c1b7ed',
-    borderRadius: 10,
-    paddingHorizontal: spacings.normal,
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     marginBottom: spacings.large,
-    backgroundColor: '#fff',
-    height: hp(5.5),
+    backgroundColor: lightBlackBackground,
+    height: hp(6),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
@@ -254,10 +285,12 @@ const styles = StyleSheet.create({
     padding: spacings.xxxLarge,
   },
   iconContainer: {
-    backgroundColor: '#f3f0ff',
+    backgroundColor: lightBlackBackground,
     borderRadius: 8,
     padding: spacings.small,
     marginRight: spacings.normal,
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   textContainer: {
     flex: 1,
@@ -275,7 +308,7 @@ const styles = StyleSheet.create({
   },
   slots: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#003F65',
+    color: blackColor,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   arrowContainer: {

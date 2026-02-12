@@ -163,7 +163,22 @@ import { supabase } from '../lib/supabaseClient';
 import { parkingYards } from '../constants/Constants';
 import useFacilityFetch from '../hooks/useFacilityFetch';
 import { heightPercentageToDP, heightPercentageToDP as hp, widthPercentageToDP as wp } from '../utils';
-import { redColor, whiteColor, blackColor, grayColor, greenColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  redColor,
+  whiteColor,
+  blackColor,
+  grayColor,
+  greenColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { spacings, style } from '../constants/Fonts';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -716,7 +731,7 @@ const ParkingYardScreen = ({ navigation }) => {
         <View style={styles.yardCardHeader}>
           <View style={styles.simpleCardLeft}>
             <View style={styles.simpleIconContainer}>
-              <Ionicons name="business" size={24} color="#003F65" />
+              <Ionicons name="business" size={24} color={blackColor} />
             </View>
             <View style={styles.simpleTextContainer}>
               <Text style={[styles.simpleYardName]}>
@@ -748,7 +763,7 @@ const ParkingYardScreen = ({ navigation }) => {
                 e.stopPropagation();
                 handleOpenEditYard(item);
               }}>
-              <Ionicons name="pencil" size={18} color="#003F65" />
+              <Ionicons name="pencil" size={18} color={blackColor} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -822,7 +837,20 @@ const ParkingYardScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.contentContainer}>
         <View style={styles.headerContainer}>
           <View style={styles.headerLeft}>
@@ -835,7 +863,7 @@ const ParkingYardScreen = ({ navigation }) => {
             style={styles.addButton}
             onPress={() => setShowAddYardModal(true)}
           >
-            <Ionicons name="add-circle" size={32} color="#003F65" />
+            <Ionicons name="add-circle" size={32} color={blackColor} />
           </TouchableOpacity>
         </View>
 
@@ -1050,6 +1078,7 @@ const ParkingYardScreen = ({ navigation }) => {
         </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -1084,13 +1113,18 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#c1b7ed',
-    borderRadius: 10,
-    paddingHorizontal: spacings.normal,
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     marginBottom: spacings.large,
-    backgroundColor: '#fff',
-    height: Platform.OS === 'ios' ? hp(5) : hp(5.5),
+    backgroundColor: lightBlackBackground,
+    height: Platform.OS === 'ios' ? hp(5.5) : hp(6),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
@@ -1113,12 +1147,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: lightBlackBorder,
   },
   selectedSimpleCard: {
-    borderColor: '#003F65',
+    borderColor: lightBlackBorder,
     borderWidth: 2,
-    backgroundColor: '#faf9ff',
+    backgroundColor: lightBlackBackground,
   },
   yardCardHeader: {
     flexDirection: 'row',
@@ -1131,10 +1165,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   simpleIconContainer: {
-    backgroundColor: '#f3f0ff',
+    backgroundColor: lightBlackBackground,
     borderRadius: 8,
     padding: spacings.small,
     marginRight: spacings.normal,
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   simpleTextContainer: {
     flex: 1,
@@ -1155,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   simpleSlotText: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#003F65',
+    color: blackColor,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   fullYardContainer: {
@@ -1179,9 +1215,11 @@ const styles = StyleSheet.create({
     gap: spacings.small,
   },
   editYardButton: {
-    backgroundColor: '#f3f0ff',
+    backgroundColor: lightBlackBackground,
     padding: spacings.small,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   deleteYardButton: {
     backgroundColor: '#FFF5F5',
@@ -1189,7 +1227,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedText: {
-    color: '#003F65',
+    color: blackColor,
   },
   noData: {
     fontSize: style.fontSizeNormal.fontSize,
@@ -1206,7 +1244,7 @@ const styles = StyleSheet.create({
   emptyYardText: {
     fontSize: style.fontSizeLarge.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#333',
+    color: blackColor,
     marginTop: spacings.large,
     marginBottom: spacings.normal,
   },
@@ -1221,7 +1259,7 @@ const styles = StyleSheet.create({
   emptyAddButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingHorizontal: spacings.xLarge,
     paddingVertical: spacings.xLarge,
     borderRadius: 12,
@@ -1257,12 +1295,12 @@ const styles = StyleSheet.create({
     marginBottom: 25,
     paddingBottom: 15,
     borderBottomWidth: 2,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: lightBlackBorder,
   },
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
+    color: blackColor,
   },
   formContainer: {
     marginBottom: 20,
@@ -1273,19 +1311,19 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: blackColor,
     marginBottom: 8,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: lightBlackBorder,
     borderRadius: 12,
     padding: 15,
     fontSize: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: lightBlackBackground,
   },
   submitButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1370,7 +1408,7 @@ const styles = StyleSheet.create({
   },
   vehicleYardInfo: {
     fontSize: style.fontSizeSmall2x.fontSize,
-    color: '#003F65',
+    color: blackColor,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   vehicleSlotInfo: {

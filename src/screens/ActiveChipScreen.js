@@ -23,8 +23,19 @@ import { supabase } from '../lib/supabaseClient';
 import { checkChipOnlineStatusBatch } from '../utils/chipStatusAPI';
 import { getMQTTConfig } from '../constants/Constants';
 import mqtt from 'mqtt/dist/mqtt';
+import LinearGradient from 'react-native-linear-gradient';
 import { style, spacings } from '../constants/Fonts';
-import { blackColor } from '../constants/Color';
+import {
+  blackColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 
 
 const ActiveChipScreen = ({ navigation, route }) => {
@@ -937,7 +948,20 @@ const ActiveChipScreen = ({ navigation, route }) => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
       <View
         style={{
           display: 'flex',
@@ -961,7 +985,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
               loadChipData();
             }}
             style={styles.refreshButton}>
-            <Icon name="refresh" size={24} color="#003F65" />
+            <Icon name="refresh" size={24} color={blackColor} />
           </TouchableOpacity>
         )}
       </View>
@@ -980,7 +1004,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
       {/* List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#003F65" />
+          <ActivityIndicator size="large" color={blackColor} />
           <Text style={styles.loadingText}>Loading chip data...</Text>
         </View>
       ) : (
@@ -1060,7 +1084,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                         await loadYardVehicles(yard.id);
                         setReassignStep(2);
                       }}>
-                      <Icon name="business" size={24} color="#003F65" />
+                      <Icon name="business" size={24} color={blackColor} />
                       <View style={styles.listItemText}>
                         <Text style={styles.listItemTitle}>{yard.name}</Text>
                         <Text style={styles.listItemSubtitle}>{yard.address}</Text>
@@ -1087,7 +1111,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                       setSelectedVehicle(null);
                     }}
                     style={styles.backButtonContainer}>
-                    <Icon name="arrow-back" size={20} color="#003F65" />
+                    <Icon name="arrow-back" size={20} color={blackColor} />
                     <Text style={styles.backButtonText}>Back to Yards</Text>
                   </TouchableOpacity>
                 </View>
@@ -1104,7 +1128,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
                         onPress={() => {
                           setSelectedVehicle(vehicle);
                         }}>
-                        <Icon name="car" size={24} color="#003F65" />
+                        <Icon name="car" size={24} color={blackColor} />
                         <View style={styles.listItemText}>
                           <Text style={styles.listItemTitle}>{vehicle.vin}</Text>
                           <Text style={styles.listItemSubtitle}>
@@ -1142,6 +1166,7 @@ const ActiveChipScreen = ({ navigation, route }) => {
         </View>
       </Modal>
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -1156,13 +1181,18 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
-    paddingHorizontal: spacings.normal,
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    borderRadius: 12,
+    paddingHorizontal: 16,
     margin: spacings.large,
-    backgroundColor: '#f9f9f9',
-    height: Platform.OS === 'ios' ? heightPercentageToDP(5) : heightPercentageToDP(5.5),
+    backgroundColor: lightBlackBackground,
+    height: Platform.OS === 'ios' ? heightPercentageToDP(5.5) : heightPercentageToDP(6),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
@@ -1309,9 +1339,11 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     padding: spacings.small,
-    backgroundColor: '#f3f0ff',
+    backgroundColor: lightBlackBackground,
     borderRadius: 8,
     marginLeft: spacings.small,
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   mqttStatusContainer: {
     flexDirection: 'row',
@@ -1335,7 +1367,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   reassignButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingHorizontal: spacings.small,
     paddingVertical: spacings.small,
     borderRadius: 8,
@@ -1382,7 +1414,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: spacings.large,
     borderLeftWidth: 4,
-    borderLeftColor: '#003F65',
+    borderLeftColor: blackColor,
   },
   chipInfoLabel: {
     fontSize: style.fontSizeSmall.fontSize,
@@ -1409,9 +1441,9 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
   },
   selectedListItem: {
-    borderColor: '#003F65',
+    borderColor: blackColor,
     borderWidth: 2,
-    backgroundColor: '#f3f0ff',
+    backgroundColor: lightBlackBackground,
   },
   listItemText: {
     flex: 1,
@@ -1453,12 +1485,12 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#003F65',
+    color: blackColor,
     marginLeft: 8,
     fontWeight: '600',
   },
   assignButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,

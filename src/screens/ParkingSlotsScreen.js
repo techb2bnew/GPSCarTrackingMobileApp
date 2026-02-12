@@ -13,7 +13,17 @@ import {
   // indianSlotRegion, // COMMENTED - Indian slots not showing
   // indianDefaultSlotRegion,
 } from '../constants/ParkingSlotPolygons';
-import { blackColor, whiteColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  blackColor,
+  whiteColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 
 const COLOR_PRIMARY = '#FF6F61';
 const COLOR_FILL = 'rgba(255, 111, 97, 0.25)';
@@ -139,7 +149,20 @@ const ParkingSlotsScreen = ({ navigation }) => {
   }, [firstSlotRegion]);
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.headerContainer}>
         <TouchableOpacity
           style={styles.backButton}
@@ -330,6 +353,7 @@ const ParkingSlotsScreen = ({ navigation }) => {
         })}
       </MapView>
     </View>
+    </LinearGradient>
   );
 };
 

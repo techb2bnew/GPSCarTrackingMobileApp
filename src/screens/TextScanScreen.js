@@ -12,7 +12,18 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import TextRecognition from 'react-native-text-recognition';
 import ImagePicker from 'react-native-image-crop-picker';
-import { nissanPrimaryBlue, whiteColor, grayColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  nissanPrimaryBlue,
+  whiteColor,
+  grayColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 import { spacings } from '../constants/Fonts';
 
 const CROP_OPTIONS = {
@@ -172,7 +183,20 @@ const TextScanScreen = ({ navigation, route }) => {
   }, [autoOpen]);
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : spacings.xLarge }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={28} color="#000" />
@@ -208,6 +232,7 @@ const TextScanScreen = ({ navigation, route }) => {
         ) : null}
       </ScrollView>
     </View>
+    </LinearGradient>
   );
 };
 

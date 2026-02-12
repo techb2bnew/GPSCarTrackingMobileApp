@@ -8,9 +8,19 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {NOTIFICATION} from '../assests/images';
 import Ble from '../components/Ble';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+} from '../constants/Color';
 
 export default function ParkingHistory({navigation}) {
   const data = [
@@ -97,7 +107,20 @@ export default function ParkingHistory({navigation}) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
       <Ble/>
       {/* <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -125,6 +148,7 @@ export default function ParkingHistory({navigation}) {
       />
       <View style={{height: 60}} /> */}
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -163,7 +187,7 @@ const styles = StyleSheet.create({
   uniqueId: {marginBottom: 8, marginTop: 4},
   time: {fontWeight: 'bold'},
   qrBtn: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     borderRadius: 24,
     padding: 10,
     alignSelf: 'center',

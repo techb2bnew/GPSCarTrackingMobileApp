@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { INTRO_2 } from '../../assests/images';
 import { spacings, style } from '../../constants/Fonts';
+import { blackColor } from '../../constants/Color';
 
 const { width, height } = Dimensions.get('window');
 
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: style.fontSizeLargeXX.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
-    color: '#130057',
+    color: blackColor,
     textAlign: 'center',
     marginBottom: 10,
   },

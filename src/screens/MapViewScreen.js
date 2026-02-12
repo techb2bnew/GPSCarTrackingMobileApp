@@ -12,7 +12,16 @@ import ActiveChipsMap from '../components/ActiveChipsMap';
 import { fetchActiveChipsWithLocations, startLocationSubscription, supabase } from '../lib/supabaseClient';
 import Geolocation from '@react-native-community/geolocation';
 import mqtt from 'mqtt/dist/mqtt';
+import LinearGradient from 'react-native-linear-gradient';
 import { spacings, style } from '../constants/Fonts';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 import { requestLocationPermission, checkLocationPermission, shouldRequestPermission } from '../utils/locationPermission';
 
 
@@ -451,7 +460,20 @@ const MapViewScreen = ({ navigation }) => {
     }
   };
   return (
-    <View style={{ flex: 1 }}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       {/* <Header title="Home" backArrow={true} /> */}
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.notificationIcon}>
         <Ionicons name="arrow-back" size={32} color="black" />
@@ -481,6 +503,7 @@ const MapViewScreen = ({ navigation }) => {
       /> */}
 
     </View>
+    </LinearGradient>
   );
 };
 

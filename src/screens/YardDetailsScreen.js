@@ -22,7 +22,17 @@ import Feather from 'react-native-vector-icons/Feather';
 import {useFocusEffect} from '@react-navigation/native';
 import RNFS from 'react-native-fs';
 import Papa from 'papaparse';
+import LinearGradient from 'react-native-linear-gradient';
 import {parkingYards, vinList} from '../constants/Constants';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+} from '../constants/Color';
 import ParkingMap from '../components/ParkingMap';
 import {heightPercentageToDP, widthPercentageToDP} from '../utils';
 import {
@@ -478,7 +488,20 @@ const YardDetailsScreen = ({navigation, route}) => {
   };
 
   return (
-    <SafeAreaView style={{flex: 1}}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: 'transparent' }}>
       <View style={styles.wrapper}>
         <View style={styles.headerRow1}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -535,7 +558,7 @@ const YardDetailsScreen = ({navigation, route}) => {
                 style={{
                   height: heightPercentageToDP(0.7),
                   width: widthPercentageToDP(20),
-                  backgroundColor: '#003F65',
+                  backgroundColor: blackColor,
                   position: 'absolute',
                   top: -1,
                   left: '43.5%',
@@ -625,6 +648,7 @@ const YardDetailsScreen = ({navigation, route}) => {
         </Modal>
       </View>
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -707,12 +731,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
   },
   verticalLine: {
     width: 2,
     flex: 1,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     marginTop: -1, // ensure it attaches directly to dot
   },
   activityText: {

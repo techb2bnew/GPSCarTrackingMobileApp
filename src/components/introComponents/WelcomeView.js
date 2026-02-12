@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import {INTRO_1, MAIN_LOGO, SPLASH_IMAGE} from '../../assests/images';
 import {heightPercentageToDP} from '../../utils';
+import { blackColor } from '../../constants/Color';
 
 const {width, height} = Dimensions.get('window');
 
@@ -34,7 +35,7 @@ const WelcomeView = ({animationController, onStartClick}) => {
         <TouchableOpacity
           style={{
             marginTop: 20,
-            backgroundColor: '#003F65',
+            backgroundColor: blackColor,
             paddingVertical: 14,
             paddingHorizontal: 20,
             borderRadius: 50,

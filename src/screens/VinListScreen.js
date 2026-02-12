@@ -13,7 +13,18 @@ import {
   Pressable,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import LinearGradient from 'react-native-linear-gradient';
 import { IMAGE_BACKGROUND_IMAGE } from '../assests/images';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 
 const sampleVinData = [
   { vin: '1HGCM82633A004352', yard: 1 },
@@ -56,8 +67,20 @@ const VinListScreen = ({ navigation }) => {
 
 
   return (
-    <ImageBackground style={{flex:1}} source={IMAGE_BACKGROUND_IMAGE} resizeMode="cover">
-      <SafeAreaView style={styles.safeArea}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: 'transparent' }]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.container}
@@ -94,8 +117,7 @@ const VinListScreen = ({ navigation }) => {
           />
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </ImageBackground>
-
+    </LinearGradient>
   );
 };
 
@@ -130,13 +152,19 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f4f4f4',
+    backgroundColor: lightBlackBackground,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    minHeight: Platform.OS === 'ios' ? hp(5.5) : hp(6),
   },
   searchInput: {
     marginLeft: 10,

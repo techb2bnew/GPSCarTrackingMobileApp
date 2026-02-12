@@ -4343,7 +4343,7 @@
 //                       styles.historyIcon,
 //                       {
 //                         backgroundColor: entry.action === 'assigned' ? greenColor :
-//                           entry.action === 'vehicle_scanned' ? '#003F65' : '#ff6b6b'
+//                           entry.action === 'vehicle_scanned' ? blackColor : '#ff6b6b'
 //                       }
 //                     ]}>
 //                       <Ionicons
@@ -4405,7 +4405,7 @@
 //                         styles.vehicleHistoryIcon,
 //                         {
 //                           backgroundColor: entry.event === 'left' ? '#ff6b6b' :
-//                             entry.event === 'entered' ? greenColor : '#003F65'
+//                             entry.event === 'entered' ? greenColor : blackColor
 //                         }
 //                       ]}>
 //                         <Ionicons
@@ -4427,22 +4427,22 @@
 //                     </View>
 //                     <View style={styles.vehicleHistoryBody}>
 //                       <View style={styles.vehicleHistoryItem}>
-//                         <Ionicons name="radio" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+//                         <Ionicons name="radio" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
 //                         <Text style={styles.vehicleHistoryItemLabel}>Chip ID</Text>
 //                         <Text style={styles.vehicleHistoryItemValue}>{entry.chipId || 'N/A'}</Text>
 //                       </View>
 //                       <View style={styles.vehicleHistoryItem}>
-//                         <Ionicons name="car" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+//                         <Ionicons name="car" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
 //                         <Text style={styles.vehicleHistoryItemLabel}>VIN</Text>
 //                         <Text style={styles.vehicleHistoryItemValue}>{entry.vin || 'N/A'}</Text>
 //                       </View>
 //                       <View style={styles.vehicleHistoryItem}>
-//                         <Ionicons name="location" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+//                         <Ionicons name="location" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
 //                         <Text style={styles.vehicleHistoryItemLabel}>Slot</Text>
 //                         <Text style={styles.vehicleHistoryItemValue}>{entry.cpSlot || 'N/A'}</Text>
 //                       </View>
 //                       <View style={styles.vehicleHistoryItem}>
-//                         <Ionicons name="business" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+//                         <Ionicons name="business" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
 //                         <Text style={styles.vehicleHistoryItemLabel}>Facility</Text>
 //                         <Text style={styles.vehicleHistoryItemValue}>{entry.facilityName || 'N/A'}</Text>
 //                       </View>
@@ -4495,9 +4495,9 @@
 //               disabled={isRefreshingLocation}
 //             >
 //               {isRefreshingLocation ? (
-//                 <ActivityIndicator size="small" color="#003F65" />
+//                 <ActivityIndicator size="small" color={blackColor} />
 //               ) : (
-//                 <Ionicons name="refresh" size={24} color="#003F65" />
+//                 <Ionicons name="refresh" size={24} color={blackColor} />
 //               )}
 //             </TouchableOpacity>
 //           )}
@@ -4775,7 +4775,7 @@
 //     borderBottomWidth: 20,
 //     borderLeftColor: 'transparent',
 //     borderRightColor: 'transparent',
-//     borderBottomColor: '#003F65',
+//     borderBottomColor: blackColor,
 //   },
 //   carMarkerContainer: {
 //     alignItems: 'center',
@@ -5301,7 +5301,7 @@
 //     borderBottomWidth: 20,
 //     borderLeftColor: 'transparent',
 //     borderRightColor: 'transparent',
-//     borderBottomColor: '#003F65',
+//     borderBottomColor: blackColor,
 //   },
 
 // });
@@ -7838,7 +7838,24 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import haversine from 'haversine-distance';
 import mqtt from "mqtt/dist/mqtt";
 import { spacings, style } from '../constants/Fonts';
-import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor, orangeColor, lightOrangeColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  blackColor,
+  grayColor,
+  greenColor,
+  lightGrayColor,
+  whiteColor,
+  orangeColor,
+  lightOrangeColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10065,7 +10082,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                 <Ionicons
                   name={currentStep.arrowIcon || "arrow-up-circle"}
                   size={28}
-                  color="#003F65"
+                  color={blackColor}
                   style={styles.stepIcon}
                 />
               </View>
@@ -10092,7 +10109,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                 <Ionicons
                   name={headingTurnInfo.iconName}
                   size={28}
-                  color="#003F65"
+                  color={blackColor}
                   style={styles.stepIcon}
                 />
               </View>
@@ -10445,7 +10462,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                       styles.historyIcon,
                       {
                         backgroundColor: entry.action === 'assigned' ? greenColor :
-                          entry.action === 'vehicle_scanned' ? '#003F65' : '#ff6b6b'
+                          entry.action === 'vehicle_scanned' ? blackColor : '#ff6b6b'
                       }
                     ]}>
                       <Ionicons
@@ -10507,7 +10524,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                         styles.vehicleHistoryIcon,
                         {
                           backgroundColor: entry.event === 'left' ? '#ff6b6b' :
-                            entry.event === 'entered' ? greenColor : '#003F65'
+                            entry.event === 'entered' ? greenColor : blackColor
                         }
                       ]}>
                         <Ionicons
@@ -10529,22 +10546,22 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
                     </View>
                     <View style={styles.vehicleHistoryBody}>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="radio" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="radio" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>Chip ID</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.chipId || 'N/A'}</Text>
                       </View>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="car" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="car" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>VIN</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.vin || 'N/A'}</Text>
                       </View>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="location" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="location" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>Slot</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.cpSlot || 'N/A'}</Text>
                       </View>
                       <View style={styles.vehicleHistoryItem}>
-                        <Ionicons name="business" size={16} color="#003F65" style={styles.vehicleHistoryItemIcon} />
+                        <Ionicons name="business" size={16} color={blackColor} style={styles.vehicleHistoryItemIcon} />
                         <Text style={styles.vehicleHistoryItemLabel}>Facility</Text>
                         <Text style={styles.vehicleHistoryItemValue}>{entry.facilityName || 'N/A'}</Text>
                       </View>
@@ -10576,7 +10593,20 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header - Hidden when map is fullscreen */}
       {!isMapFullscreen && (
         <View style={[styles.header, flexDirectionRow, alignItemsCenter, justifyContentSpaceBetween]}>
@@ -10597,9 +10627,9 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
               disabled={isRefreshingLocation}
             >
               {isRefreshingLocation ? (
-                <ActivityIndicator size="small" color="#003F65" />
+                <ActivityIndicator size="small" color={blackColor} />
               ) : (
-                <Ionicons name="refresh" size={24} color="#003F65" />
+                <Ionicons name="refresh" size={24} color={blackColor} />
               )}
             </TouchableOpacity>
           )}
@@ -10673,6 +10703,7 @@ const VehicleDetailsScreen = ({ navigation, route }) => {
         </View>
       </Modal>
     </View>
+    </LinearGradient>
   );
 };
 
@@ -10827,7 +10858,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   stepDistance: {
-    color: '#003F65',
+    color: blackColor,
     fontSize: style.fontSizeSmall.fontSize,
     fontWeight: style.fontWeightThin1x.fontWeight,
   },
@@ -10846,10 +10877,10 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.6,
     shadowRadius: 6,
@@ -10859,7 +10890,7 @@ const styles = StyleSheet.create({
   currentLocationMarker: {
     position: 'absolute',
     top: -40,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -10867,7 +10898,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: '#fff',
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.6,
     shadowRadius: 6,
@@ -10889,7 +10920,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 20,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#003F65',
+    borderBottomColor: blackColor,
   },
   slotBadgeText: {
     color: blackColor,
@@ -11036,18 +11067,18 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightMedium.fontWeight,
   },
   assignChipButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.xLarge,
     borderRadius: 25,
     marginVertical: spacings.large,
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
     borderWidth: 1.5,
-    borderColor: '#003F65',
+    borderColor: blackColor,
   },
   assignChipButtonText: {
     color: whiteColor,
@@ -11056,18 +11087,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   unassignChipButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: spacings.large,
     paddingHorizontal: spacings.xLarge,
     borderRadius: 25,
     marginVertical: spacings.large,
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
     borderWidth: 1.5,
-    borderColor: '#003F65',
+    borderColor: blackColor,
   },
   unassignChipButtonText: {
     color: whiteColor,
@@ -11135,7 +11166,7 @@ const styles = StyleSheet.create({
   duplicateYardText: {
     fontSize: style.fontSizeMedium1x.fontSize,
     fontWeight: style.fontWeightBold.fontWeight,
-    color: '#003F65',
+    color: blackColor,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -11186,7 +11217,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   duplicateCloseButton: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     paddingVertical: 10,
     paddingHorizontal: 10,
     flex: 1,
@@ -11195,7 +11226,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -11291,8 +11322,8 @@ const styles = StyleSheet.create({
     transition: 'all 0.3s ease',
   },
   activeTab: {
-    backgroundColor: '#003F65',
-    shadowColor: '#003F65',
+    backgroundColor: blackColor,
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
@@ -11420,7 +11451,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 20,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#003F65',
+    borderBottomColor: blackColor,
   },
 
 });

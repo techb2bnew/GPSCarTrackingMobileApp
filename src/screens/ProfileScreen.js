@@ -21,7 +21,22 @@ import { clearUser } from '../redux/userSlice';
 import AnimatedLottieView from 'lottie-react-native';
 import { clearAllChips, getChipCounts, getCriticalBatteryChips, clearAllAsyncStorageData } from '../utils/chipManager';
 import { spacings, style } from '../constants/Fonts';
-import { blackColor, grayColor, greenColor, lightGrayColor, whiteColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  blackColor,
+  grayColor,
+  greenColor,
+  lightGrayColor,
+  whiteColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils';
 import { BaseStyle } from '../constants/Style';
 import { supabase } from '../lib/supabaseClient';
@@ -69,48 +84,76 @@ const ProfileScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
-      setLoading(true);
-      // Get user data from AsyncStorage first
+      // Get user data from AsyncStorage first - show immediately
       const userData = await AsyncStorage.getItem('user');
 
       if (userData) {
         const parsedUser = JSON.parse(userData);
+        // Show cached data immediately - no loading delay
+        setUser(parsedUser);
+        setEditData({
+          name: parsedUser.name || '',
+          email: parsedUser.email || '',
+          contact: parsedUser.contact || '',
+          joiningDate: parsedUser.joiningDate || '',
+        });
+        setLoading(false); // Hide loading immediately
+      } else {
+        setLoading(true);
+      }
 
-        // Fetch latest user data from Supabase
-        const { data, error } = await supabase
-          .from('staff')
-          .select('*')
-          .eq('email', parsedUser.email)
-          .single();
-        console.log("data", data);
+      // Fetch latest user data from Supabase in background (non-blocking)
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        try {
+          const { data, error } = await supabase
+            .from('staff')
+            .select('*')
+            .eq('email', parsedUser.email)
+            .single();
 
-        if (data && !error) {
-          // Update with Supabase data
-          console.log('User data from Supabase:', data);
-          setUser(data);
-          setEditData({
-            name: data.name || '',
-            email: data.email || '',
-            contact: data.contact || '',
-            joiningDate: data.joiningDate || '',
-          });
-          // Update AsyncStorage with latest data
-          await AsyncStorage.setItem('user', JSON.stringify(data));
-        } else {
-          // Fallback to AsyncStorage data
-          console.log('Fallback to AsyncStorage data');
-          setUser(parsedUser);
-          setEditData({
-            name: parsedUser.name || '',
-            email: parsedUser.email || '',
-            contact: parsedUser.contact || '',
-            joiningDate: parsedUser.joiningDate || '',
-          });
+          if (data && !error) {
+            // Update with latest Supabase data
+            setUser(data);
+            setEditData({
+              name: data.name || '',
+              email: data.email || '',
+              contact: data.contact || '',
+              joiningDate: data.joiningDate || '',
+            });
+            // Update AsyncStorage with latest data
+            await AsyncStorage.setItem('user', JSON.stringify(data));
+          }
+        } catch (supabaseError) {
+          console.error('Error fetching from Supabase:', supabaseError);
+          // Keep cached data if Supabase fails
+        }
+      } else {
+        // No cached data - fetch from Supabase
+        try {
+          const { data, error } = await supabase
+            .from('staff')
+            .select('*')
+            .single();
+
+          if (data && !error) {
+            setUser(data);
+            setEditData({
+              name: data.name || '',
+              email: data.email || '',
+              contact: data.contact || '',
+              joiningDate: data.joiningDate || '',
+            });
+            await AsyncStorage.setItem('user', JSON.stringify(data));
+          }
+        } catch (supabaseError) {
+          console.error('Error fetching from Supabase:', supabaseError);
+        } finally {
+          setLoading(false);
         }
       }
     } catch (error) {
       console.error('Error loading user data:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -358,7 +401,7 @@ const ProfileScreen = ({ navigation }) => {
               </View>
               <View style={styles.memberSinceRow}>
                 <View style={styles.memberSinceContainer}>
-                  <Ionicons name="calendar" size={13} color="#003F65" />
+                  <Ionicons name="calendar" size={13} color={blackColor} />
                   <Text style={styles.memberSinceText}>Joined {joiningDate}</Text>
                 </View>
               </View>
@@ -386,14 +429,14 @@ const ProfileScreen = ({ navigation }) => {
             onPress={handleEditProfile}
             activeOpacity={0.7}
           >
-            <Ionicons name="pencil" size={20} color="#003F65" />
+            <Ionicons name="pencil" size={20} color={blackColor} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="person-outline" size={20} color="#003F65" />
+              <Ionicons name="person-outline" size={20} color={blackColor} />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Full Name</Text>
@@ -403,7 +446,7 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="mail-outline" size={20} color="#003F65" />
+              <Ionicons name="mail-outline" size={20} color={blackColor} />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Email</Text>
@@ -413,7 +456,7 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="call-outline" size={20} color="#003F65" />
+              <Ionicons name="call-outline" size={20} color={blackColor} />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Phone</Text>
@@ -423,7 +466,7 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.infoRow}>
             <View style={styles.infoIconContainer}>
-              <Ionicons name="calendar-outline" size={20} color="#003F65" />
+              <Ionicons name="calendar-outline" size={20} color={blackColor} />
             </View>
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Joining Date</Text>
@@ -518,8 +561,8 @@ const ProfileScreen = ({ navigation }) => {
         icon: 'time-outline',
         label: 'Facility History',
         screen: 'ActivityHistoryScreen',
-        color: '#003F65',
-        bgColor: '#F3F0FF',
+        color: blackColor,
+        bgColor: lightBlackBackground,
       },
       {
         id: 2,
@@ -599,7 +642,7 @@ const ProfileScreen = ({ navigation }) => {
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalTitleContainer}>
-                  <Ionicons name="person-circle-outline" size={28} color="#003F65" />
+                  <Ionicons name="person-circle-outline" size={28} color={blackColor} />
                   <Text style={styles.modalTitle}>Edit Profile</Text>
                 </View>
                 <TouchableOpacity
@@ -617,7 +660,7 @@ const ProfileScreen = ({ navigation }) => {
               >
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="person-outline" size={16} color="#003F65" /> Full Name
+                    <Ionicons name="person-outline" size={16} color={blackColor} /> Full Name
                   </Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="person" size={20} color="#999" style={styles.inputIcon} />
@@ -633,7 +676,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="mail-outline" size={16} color="#003F65" /> Email Address
+                    <Ionicons name="mail-outline" size={16} color={blackColor} /> Email Address
                   </Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail" size={20} color="#999" style={styles.inputIcon} />
@@ -653,7 +696,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="call-outline" size={16} color="#003F65" /> Phone Number
+                    <Ionicons name="call-outline" size={16} color={blackColor} /> Phone Number
                   </Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="call" size={20} color="#999" style={styles.inputIcon} />
@@ -670,7 +713,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>
-                    <Ionicons name="calendar-outline" size={16} color="#003F65" /> Joining Date
+                    <Ionicons name="calendar-outline" size={16} color={blackColor} /> Joining Date
                   </Text>
                   <View style={[styles.inputWrapper, styles.disabledInputWrapper]}>
                     <Ionicons name="calendar" size={20} color="#999" style={styles.inputIcon} />
@@ -762,51 +805,76 @@ const ProfileScreen = ({ navigation }) => {
   );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={[styles.header, flexDirectionRow, alignItemsCenter]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-back" size={28} color="#000" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Profile</Text>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={styles.gradientContainer}
+    >
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={[styles.header, flexDirectionRow, alignItemsCenter]}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={28} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
 
-        {/* Logout Button */}
-        <TouchableOpacity
-          onPress={handleOpenLogoutModal}
-          style={styles.headerLogoutButton}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#003F65" />
-          <Text style={styles.loadingText}>Loading profile...</Text>
+          {/* Logout Button */}
+          <TouchableOpacity
+            onPress={handleOpenLogoutModal}
+            style={styles.headerLogoutButton}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
+          </TouchableOpacity>
         </View>
-      ) : (
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {renderProfileHeader()}
-          {renderProfileInfo()}
-          {/* {renderStatsCard()} */}
-          {renderQuickActions()}
-        </ScrollView>
-      )}
 
-      {renderEditModal()}
-      {renderLogoutModal()}
-    </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={blackColor} />
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
+        ) : (
+          <View style={{ flex: 1, backgroundColor: 'transparent' }}>
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+              bounces={true}
+              removeClippedSubviews={true}
+            >
+              {renderProfileHeader()}
+              {renderProfileInfo()}
+              {/* {renderStatsCard()} */}
+              {renderQuickActions()}
+            </ScrollView>
+          </View>
+        )}
+
+        {renderEditModal()}
+        {renderLogoutModal()}
+      </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  gradientContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: whiteColor,
+    backgroundColor: 'transparent',
   },
   header: {
     padding: spacings.xxxLarge,
@@ -837,11 +905,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacings.large,
   },
+  contentContainer: {
+    flexGrow: 1,
+    paddingBottom: spacings.xxLarge,
+    paddingTop: spacings.normal,
+  },
   profileHeaderCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     marginVertical: spacings.large,
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
     shadowRadius: 20,
@@ -868,7 +941,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#003F65',
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -878,7 +951,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -936,16 +1009,16 @@ const styles = StyleSheet.create({
   memberSinceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0EBFF',
+    backgroundColor: lightBlackBackground,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E0D4FF',
+    borderColor: lightBlackBorder,
   },
   memberSinceText: {
     fontSize: style.fontSizeSmall.fontSize,
-    color: '#003F65',
+    color: blackColor,
     marginLeft: 6,
     fontWeight: style.fontWeightMedium1x.fontWeight,
   },
@@ -953,7 +1026,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -970,10 +1043,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacings.medium,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#003F65',
+    borderColor: blackColor,
   },
   editProfileButtonText: {
-    color: '#003F65',
+    color: blackColor,
     fontSize: style.fontSizeNormal.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
     marginLeft: 8,
@@ -994,11 +1067,13 @@ const styles = StyleSheet.create({
     marginVertical: spacings.large
   },
   editIconButton: {
-    backgroundColor: '#f3f0ff',
+    backgroundColor: lightBlackBackground,
     padding: spacings.normal,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   infoCard: {
     backgroundColor: whiteColor,
@@ -1082,13 +1157,13 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: style.fontSizeLarge.fontSize,
     fontWeight: style.fontWeightBlack.fontWeight,
-    color: '#003F65',
+    color: blackColor,
     marginBottom: 4,
   },
   statNumberLarge: {
     fontSize: style.fontSizeLarge2x.fontSize,
     fontWeight: style.fontWeightBlack.fontWeight,
-    color: '#003F65',
+    color: blackColor,
     marginBottom: 6,
   },
   statLabelSmall: {
@@ -1254,8 +1329,8 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 15,
     borderRadius: 12,
-    backgroundColor: '#003F65',
-    shadowColor: '#003F65',
+    backgroundColor: blackColor,
+    shadowColor: blackColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1385,6 +1460,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   loadingText: {
     marginTop: 10,

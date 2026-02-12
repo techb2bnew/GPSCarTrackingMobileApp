@@ -17,7 +17,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NOTIFICATION } from '../assests/images';
 import { supabase } from '../lib/supabaseClient';
 import { useFocusEffect } from '@react-navigation/native';
+import LinearGradient from 'react-native-linear-gradient';
 import { spacings, style } from '../constants/Fonts';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { heightPercentageToDP } from '../utils';
 
 const ACTIVITY_HISTORY_CACHE_KEY = 'activity_history_screen';
@@ -421,10 +433,12 @@ const ActivityHistoryScreen = ({ navigation }) => {
             display: 'flex',
             flexDirection: 'column',
             gap: 5,
-            backgroundColor: item.chip ? '#DFFFE1' : '#FFF4E6',
+            backgroundColor: lightBlackBackground,
             borderRadius: 10,
             paddingVertical: 8,
             paddingHorizontal: 14,
+            borderWidth: 1,
+            borderColor: lightBlackBorder,
           }}>
           <View style={styles.movementInfo}>
             <Text style={styles.facilityText}>
@@ -433,7 +447,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
           </View>
           {item.slotNo && (
             <View style={styles.movementInfo}>
-              <Text style={[styles.movementText, { color: '#000', fontWeight: '600' }]}>
+              <Text style={[styles.movementText, { color: blackColor, fontWeight: '600' }]}>
                 Slot: {item.slotNo}
               </Text>
             </View>
@@ -448,7 +462,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
         </Text>
         {item.chip && (
           <View style={styles.chipBadge}>
-            <Ionicons name="radio-outline" size={14} color="#4CAF50" />
+            <Ionicons name="radio-outline" size={14} color={blackColor} />
             <Text style={styles.chipText}>Chip: {item.chip}</Text>
           </View>
         )}
@@ -459,7 +473,20 @@ const ActivityHistoryScreen = ({ navigation }) => {
     </View>
   );
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#000" />
@@ -485,7 +512,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
           style={styles.facilitySelectorButton}
           onPress={() => setShowFacilityModal(true)}>
           <View style={styles.facilitySelectorContent}>
-            <Ionicons name="business-outline" size={20} color="#003F65" />
+            <Ionicons name="business-outline" size={20} color={blackColor} />
             <View style={{ flex: 1, marginLeft: spacings.small }}>
               <Text style={styles.facilitySelectorText}>
                 {selectedFacility
@@ -508,10 +535,10 @@ const ActivityHistoryScreen = ({ navigation }) => {
       {/* Statistics Cards */}
       <View style={styles.statsContainer}>
       <View style={styles.statCard}>
-          <Ionicons name="car" size={20} color="#003F65" />
+          <Ionicons name="car" size={20} color={blackColor} />
           <View style={styles.statContent}>
             <Text style={styles.statLabel}>Total</Text>
-            <Text style={[styles.statValue, { color: '#003F65' }]}>
+            <Text style={[styles.statValue, { color: blackColor }]}>
               {stats.total}
             </Text>
           </View>
@@ -541,7 +568,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
       {!selectedFacility && (
         <View style={styles.facilityBreakdownContainer}>
           <View style={styles.facilityBreakdownHeader}>
-            <Ionicons name="business" size={20} color="#003F65" />
+            <Ionicons name="business" size={20} color={blackColor} />
             <Text style={styles.facilityBreakdownTitle}>
               {stats.totalFacilities} Facilities
             </Text>
@@ -599,7 +626,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
 
             {(loadingFacilities && !hasShownFacilityCacheRef.current) ? (
               <View style={styles.loadingFacilitiesContainer}>
-                <ActivityIndicator size="small" color="#003F65" />
+                <ActivityIndicator size="small" color={blackColor} />
                 <Text style={styles.loadingFacilitiesText}>Loading facilities...</Text>
               </View>
             ) : facilities.length > 0 ? (
@@ -639,7 +666,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
                         </Text>
                       </View>
                       {selectedFacility === item.id && (
-                        <Ionicons name="checkmark-circle" size={22} color="#003F65" />
+                        <Ionicons name="checkmark-circle" size={22} color={blackColor} />
                       )}
                     </TouchableOpacity>
                   );
@@ -660,7 +687,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
 
       {(loading && !hasShownCacheRef.current) ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#003F65" />
+          <ActivityIndicator size="large" color={blackColor} />
           <Text style={styles.loadingText}>Loading activities...</Text>
         </View>
       ) : getFilteredData().length === 0 ? (
@@ -684,6 +711,7 @@ const ActivityHistoryScreen = ({ navigation }) => {
         />
       )}
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -792,8 +820,8 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   filterButtonActive: {
-    backgroundColor: '#003F65',
-    borderColor: '#003F65',
+    backgroundColor: blackColor,
+    borderColor: blackColor,
   },
   filterButtonText: {
     color: '#666',
@@ -830,14 +858,16 @@ const styles = StyleSheet.create({
   chipBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    backgroundColor: lightBlackBackground,
     paddingHorizontal: spacings.small,
     paddingVertical: spacings.xsmall,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   chipText: {
     fontSize: style.fontSizeExtraSmall.fontSize,
-    color: '#4CAF50',
+    color: blackColor,
     fontWeight: style.fontWeightMedium.fontWeight,
     marginLeft: spacings.xsmall,
   },
@@ -893,7 +923,7 @@ const styles = StyleSheet.create({
     fontWeight: style.fontWeightBold.fontWeight,
   },
   badgeBox: {
-    backgroundColor: '#DFFFE1', // light green background
+    backgroundColor: lightBlackBackground,
     borderRadius: 20,
     paddingVertical: spacings.small,
     paddingHorizontal: spacings.small2x,
@@ -901,9 +931,11 @@ const styles = StyleSheet.create({
     marginTop: spacings.small,
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: lightBlackBorder,
   },
   badgeText: {
-    color: 'green',
+    color: blackColor,
     fontWeight: style.fontWeightMedium.fontWeight,
     fontSize: style.fontSizeSmall1x.fontSize,
   },
@@ -993,8 +1025,8 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
   },
   selectedFacilityCard: {
-    backgroundColor: '#F0EDFF',
-    borderColor: '#003F65',
+    backgroundColor: lightBlackBackground,
+    borderColor: blackColor,
     borderWidth: 2,
   },
   facilityCardContent: {
@@ -1012,7 +1044,7 @@ const styles = StyleSheet.create({
     ...style,
   },
   selectedFacilityText: {
-    color: '#003F65',
+    color: blackColor,
     fontWeight: style.fontWeightBold.fontWeight,
   },
   loadingFacilitiesContainer: {

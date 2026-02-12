@@ -17,7 +17,22 @@ import { heightPercentageToDP as hp } from '../utils';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabaseClient';
 import { style, spacings } from '../constants/Fonts';
-import { whiteColor, grayColor, darkgrayColor, blackColor, greenColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  whiteColor,
+  grayColor,
+  darkgrayColor,
+  blackColor,
+  greenColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  lightBlackBackground,
+  lightBlackBorder,
+} from '../constants/Color';
 import { getTimeAgo } from '../utils/chipManager';
 
 const ChipAssignmentScreen = ({ navigation }) => {
@@ -286,7 +301,7 @@ const ChipAssignmentScreen = ({ navigation }) => {
         <View style={styles.vehicleContent}>
           <View style={styles.vehicleLeft}>
             <View style={styles.vinContainer}>
-              <Icon name="car" size={20} color="#003F65" />
+              <Icon name="car" size={20} color={blackColor} />
               <Text style={styles.vinText}>{displayVin}</Text>
               <View
                 style={[
@@ -362,7 +377,20 @@ const ChipAssignmentScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -404,10 +432,10 @@ const ChipAssignmentScreen = ({ navigation }) => {
           </View>
         </View>
         <View style={styles.statCard}>
-          <Icon name="car" size={20} color="#003F65" />
+          <Icon name="car" size={20} color={blackColor} />
           <View style={styles.statContent}>
             <Text style={styles.statLabel}>Total</Text>
-            <Text style={[styles.statValue, { color: '#003F65' }]}>
+            <Text style={[styles.statValue, { color: blackColor }]}>
               {stats.total}
             </Text>
           </View>
@@ -484,7 +512,7 @@ const ChipAssignmentScreen = ({ navigation }) => {
       {/* Vehicle List */}
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#003F65" />
+          <ActivityIndicator size="large" color={blackColor} />
           <Text style={styles.loadingText}>Loading vehicles...</Text>
         </View>
       ) : filteredData.length === 0 ? (
@@ -510,13 +538,14 @@ const ChipAssignmentScreen = ({ navigation }) => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#003F65']}
-              tintColor="#003F65"
+              colors={[blackColor]}
+              tintColor={blackColor}
             />
           }
         />
       )}
     </SafeAreaView>
+    </LinearGradient>
   );
 };
 
@@ -603,7 +632,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   activeTab: {
-    borderBottomColor: '#003F65',
+    borderBottomColor: blackColor,
   },
   tabText: {
     fontSize: 16,
@@ -611,7 +640,7 @@ const styles = StyleSheet.create({
     ...style,
   },
   activeTabText: {
-    color: '#003F65',
+    color: blackColor,
     fontWeight: 'bold',
   },
   tabBadge: {
@@ -623,7 +652,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTabBadge: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
   },
   tabBadgeText: {
     fontSize: 12,
@@ -637,13 +666,21 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: lightBlackBackground,
     marginHorizontal: spacings.xLarge,
     marginTop: spacings.Large1x,
     marginBottom: spacings.medium,
     borderRadius: 12,
-    paddingHorizontal: spacings.medium,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 0,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    minHeight: Platform.OS === 'ios' ? hp(5.5) : hp(6),
   },
   searchIcon: {
     marginRight: spacings.small,

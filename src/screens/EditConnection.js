@@ -9,10 +9,20 @@ import {
   FlatList,
   Image,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {NOTIFICATION} from '../assests/images';
 import AnimatedLottieView from 'lottie-react-native';
 import {widthPercentageToDP} from '../utils';
+import {
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+  blackColor,
+} from '../constants/Color';
 
 const EditConnection = ({navigation}) => {
   const [vinNumber, setVinNumber] = useState('');
@@ -49,7 +59,20 @@ const EditConnection = ({navigation}) => {
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Icon name="arrow-back" size={28} color="#000" />
@@ -72,7 +95,7 @@ const EditConnection = ({navigation}) => {
           style={styles.input}
         />
         <TouchableOpacity style={styles.iconButton} onPress={handleOpen}>
-          <Icon name="scan-outline" size={24} color="#003F65" />
+          <Icon name="scan-outline" size={24} color={blackColor} />
         </TouchableOpacity>
       </View>
 
@@ -86,7 +109,7 @@ const EditConnection = ({navigation}) => {
           style={styles.input}
         />
         <TouchableOpacity style={styles.iconButton} onPress={handleOpen}>
-          <Icon name="scan-outline" size={24} color="#003F65" />
+          <Icon name="scan-outline" size={24} color={blackColor} />
         </TouchableOpacity>
       </View>
 
@@ -130,7 +153,7 @@ const EditConnection = ({navigation}) => {
             <TouchableOpacity
               onPress={() => setParkingModalVisible(false)}
               style={styles.modalCloseButton}>
-              <Text style={{color: '#003F65'}}>Close</Text>
+              <Text style={{color: blackColor}}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -172,6 +195,7 @@ const EditConnection = ({navigation}) => {
         </View>
       </Modal>
     </View>
+    </LinearGradient>
   );
 };
 
@@ -208,7 +232,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   button: {
-    backgroundColor: '#003F65',
+    backgroundColor: blackColor,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',

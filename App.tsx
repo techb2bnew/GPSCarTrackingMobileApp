@@ -8,7 +8,17 @@ import MainTabNavigator from './src/navigations/MainTabNavigator';
 import AuthStack from './src/navigations/AuthStack';
 import AnimatedLottieView from 'lottie-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withRepeat, withSequence, interpolate, Easing } from 'react-native-reanimated';
-import { whiteColor, nissanPrimaryBlue } from './src/constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  whiteColor,
+  nissanPrimaryBlue,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from './src/constants/Color';
 import { BaseStyle } from './src/constants/Style';
 import InternetChecker from './src/components/InternetChecker';
 import { MAIN_LOGO, SPLASH_IMAGE, NISSAN_LOGO } from './src/assests/images';
@@ -507,6 +517,19 @@ function AppContent({ setCheckUser }: AppContentProps) {
     <View style={styles.container}>
       <InternetChecker navigationRef={navigationRef} navigationReady={navigationReady} />
       {showSplash ? (
+        <LinearGradient
+          colors={[
+            gradientSoftTop,
+            gradientSoftMid1,
+            gradientSoftMid2,
+            gradientSoftMid3,
+            gradientSoftMid4,
+            gradientSoftBottom,
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={styles.splashGradientContainer}
+        >
         <View style={styles.splashContainer}>
           {/* Nissan logo – splash pe sahi se dikhane ke liye */}
           <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
@@ -573,6 +596,7 @@ function AppContent({ setCheckUser }: AppContentProps) {
             <Text style={styles.minimalText}>Loading...</Text>
           </View> */}
         </View>
+        </LinearGradient>
       ) : (
         Platform.OS === 'android' ? (
           <SafeAreaView style={{ flex: 1 }}>
@@ -621,11 +645,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: whiteColor,
   },
+  splashGradientContainer: {
+    flex: 1,
+  },
   splashContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: whiteColor,
+    backgroundColor: 'transparent',
   },
   splashAnimation: {
     width: 300,

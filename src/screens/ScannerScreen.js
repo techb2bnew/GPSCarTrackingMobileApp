@@ -1,7 +1,17 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { blackColor, whiteColor } from '../constants/Color';
+import LinearGradient from 'react-native-linear-gradient';
+import {
+  blackColor,
+  whiteColor,
+  gradientSoftTop,
+  gradientSoftMid1,
+  gradientSoftMid2,
+  gradientSoftMid3,
+  gradientSoftMid4,
+  gradientSoftBottom,
+} from '../constants/Color';
 import Toast from 'react-native-simple-toast';
 import {
   BarcodeScanner,
@@ -451,7 +461,20 @@ const ScannerScreen = ({ navigation, route }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={[
+        gradientSoftTop,
+        gradientSoftMid1,
+        gradientSoftMid2,
+        gradientSoftMid3,
+        gradientSoftMid4,
+        gradientSoftBottom,
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+      style={{ flex: 1 }}
+    >
+    <View style={[styles.container, { backgroundColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable
@@ -478,6 +501,7 @@ const ScannerScreen = ({ navigation, route }) => {
       </Modal>
 
     </View>
+    </LinearGradient>
   );
 };
 
