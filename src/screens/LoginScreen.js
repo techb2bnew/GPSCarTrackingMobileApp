@@ -32,6 +32,7 @@ import {
   gradientSoftBottom,
   blackColor,
 } from '../constants/Color';
+import { SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_TEL } from '../constants/ContactInfo';
 
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -51,11 +52,10 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handleEmailContact = () => {
-    const email = 'support@example.com'; // Replace with your support email
     const subject = 'Customer Support Request';
     const body = 'Hello, I need help with...';
 
-    const emailUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const emailUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     Linking.openURL(emailUrl).catch(err => {
       Alert.alert('Error', 'Could not open email client');
@@ -63,9 +63,7 @@ const LoginScreen = ({ navigation }) => {
   };
 
   const handlePhoneContact = () => {
-    const phoneNumber = '+1234567890'; // Replace with your support phone number
-
-    const phoneUrl = `tel:${phoneNumber}`;
+    const phoneUrl = `tel:${SUPPORT_PHONE_TEL}`;
 
     Linking.openURL(phoneUrl).catch(err => {
       Alert.alert('Error', 'Could not open phone dialer');
@@ -289,7 +287,7 @@ const LoginScreen = ({ navigation }) => {
               }}
             >
               <Text style={styles.contactOptionText}>📧 Email Support</Text>
-              <Text style={styles.contactOptionSubtext}>support@example.com</Text>
+              <Text style={styles.contactOptionSubtext}>{SUPPORT_EMAIL}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -300,7 +298,7 @@ const LoginScreen = ({ navigation }) => {
               }}
             >
               <Text style={styles.contactOptionText}>📞 Phone Support</Text>
-              <Text style={styles.contactOptionSubtext}>+1 (234) 567-8900</Text>
+              <Text style={styles.contactOptionSubtext}>{SUPPORT_PHONE}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -512,7 +510,8 @@ const styles = StyleSheet.create({
   },
   contactOptionSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: blackColor,
+    fontWeight: style.fontWeightBold.fontWeight,
   },
   cancelButton: {
     backgroundColor: '#6c757d',

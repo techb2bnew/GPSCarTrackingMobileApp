@@ -20,6 +20,8 @@ import ProfileScreen from '../screens/ProfileScreen';
 import HowItWorksScreen from '../screens/HowItWorksScreen';
 import ReportIssueScreen from '../screens/ReportIssueScreen';
 import TextScanScreen from '../screens/TextScanScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +53,8 @@ export default function HomeStack({setCheckUser}) {
       <Stack.Screen name="HowItWorksScreen" component={HowItWorksScreen} />
       <Stack.Screen name="ReportIssueScreen" component={ReportIssueScreen} />
       <Stack.Screen name="TextScanScreen" component={TextScanScreen} />
+      <Stack.Screen name="PrivacyPolicyScreen" component={PrivacyPolicyScreen} />
+      <Stack.Screen name="TermsOfServiceScreen" component={TermsOfServiceScreen} />
       <Stack.Screen
         name="NotificationScreen"
         component={NotificationScreen}

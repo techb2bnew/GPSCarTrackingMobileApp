@@ -12,12 +12,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Pressable,
+  Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast from 'react-native-simple-toast';
 import { useDispatch } from 'react-redux';
 import { clearUser } from '../redux/userSlice';
+import { checkStaffAccount, handleAutoLogout } from '../utils/staffValidation';
 import AnimatedLottieView from 'lottie-react-native';
 import { clearAllChips, getChipCounts, getCriticalBatteryChips, clearAllAsyncStorageData } from '../utils/chipManager';
 import { spacings, style } from '../constants/Fonts';
@@ -41,6 +44,7 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from '../utils'
 import { BaseStyle } from '../constants/Style';
 import { supabase } from '../lib/supabaseClient';
 import crashlytics from '@react-native-firebase/crashlytics';
+import { SUPPORT_EMAIL, SUPPORT_PHONE_TEL } from '../constants/ContactInfo';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
 
@@ -51,6 +55,7 @@ const ProfileScreen = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [editData, setEditData] = useState({
     name: '',
@@ -74,13 +79,25 @@ const ProfileScreen = ({ navigation }) => {
     loadStatsData();
   }, []);
 
-  // Load stats data when screen comes into focus
+  // Load stats data when screen comes into focus and validate staff
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadStatsData();
+      // Validate staff account when screen comes into focus
+      if (user && user.email) {
+        checkStaffAccount(user.email, user.id).then(result => {
+          if (!result.exists) {
+            // Account deleted - show toast
+            handleAutoLogout(navigation, dispatch, true);
+          } else if (!result.isActive) {
+            // Account inactive - no toast
+            handleAutoLogout(navigation, dispatch, false);
+          }
+        });
+      }
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, user]);
 
   const loadUserData = async () => {
     try {
@@ -102,31 +119,59 @@ const ProfileScreen = ({ navigation }) => {
         setLoading(true);
       }
 
-      // Fetch latest user data from Supabase in background (non-blocking)
+      // Validate staff account exists and is active in Supabase
       if (userData) {
         const parsedUser = JSON.parse(userData);
-        try {
-          const { data, error } = await supabase
-            .from('staff')
-            .select('*')
-            .eq('email', parsedUser.email)
-            .single();
 
-          if (data && !error) {
-            // Update with latest Supabase data
-            setUser(data);
-            setEditData({
-              name: data.name || '',
-              email: data.email || '',
-              contact: data.contact || '',
-              joiningDate: data.joiningDate || '',
-            });
-            // Update AsyncStorage with latest data
-            await AsyncStorage.setItem('user', JSON.stringify(data));
+        // Check if staff account still exists and is active
+        const validationResult = await checkStaffAccount(parsedUser.email, parsedUser.id);
+
+        if (!validationResult.exists) {
+          // Staff deleted - auto logout with toast
+          console.log('❌ [ProfileScreen] Staff account deleted - logging out');
+          await handleAutoLogout(navigation, dispatch, true);
+          return;
+        }
+
+        if (!validationResult.isActive) {
+          // Staff inactive - auto logout without toast
+          console.log('❌ [ProfileScreen] Staff account inactive - logging out');
+          await handleAutoLogout(navigation, dispatch, false);
+          return;
+        }
+
+        // Update user data if changed in database
+        if (validationResult.data) {
+          setUser(validationResult.data);
+          setEditData({
+            name: validationResult.data.name || '',
+            email: validationResult.data.email || '',
+            contact: validationResult.data.contact || '',
+            joiningDate: validationResult.data.joiningDate || '',
+          });
+          await AsyncStorage.setItem('user', JSON.stringify(validationResult.data));
+        } else {
+          // Fallback: Fetch from Supabase if validation didn't return data
+          try {
+            const { data, error } = await supabase
+              .from('staff')
+              .select('*')
+              .eq('email', parsedUser.email)
+              .single();
+
+            if (data && !error) {
+              setUser(data);
+              setEditData({
+                name: data.name || '',
+                email: data.email || '',
+                contact: data.contact || '',
+                joiningDate: data.joiningDate || '',
+              });
+              await AsyncStorage.setItem('user', JSON.stringify(data));
+            }
+          } catch (supabaseError) {
+            console.error('Error fetching from Supabase:', supabaseError);
           }
-        } catch (supabaseError) {
-          console.error('Error fetching from Supabase:', supabaseError);
-          // Keep cached data if Supabase fails
         }
       } else {
         // No cached data - fetch from Supabase
@@ -580,9 +625,33 @@ const ProfileScreen = ({ navigation }) => {
         color: '#FF6B6B',
         bgColor: '#FFF5F5',
       },
+      {
+        id: 4,
+        icon: 'shield-checkmark-outline',
+        label: 'Privacy Policy',
+        screen: 'PrivacyPolicyScreen',
+        color: '#4CAF50',
+        bgColor: '#E8F5E9',
+      },
+      {
+        id: 5,
+        icon: 'document-text-outline',
+        label: 'Terms of Service',
+        screen: 'TermsOfServiceScreen',
+        color: '#9C27B0',
+        bgColor: '#F3E5F5',
+      },
+      {
+        id: 6,
+        icon: 'trash-outline',
+        label: 'Delete Account',
+        action: 'delete_account',
+        color: '#FF3B30',
+        bgColor: '#FFEBEE',
+      },
       // Test Crash button (only for development/testing)
       // {
-      //   id: 4,
+      //   id: 7,
       //   icon: 'bug-outline',
       //   label: 'Test Crash',
       //   action: 'test_crash',
@@ -594,6 +663,8 @@ const ProfileScreen = ({ navigation }) => {
     const handleActionPress = (action) => {
       if (action.action === 'test_crash') {
         testCrashlytics();
+      } else if (action.action === 'delete_account') {
+        setShowDeleteAccountModal(true);
       } else if (action.screen) {
         navigation.navigate(action.screen);
       }
@@ -763,44 +834,125 @@ const ProfileScreen = ({ navigation }) => {
       onRequestClose={() => setShowLogoutModal(false)}
     >
       <View style={styles.logoutModalContainer}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setShowLogoutModal(false)}
+        />
         <View style={styles.logoutModalContent}>
-          {isLoggingOut ? (
-            <View style={styles.logoutAnimationContainer}>
-              <AnimatedLottieView
-                source={require('../assets/logout.json')}
-                autoPlay
-                loop
-                style={styles.logoutAnimation}
-              />
-              <Text style={styles.logoutAnimationText}>Logging out...</Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.logoutModalTitle}>Logout</Text>
-              <Text style={styles.logoutModalMessage}>
-                Are you sure you want to logout?
+          <AnimatedLottieView
+            source={require('../assets/logout.json')}
+            autoPlay
+            loop
+            style={{ width: 180, height: 180 }}
+          />
+          <Text style={styles.logoutModalMessage}>
+            Are you sure you want to log out?
+          </Text>
+          <View style={styles.logoutButtonRow}>
+            <TouchableOpacity
+              style={styles.logoutYesBtn}
+              onPress={handleLogout}
+              activeOpacity={1}
+            >
+              <Text style={styles.logoutYesBtnText}>Yes</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.logoutNoBtn}
+              onPress={() => setShowLogoutModal(false)}
+              activeOpacity={1}
+            >
+              <Text style={styles.logoutNoBtnText}>No</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderDeleteAccountModal = () => (
+    <Modal
+      visible={showDeleteAccountModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowDeleteAccountModal(false)}
+    >
+      <Pressable
+        style={styles.modalOverlay}
+        onPress={() => setShowDeleteAccountModal(false)}
+      >
+        <View style={styles.deleteAccountModalContent}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <View style={styles.deleteAccountModalInner}>
+              {/* Icon */}
+              <View style={styles.deleteAccountIconContainer}>
+                <Ionicons name="trash" size={48} color="#FF3B30" />
+              </View>
+
+              {/* Title */}
+              <Text style={styles.deleteAccountTitle}>Delete Account</Text>
+
+              {/* Message */}
+              <Text style={styles.deleteAccountMessage}>
+                To delete your account, please contact your administrator. Your account deletion request will be processed by the admin team.
               </Text>
-              <View style={styles.logoutButtonRow}>
+
+              {/* Contact Options */}
+              <View style={styles.deleteAccountContactContainer}>
                 <TouchableOpacity
-                  style={styles.logoutCancelBtn}
-                  onPress={() => setShowLogoutModal(false)}
-                  activeOpacity={0.8}
+                  style={styles.deleteAccountContactButton}
+                  onPress={() => {
+                    const subject = encodeURIComponent("Account Deletion Request");
+
+                    const body = encodeURIComponent(
+                      `Hello,
+                  
+                  I would like to request deletion of my account.
+                  
+                  Email: ${user?.email || ""}
+                  Name: ${user?.name || ""}
+                  
+                  Thank you.`
+                    );
+
+                    const mailUrl = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+
+                    Linking.openURL(mailUrl).catch(() => {
+                      Alert.alert("Error", "Unable to open email client");
+                    });
+                  }}
+
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.logoutCancelBtnText}>Cancel</Text>
+                  <Ionicons name="mail-outline" size={20} color={whiteColor} />
+                  <Text style={styles.deleteAccountContactButtonText}>Email Support</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.logoutConfirmBtn}
-                  onPress={handleLogout}
-                  activeOpacity={0.8}
+                  style={[styles.deleteAccountContactButton, { backgroundColor: '#34C759', marginTop: 12 }]}
+                  onPress={() => {
+                    Linking.openURL(`tel:${SUPPORT_PHONE_TEL}`).catch(() => {
+                      Alert.alert('Error', 'Unable to make phone call');
+                    });
+                  }}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.logoutConfirmBtnText}>Logout</Text>
+                  <Ionicons name="call-outline" size={20} color={whiteColor} />
+                  <Text style={styles.deleteAccountContactButtonText}>Call Support</Text>
                 </TouchableOpacity>
               </View>
-            </>
-          )}
+
+              {/* Close Button */}
+              <TouchableOpacity
+                style={styles.deleteAccountCloseButton}
+                onPress={() => setShowDeleteAccountModal(false)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.deleteAccountCloseButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
         </View>
-      </View>
+      </Pressable>
     </Modal>
   );
 
@@ -857,12 +1009,14 @@ const ProfileScreen = ({ navigation }) => {
               {renderProfileInfo()}
               {/* {renderStatsCard()} */}
               {renderQuickActions()}
+              <View style={styles.bottomSpacer} />
             </ScrollView>
           </View>
         )}
 
         {renderEditModal()}
         {renderLogoutModal()}
+        {renderDeleteAccountModal()}
       </View>
     </LinearGradient>
   );
@@ -1397,64 +1551,115 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: wp('80%'),
   },
-  logoutModalTitle: {
-    fontSize: style.fontSizeLarge.fontSize,
-    fontWeight: style.fontWeightBold.fontWeight,
-    color: blackColor,
-    marginBottom: 10,
-  },
   logoutModalMessage: {
     fontSize: style.fontSizeNormal.fontSize,
-    color: grayColor,
+    marginBottom: spacings.large,
     textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
+    color: blackColor,
   },
   logoutButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
   },
-  logoutCancelBtn: {
+  logoutYesBtn: {
     flex: 1,
     marginHorizontal: 5,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: blackColor,
     padding: spacings.large,
-    borderRadius: 8,
+    borderRadius: 5,
     alignItems: 'center',
   },
-  logoutCancelBtnText: {
-    color: grayColor,
-    fontSize: style.fontSizeNormal.fontSize,
-    fontWeight: style.fontWeightMedium.fontWeight,
-  },
-  logoutConfirmBtn: {
-    flex: 1,
-    marginHorizontal: 5,
-    backgroundColor: 'red',
-    padding: spacings.large,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  logoutConfirmBtnText: {
+  logoutYesBtnText: {
     color: whiteColor,
     fontSize: style.fontSizeNormal.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
   },
-  // Logout Animation Styles
-  logoutAnimationContainer: {
+  logoutNoBtn: {
+    flex: 1,
+    marginHorizontal: 5,
+    backgroundColor: 'grey',
+    padding: spacings.large,
+    borderRadius: 5,
     alignItems: 'center',
-    paddingVertical: 20,
   },
-  logoutAnimation: {
-    width: 100,
-    height: 100,
+  logoutNoBtnText: {
+    color: whiteColor,
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
-  logoutAnimationText: {
+  // Delete Account Modal Styles
+  deleteAccountModalContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  deleteAccountModalInner: {
+    backgroundColor: whiteColor,
+    borderRadius: 20,
+    padding: spacings.xxxLarge,
+    width: wp(85),
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  deleteAccountIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFEBEE',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacings.large,
+  },
+  deleteAccountTitle: {
+    fontSize: style.fontSizeLargeX.fontSize,
+    fontWeight: style.fontWeightBold.fontWeight,
+    color: blackColor,
+    marginBottom: spacings.medium,
+    textAlign: 'center',
+  },
+  deleteAccountMessage: {
     fontSize: style.fontSizeNormal.fontSize,
     color: grayColor,
-    marginTop: 10,
-    fontWeight: '500',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacings.large,
+  },
+  deleteAccountContactContainer: {
+    width: '100%',
+    marginBottom: spacings.large,
+  },
+  deleteAccountContactButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 8,
+  },
+  deleteAccountContactButtonText: {
+    color: whiteColor,
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
+  },
+  deleteAccountCloseButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: lightGrayColor,
+  },
+  deleteAccountCloseButtonText: {
+    color: blackColor,
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
   },
   loadingContainer: {
     flex: 1,
@@ -1475,38 +1680,49 @@ const styles = StyleSheet.create({
   },
   // Quick Actions Styles
   quickActionsContainer: {
-    marginBottom: Platform.OS === 'android' ? hp(10) : spacings.xLarge,
+    marginBottom: spacings.large,
+  },
+  bottomSpacer: {
+    height: Platform.OS === 'ios' ? hp(15) : hp(12),
+    width: '100%',
   },
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: spacings.small2x,
   },
   quickActionCard: {
     backgroundColor: whiteColor,
-    borderRadius: 16,
-    padding: spacings.large,
-    width: '48%',
-    marginBottom: spacings.large,
+    borderRadius: 12,
+    padding: spacings.medium,
+    width: '49%',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: lightBlackBorder,
     shadowColor: blackColor,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
+    minHeight: hp(10),
   },
   quickActionIconContainer: {
-    width: 30,
-    height: 30,
-    borderRadius: 30,
+    width: hp(5),
+    height: hp(5),
+    borderRadius: hp(2.5),
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacings.medium,
+    marginBottom: spacings.small2x,
+    shadowColor: blackColor,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   quickActionLabel: {
-    fontSize: style.fontSizeSmall2x.fontSize,
+    fontSize: style.fontSizeSmall1x.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
     color: blackColor,
     textAlign: 'center',

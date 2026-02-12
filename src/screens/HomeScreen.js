@@ -47,6 +47,8 @@ import {
 } from '../utils';
 import { useFocusEffect } from '@react-navigation/native';
 import ParkingYardScreen from './ParkingYardScreen';
+import { checkStaffAccount, handleAutoLogout } from '../utils/staffValidation';
+import { useDispatch } from 'react-redux';
 import {
   blackColor,
   blackOpacity5,
@@ -110,6 +112,7 @@ const getCardData = (chipStats) => [
   },
 ];
 export default function HomeScreen({ navigation, setCheckUser }) {
+  const dispatch = useDispatch();
   const [isDrawerOpen, setDrawerOpen] = useState(false);
   const [selectedYard, setSelectedYard] = useState(null);
 
@@ -478,13 +481,36 @@ export default function HomeScreen({ navigation, setCheckUser }) {
     }
   };
 
-  // Load user data from AsyncStorage
+  // Load user data from AsyncStorage and validate staff account
   const loadUserData = async () => {
     try {
       const userData = await AsyncStorage.getItem('user');
       if (userData) {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
+
+        // Validate staff account exists and is active in Supabase
+        const validationResult = await checkStaffAccount(parsedUser.email, parsedUser.id);
+        
+        if (!validationResult.exists) {
+          // Staff deleted - auto logout with toast
+          console.log('❌ [HomeScreen] Staff account deleted - logging out');
+          await handleAutoLogout(navigation, dispatch, true);
+          return;
+        }
+        
+        if (!validationResult.isActive) {
+          // Staff inactive - auto logout without toast
+          console.log('❌ [HomeScreen] Staff account inactive - logging out');
+          await handleAutoLogout(navigation, dispatch, false);
+          return;
+        }
+
+        // Update user data if changed in database
+        if (validationResult.data) {
+          await AsyncStorage.setItem('user', JSON.stringify(validationResult.data));
+          setUser(validationResult.data);
+        }
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -1148,7 +1174,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                 borderWidth: 4.5,
                 borderColor: searchGlowAnim.interpolate({
                   inputRange: [0, 1],
-                  outputRange: ['rgba(0, 63, 101, 0.5)', nissanPrimaryBlue],
+                  outputRange: ['rgba(0, 63, 101, 0.5)', blackColor],
                 }),
               },
             ]}>
@@ -1174,7 +1200,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                       },
                     ],
                   }}>
-                  <Ionicons name="search" size={22} color="#003F65" />
+                  <Ionicons name="search" size={22} color={blackColor} />
                 </Animated.View>
               </View>
               <View style={styles.searchBarDivider} />
@@ -1182,7 +1208,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                 Search VIN, Make, Model...
               </Text>
               <View style={styles.searchArrow}>
-                <Ionicons name="chevron-forward" size={16} color="#999" />
+                <Ionicons name="chevron-forward" size={16} color={grayColor} />
               </View>
             </TouchableOpacity>
             <View style={styles.searchBarDivider} />
@@ -1208,7 +1234,7 @@ export default function HomeScreen({ navigation, setCheckUser }) {
                       },
                     ],
                   }}>
-                  <Ionicons name="barcode-outline" size={26} color="#003F65" />
+                  <Ionicons name="barcode-outline" size={26} color={blackColor} />
                 </Animated.View>
               </View>
               <Text style={styles.scannerLabel}>Scan</Text>
