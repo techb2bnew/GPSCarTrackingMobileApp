@@ -45,8 +45,11 @@ import { BaseStyle } from '../constants/Style';
 import { supabase } from '../lib/supabaseClient';
 import crashlytics from '@react-native-firebase/crashlytics';
 import { SUPPORT_EMAIL, SUPPORT_PHONE_TEL } from '../constants/ContactInfo';
+import { API_BASE_URL } from '../constants/Constants';
 
 const { flex, alignItemsCenter, alignJustifyCenter, resizeModeContain, flexDirectionRow, justifyContentSpaceBetween, textAlign } = BaseStyle;
+
+const DELETE_ACCOUNT_REQUEST_KEY = 'delete_account_request_sent';
 
 const ProfileScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -56,6 +59,8 @@ const ProfileScreen = ({ navigation }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDeleteRequestSent, setIsDeleteRequestSent] = useState(false);
+  const [isSubmittingDeleteRequest, setIsSubmittingDeleteRequest] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [editData, setEditData] = useState({
     name: '',
@@ -77,7 +82,17 @@ const ProfileScreen = ({ navigation }) => {
   useEffect(() => {
     loadUserData();
     loadStatsData();
+    loadDeleteAccountStatus();
   }, []);
+
+  const loadDeleteAccountStatus = async () => {
+    try {
+      const value = await AsyncStorage.getItem(DELETE_ACCOUNT_REQUEST_KEY);
+      setIsDeleteRequestSent(value === 'true');
+    } catch (error) {
+      console.error('Error loading delete account status:', error);
+    }
+  };
 
   // Load stats data when screen comes into focus and validate staff
   useEffect(() => {
@@ -401,6 +416,59 @@ const ProfileScreen = ({ navigation }) => {
   const handleOpenLogoutModal = () => {
     setShowLogoutModal(true);
     setIsLoggingOut(false);
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    if (isSubmittingDeleteRequest) {
+      return;
+    }
+
+    try {
+      setIsSubmittingDeleteRequest(true);
+
+      // Logged-in customer/staff ID from Supabase (staff table)
+      const customerId = user?.id;
+
+      // Console for verification
+      console.log('🗑️ Delete Account API payload - customerId:', customerId);
+
+      // Call delete account API with id and deleteAccount: true
+      const response = await fetch(`${API_BASE_URL}/api/deleteAccount`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: customerId,
+          deleteAccount: true,
+        }),
+      });
+
+      let responseJson = null;
+      try {
+        responseJson = await response.json();
+      } catch (e) {
+        // Non-JSON or empty response is fine, just log
+      }
+
+      console.log('🗑️ Delete Account API response status:', response.status);
+      console.log('🗑️ Delete Account API response body:', responseJson);
+
+      if (!response.ok) {
+        throw new Error(responseJson?.message || 'Failed to send delete account request');
+      }
+
+      await AsyncStorage.setItem(DELETE_ACCOUNT_REQUEST_KEY, 'true');
+      setIsDeleteRequestSent(true);
+
+      Toast.show('Your delete account request has been sent to the admin.', Toast.LONG);
+      setShowDeleteAccountModal(false);
+    } catch (error) {
+      console.error('Error sending delete account request:', error);
+      Alert.alert('Error', 'Failed to send delete account request. Please try again.');
+    } finally {
+      setIsSubmittingDeleteRequest(false);
+    }
   };
 
   const renderProfileHeader = () => {
@@ -889,66 +957,48 @@ const ProfileScreen = ({ navigation }) => {
               </View>
 
               {/* Title */}
-              <Text style={styles.deleteAccountTitle}>Delete Account</Text>
+              <Text style={styles.deleteAccountTitle}>
+                {isDeleteRequestSent ? 'Delete Account Request Sent' : 'Delete Account'}
+              </Text>
 
               {/* Message */}
               <Text style={styles.deleteAccountMessage}>
-                To delete your account, please contact your administrator. Your account deletion request will be processed by the admin team.
+                {isDeleteRequestSent
+                  ? 'Your delete account request has already been sent to the admin team. They will process it shortly.'
+                  : 'Are you sure you want to delete your account? This will send a delete account request to the admin for approval.'}
               </Text>
 
-              {/* Contact Options */}
-              <View style={styles.deleteAccountContactContainer}>
+              {isDeleteRequestSent ? (
+                // Already requested – just show Close button
                 <TouchableOpacity
-                  style={styles.deleteAccountContactButton}
-                  onPress={() => {
-                    const subject = encodeURIComponent("Account Deletion Request");
-
-                    const body = encodeURIComponent(
-                      `Hello,
-                  
-                  I would like to request deletion of my account.
-                  
-                  Email: ${user?.email || ""}
-                  Name: ${user?.name || ""}
-                  
-                  Thank you.`
-                    );
-
-                    const mailUrl = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
-
-                    Linking.openURL(mailUrl).catch(() => {
-                      Alert.alert("Error", "Unable to open email client");
-                    });
-                  }}
-
+                  style={styles.deleteAccountCloseButton}
+                  onPress={() => setShowDeleteAccountModal(false)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="mail-outline" size={20} color={whiteColor} />
-                  <Text style={styles.deleteAccountContactButtonText}>Email Support</Text>
+                  <Text style={styles.deleteAccountCloseButtonText}>Close</Text>
                 </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.deleteAccountContactButton, { backgroundColor: '#34C759', marginTop: 12 }]}
-                  onPress={() => {
-                    Linking.openURL(`tel:${SUPPORT_PHONE_TEL}`).catch(() => {
-                      Alert.alert('Error', 'Unable to make phone call');
-                    });
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="call-outline" size={20} color={whiteColor} />
-                  <Text style={styles.deleteAccountContactButtonText}>Call Support</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Close Button */}
-              <TouchableOpacity
-                style={styles.deleteAccountCloseButton}
-                onPress={() => setShowDeleteAccountModal(false)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.deleteAccountCloseButtonText}>Close</Text>
-              </TouchableOpacity>
+              ) : (
+                // First time – confirmation buttons
+                <View style={styles.deleteAccountButtonRow}>
+                  <TouchableOpacity
+                    style={[styles.deleteAccountActionButton, styles.deleteAccountCancelButton]}
+                    onPress={() => setShowDeleteAccountModal(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.deleteAccountCancelText}>No</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.deleteAccountActionButton, styles.deleteAccountConfirmButton]}
+                    onPress={handleConfirmDeleteAccount}
+                    activeOpacity={0.7}
+                    disabled={isSubmittingDeleteRequest}
+                  >
+                    <Text style={styles.deleteAccountConfirmText}>
+                      {isSubmittingDeleteRequest ? 'Please wait...' : 'Yes'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </Pressable>
         </View>
@@ -1658,6 +1708,37 @@ const styles = StyleSheet.create({
   },
   deleteAccountCloseButtonText: {
     color: blackColor,
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
+  },
+  deleteAccountButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: spacings.large,
+    gap: spacings.large,
+  },
+  deleteAccountActionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteAccountCancelButton: {
+    backgroundColor: lightGrayColor,
+  },
+  deleteAccountConfirmButton: {
+    backgroundColor: '#FF3B30',
+  },
+  deleteAccountCancelText: {
+    color: blackColor,
+    fontSize: style.fontSizeNormal.fontSize,
+    fontWeight: style.fontWeightMedium.fontWeight,
+  },
+  deleteAccountConfirmText: {
+    color: whiteColor,
     fontSize: style.fontSizeNormal.fontSize,
     fontWeight: style.fontWeightMedium.fontWeight,
   },

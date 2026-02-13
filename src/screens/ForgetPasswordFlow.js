@@ -28,7 +28,7 @@ import {
   gradientSoftBottom,
   blackColor,
 } from '../constants/Color';
-import { FORGOT_PASSWORD_API_BASE } from '../constants/Constants';
+import { API_BASE_URL } from '../constants/Constants';
 
 const ForgetPasswordFlow = () => {
   const navigation = useNavigation();
@@ -65,7 +65,7 @@ const ForgetPasswordFlow = () => {
 
   const sendOtp = async () => {
     try {
-      const res = await fetch(`${FORGOT_PASSWORD_API_BASE}/api/send-otp`, {
+      const res = await fetch(`${API_BASE_URL}/api/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -123,7 +123,7 @@ const ForgetPasswordFlow = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${FORGOT_PASSWORD_API_BASE}/api/verify-otp`, {
+      const res = await fetch(`${API_BASE_URL}/api/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -173,7 +173,7 @@ const ForgetPasswordFlow = () => {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${FORGOT_PASSWORD_API_BASE}/api/staff`, {
+      const res = await fetch(`${API_BASE_URL}/api/staff`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
